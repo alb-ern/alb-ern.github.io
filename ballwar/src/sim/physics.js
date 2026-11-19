@@ -14,6 +14,7 @@ import {
 } from './constants.js';
 import { getBallDef } from './balls.js';
 import { ABILITY_HANDLERS } from './abilities.js';
+import { getBallTuning } from './balanceTuning.js';
 
 export function createSeededRng(seed = Date.now()) {
   let s = seed >>> 0 || 123456789;
@@ -121,8 +122,11 @@ export class ArenaSimulation {
     speedOverride = null,
     contactDmgOverride = null,
   }) {
+    const tuning = getBallTuning(def.id);
     const speed = speedOverride ?? def.speed;
-    const hp = hpOverride ?? def.hp;
+    const hp =
+      hpOverride ??
+      (def.id === 'cell' ? def.hp : Math.max(10, Math.round(def.hp * tuning.hpMult)));
     return {
       id: this.nextEntityId++,
       owner,
@@ -139,6 +143,7 @@ export class ArenaSimulation {
       hp,
       maxHp: hp,
       baseSpeed: speed,
+      rateMult: tuning.rateMult,
       contactDmg: contactDmgOverride ?? def.contactDmg ?? BASE_CONTACT_DMG,
       isSplitChild,
       generation,
@@ -149,6 +154,8 @@ export class ArenaSimulation {
       poisonTimer: 0,
       poisonTick: 0,
       poisonDmg: 0,
+      poisonOwner: 0,
+      _dmgCarry: 0,
       flashTimer: 0,
       contactCooldowns: {},
       trail: [],
@@ -297,7 +304,17 @@ export class ArenaSimulation {
 
   dealDamage(target, rawAmount, sourceOwner, reason = 'hit') {
     if (!target || target.hp <= 0) return 0;
-    const dmg = Math.max(1, Math.round(rawAmount));
+    let amount = rawAmount;
+    if (sourceOwner === 1 || sourceOwner === 2) {
+      const sourceBallId = this.selectedBallIds[sourceOwner];
+      if (sourceBallId) {
+        const dmgMult = getBallTuning(sourceBallId).dmgMult;
+        amount *= sourceBallId === 'vampire' ? Math.max(1, dmgMult) : dmgMult;
+      }
+    }
+    const total = amount + (target._dmgCarry || 0);
+    const dmg = Math.max(1, Math.round(total));
+    target._dmgCarry = Math.max(-0.5, Math.min(0.5, total - dmg));
     target.hp = Math.max(0, target.hp - dmg);
     target.flashTimer = 0.12;
     this.emitText(
@@ -340,10 +357,11 @@ export class ArenaSimulation {
     this.emitEvent('heal', { owner: ball.owner, amount: actual });
   }
 
-  applyPoison(ball, dmgPerTick, ticks) {
+  applyPoison(ball, dmgPerTick, ticks, sourceOwner = 0) {
     if (!ball || ball.hp <= 0) return;
     ball.poisonDmg = Math.max(ball.poisonDmg, dmgPerTick);
     ball.poisonTimer = Math.max(ball.poisonTimer, ticks * 0.55);
+    if (sourceOwner) ball.poisonOwner = sourceOwner;
     if (ball.poisonTick <= 0) ball.poisonTick = 0.5;
   }
 
@@ -381,7 +399,8 @@ export class ArenaSimulation {
       this.updateBallMovement(ball, simDt);
       const handler = ABILITY_HANDLERS[ball.ballId];
       if (handler && handler.onUpdate) {
-        handler.onUpdate(this, ball, simDt);
+        const rate = ball.ballId === 'cell' ? Math.max(1, ball.rateMult || 1) : (ball.rateMult || 1);
+        handler.onUpdate(this, ball, simDt * rate);
       }
     }
 
@@ -440,7 +459,7 @@ export class ArenaSimulation {
       ball.poisonTick -= dt;
       if (ball.poisonTick <= 0) {
         ball.poisonTick = 0.55;
-        this.dealDamage(ball, ball.poisonDmg || 2, 0, 'poison');
+        this.dealDamage(ball, ball.poisonDmg || 2, ball.poisonOwner || 0, 'poison');
       }
     }
   }
@@ -677,7 +696,8 @@ export class ArenaSimulation {
       }
 
       if (h.kind === 'track') {
-        h.telegraph -= dt;
+        const trackRate = getBallTuning(this.selectedBallIds[h.owner] || 'conductor').rateMult || 1;
+        h.telegraph -= dt * trackRate;
         if (h.telegraph <= 0 && !h.fired) {
           h.fired = true;
           this.addProjectile({
@@ -732,7 +752,8 @@ export class ArenaSimulation {
       if (h.kind === 'turret') {
         h.x = Math.max(b.left + 18, Math.min(b.right - 18, h.x));
         h.y = Math.max(b.top + 18, Math.min(b.bottom - 18, h.y));
-        h.fireTimer -= dt;
+        const turretRate = getBallTuning(this.selectedBallIds[h.owner] || 'cannon').rateMult || 1;
+        h.fireTimer -= dt * turretRate;
         if (h.fireTimer <= 0) {
           h.fireTimer = h.fireRate;
           const enemy = this.balls.find((ball) => ball.owner !== h.owner && ball.hp > 0);
@@ -868,7 +889,7 @@ export class ArenaSimulation {
             if (dist <= enemy.radius + h.radius) {
               h.hitCooldown = 0.65;
               this.dealDamage(enemy, h.dmg, h.owner, 'spike');
-              this.applyPoison(enemy, 2, h.poisonTicks);
+              this.applyPoison(enemy, 2, h.poisonTicks, h.owner);
               if (h.slowDuration) {
                 enemy.slowTimer = Math.max(enemy.slowTimer, h.slowDuration);
               }
@@ -963,7 +984,7 @@ export class ArenaSimulation {
           this.dealDamage(enemy, p.dmg, p.owner, p.kind);
 
           if (p.poisonTicks) {
-            this.applyPoison(enemy, 2, p.poisonTicks);
+            this.applyPoison(enemy, 2, p.poisonTicks, p.owner);
           }
           if (p.slowDuration) {
             enemy.slowTimer = Math.max(enemy.slowTimer, p.slowDuration);
