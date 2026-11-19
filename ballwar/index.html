@@ -7,7 +7,22 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800;900&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="./styles/main.css" />
+  <script type="importmap">
+    {
+      "imports": {
+        "./src/sim/constants.js": "./src/sim/constants.js?v=20261120c",
+        "./src/sim/balls.js": "./src/sim/balls.js?v=20261120c",
+        "./src/sim/physics.js": "./src/sim/physics.js?v=20261120c",
+        "./src/sim/ai.js": "./src/sim/ai.js?v=20261120c",
+        "./src/sim/abilities.js": "./src/sim/abilities.js?v=20261120c",
+        "./src/sim/abilitiesExtra.js": "./src/sim/abilitiesExtra.js?v=20261120c",
+        "./src/sim/balanceTuning.js": "./src/sim/balanceTuning.js?v=20261120c",
+        "./src/net/protocol.js": "./src/net/protocol.js?v=20261120c",
+        "./src/render/arenaRenderer.js": "./src/render/arenaRenderer.js?v=20261120c"
+      }
+    }
+  </script>
+  <link rel="stylesheet" href="./styles/main.css?v=20261120c" />
 </head>
 <body>
   <div class="app-shell">
@@ -403,6 +418,6 @@
   </div>
 
   <script src="./vendor/peerjs.min.js"></script>
-  <script type="module" src="./src/ui/app.js"></script>
+  <script type="module" src="./src/ui/app.js?v=20261120c"></script>
 </body>
 </html>
