@@ -6,6 +6,7 @@ import {
   MAX_ACCUM_DT,
   MODES,
   PHASES,
+  SUDDEN_DEATH_START_SEC,
 } from '../sim/constants.js';
 import { BALL_DEFS, getBallDef } from '../sim/balls.js';
 import { ArenaSimulation } from '../sim/physics.js';
@@ -62,6 +63,7 @@ const ui = {
   sandboxP2: 'spider',
   sandboxTeams: { 1: ['verity', 'sword'], 2: ['spider', 'orbital'] },
   sandboxSlot: { 1: 0, 2: 0 },
+  sandboxSearch: { 1: '', 2: '' },
   dexRarity: 'ALL',
   dexQuery: '',
   pendingShieldCallback: null,
@@ -89,6 +91,10 @@ function setTeamFormat(size) {
   document.querySelectorAll('[data-mode-format-tag]').forEach((el) => {
     el.textContent = next === 2 ? '2v2' : '1v1';
   });
+  const fightBtn = $('btn-sandbox-fight');
+  if (fightBtn) {
+    fightBtn.textContent = next === 2 ? 'Launch 2v2 Duel' : 'Launch 1v1 Duel';
+  }
   $('view-arena').classList.toggle('is-2v2', next === 2);
   renderSandboxGrids();
   updateSandboxPreviews();
@@ -171,6 +177,7 @@ function renderMiniBallGrid(container, selectedId, onPick) {
     btn.type = 'button';
     btn.className = `mini-ball-btn${def.id === selectedId ? ' is-selected' : ''}`;
     btn.dataset.ballId = def.id;
+    btn.dataset.search = `${def.id} ${def.name} ${def.rarity} ${def.archetype} ${def.quote}`.toLowerCase();
 
     const c = document.createElement('canvas');
     c.width = 48;
@@ -192,6 +199,14 @@ function renderMiniBallGrid(container, selectedId, onPick) {
 function syncGridSelection(container, selectedId) {
   for (const btn of container.querySelectorAll('.mini-ball-btn')) {
     btn.classList.toggle('is-selected', btn.dataset.ballId === selectedId);
+  }
+}
+
+function filterSandboxGrid(container, query) {
+  const q = (query || '').trim().toLowerCase();
+  for (const btn of container.querySelectorAll('.mini-ball-btn')) {
+    const hay = btn.dataset.search || '';
+    btn.classList.toggle('hidden', Boolean(q) && !hay.includes(q));
   }
 }
 
@@ -236,6 +251,9 @@ function renderSandboxGrids() {
   } else {
     syncGridSelection(g2, sel2);
   }
+
+  filterSandboxGrid(g1, ui.sandboxSearch[1]);
+  filterSandboxGrid(g2, ui.sandboxSearch[2]);
 }
 
 function updateSandboxPreviews() {
@@ -303,7 +321,7 @@ function startSandboxDuel(p1Arg = null, p2Arg = null) {
     mode: MODES.SANDBOX,
     teamSize: is2v2 ? 2 : 1,
     hearts,
-    suddenDeathStart: Number.isFinite(sd) ? sd : 22,
+    suddenDeathStart: Number.isFinite(sd) ? sd : SUDDEN_DEATH_START_SEC,
     skipDraft: true,
   });
   ui.paused = false;
@@ -320,7 +338,7 @@ function runSandboxBatchSim(runs = 10) {
   const name1 = formatTeamNames(t1);
   const name2 = formatTeamNames(t2);
   const sdVal = Number($('sb-sd').value);
-  const suddenDeathStart = Number.isFinite(sdVal) ? sdVal : 22;
+  const suddenDeathStart = Number.isFinite(sdVal) ? sdVal : SUDDEN_DEATH_START_SEC;
 
   let p1Wins = 0;
   let p2Wins = 0;
@@ -371,8 +389,9 @@ function runSandboxBatchSim(runs = 10) {
 }
 
 /* ==================== DRAFT FLOW ==================== */
-function startArenaMode(mode) {
-  sim.startMatch({ mode, teamSize: ui.teamSize, hearts: 3, suddenDeathStart: 22 });
+function startArenaMode(mode, teamSize = ui.teamSize) {
+  setTeamFormat(teamSize);
+  sim.startMatch({ mode, teamSize: ui.teamSize, hearts: 3, suddenDeathStart: SUDDEN_DEATH_START_SEC });
   ui.paused = false;
   ui.simSpeed = 1;
   updateFightButtons();
@@ -693,6 +712,7 @@ function lockCurrentAim() {
   ui.paused = false;
   updateFightButtons();
   sim.launchRound(sim.teamSize === 2 ? angles1 : angles1[0], sim.teamSize === 2 ? angles2 : angles2[0]);
+  updateHud();
   soundEngine.handleSimEvents(sim.consumeEvents());
 }
 
@@ -826,7 +846,7 @@ function bindP2PHandlers() {
 
       if (role === 'host') {
         online.teamSize = ui.teamSize;
-        sim.startMatch({ mode: MODES.ONLINE, teamSize: ui.teamSize, hearts: 3, suddenDeathStart: 22 });
+        sim.startMatch({ mode: MODES.ONLINE, teamSize: ui.teamSize, hearts: 3, suddenDeathStart: SUDDEN_DEATH_START_SEC });
         ui.paused = false;
         ui.simSpeed = 1;
         online.myDraftPick = null;
@@ -963,7 +983,7 @@ function hostLaunchOnlineFight() {
 function hostAdvanceOnlineRound() {
   $('arena-banner').classList.add('hidden');
   if (sim.phase === PHASES.MATCH_END) {
-    sim.startMatch({ mode: MODES.ONLINE, teamSize: sim.teamSize, hearts: 3, suddenDeathStart: 22 });
+    sim.startMatch({ mode: MODES.ONLINE, teamSize: sim.teamSize, hearts: 3, suddenDeathStart: SUDDEN_DEATH_START_SEC });
   } else {
     sim.roundNumber += 1;
     sim.resetRoundEntities();
@@ -1247,7 +1267,16 @@ function bindEvents() {
 
   $('btn-quick-bot').addEventListener('click', () => {
     soundEngine.unlock();
-    startArenaMode(MODES.BOT);
+    startArenaMode(MODES.BOT, 1);
+  });
+  $('btn-quick-bot-2v2').addEventListener('click', () => {
+    soundEngine.unlock();
+    startArenaMode(MODES.BOT, 2);
+  });
+  $('btn-quick-sandbox-2v2').addEventListener('click', () => {
+    soundEngine.unlock();
+    setTeamFormat(2);
+    showView('sandbox');
   });
   $('btn-quick-online').addEventListener('click', () => {
     soundEngine.unlock();
@@ -1255,22 +1284,43 @@ function bindEvents() {
   });
   $('btn-mode-online').addEventListener('click', () => {
     soundEngine.unlock();
+    setTeamFormat(1);
+    showView('online');
+  });
+  $('btn-mode-online-2v2').addEventListener('click', () => {
+    soundEngine.unlock();
+    setTeamFormat(2);
     showView('online');
   });
   $('btn-mode-bot').addEventListener('click', () => {
     soundEngine.unlock();
-    startArenaMode(MODES.BOT);
+    startArenaMode(MODES.BOT, 1);
+  });
+  $('btn-mode-bot-2v2').addEventListener('click', () => {
+    soundEngine.unlock();
+    startArenaMode(MODES.BOT, 2);
   });
   $('btn-mode-2p').addEventListener('click', () => {
     soundEngine.unlock();
-    startArenaMode(MODES.LOCAL_2P);
+    startArenaMode(MODES.LOCAL_2P, 1);
+  });
+  $('btn-mode-2p-2v2').addEventListener('click', () => {
+    soundEngine.unlock();
+    startArenaMode(MODES.LOCAL_2P, 2);
   });
   $('btn-mode-sandbox').addEventListener('click', () => {
     soundEngine.unlock();
+    setTeamFormat(1);
+    showView('sandbox');
+  });
+  $('btn-mode-sandbox-2v2').addEventListener('click', () => {
+    soundEngine.unlock();
+    setTeamFormat(2);
     showView('sandbox');
   });
   $('btn-verity-spider').addEventListener('click', () => {
     soundEngine.unlock();
+    setTeamFormat(1);
     startSandboxDuel('verity', 'spider');
   });
 
@@ -1321,6 +1371,14 @@ function bindEvents() {
   });
 
   // Sandbox
+  $('sb-p1-search').addEventListener('input', (e) => {
+    ui.sandboxSearch[1] = e.target.value;
+    filterSandboxGrid($('sb-p1-grid'), ui.sandboxSearch[1]);
+  });
+  $('sb-p2-search').addEventListener('input', (e) => {
+    ui.sandboxSearch[2] = e.target.value;
+    filterSandboxGrid($('sb-p2-grid'), ui.sandboxSearch[2]);
+  });
   document.querySelectorAll('#sb-p1-slots .slot-tab, #sb-p2-slots .slot-tab').forEach((btn) => {
     btn.addEventListener('click', () => {
       const side = Number(btn.dataset.side);

@@ -252,7 +252,7 @@ export const EXTRA_ABILITY_HANDLERS = {
     },
   },
 
-  /** 54. Micro Ball (80 HP): Shrinks down to 20px dodger and fires high-speed needles on bounce. */
+  /** 54. Micro Ball (70 HP): Shrinks down to 20px dodger and fires high-speed needles on bounce. */
   micro: {
     onInit(sim, ball) {
       ball.state = { cd: 0 };

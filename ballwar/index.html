@@ -30,23 +30,18 @@
     <main id="view-lobby" class="view view-lobby">
       <section class="hero-card">
         <div class="hero-copy">
-          <p class="hero-kicker" id="lobby-kicker">1v1 / 2v2 Physics Auto-Battler • 100 Iconic Balls Unlocked</p>
+          <p class="hero-kicker" id="lobby-kicker">1v1 &amp; 2v2 Physics Auto-Battler • 100 Iconic Balls Unlocked</p>
           <h1>Pick. Aim. <span class="accent-gold">Bounce to Win!</span></h1>
           <p class="hero-sub">
             Draft from 3 random balls or pick any matchup directly, lock your opening trajectory,
             and watch automated wall-bounce abilities clash until all 3 hearts shatter.
           </p>
-          <div class="format-bar">
-            <span class="format-label">Battle Mode:</span>
-            <div class="format-toggle" data-format-toggle>
-              <button class="fmt-btn is-active" data-team-size="1" type="button">1v1 Arena (600)</button>
-              <button class="fmt-btn" data-team-size="2" type="button">2v2 Teams (740 Arena)</button>
-            </div>
-          </div>
           <div class="hero-cta-row">
-            <button class="btn btn-primary btn-lg" id="btn-quick-bot" type="button">Play VS Bot</button>
+            <button class="btn btn-primary btn-lg" id="btn-quick-bot" type="button">Play 1v1 Bot</button>
+            <button class="btn btn-gold btn-lg" id="btn-quick-bot-2v2" type="button">Play 2v2 Bot (740 Arena)</button>
+            <button class="btn btn-purple btn-lg" id="btn-quick-sandbox-2v2" type="button">Sandbox 2v2</button>
             <button class="btn btn-secondary btn-lg" id="btn-quick-online" type="button">Online P2P</button>
-            <button class="btn btn-gold btn-lg" id="btn-verity-spider" type="button">Test: Verity vs Spider</button>
+            <button class="btn btn-ghost btn-lg" id="btn-verity-spider" type="button">Verity vs Spider</button>
           </div>
         </div>
         <div class="hero-showcase" aria-hidden="true">
@@ -67,30 +62,42 @@
       <section class="mode-grid" aria-label="Game Modes">
         <article class="mode-card" data-mode="online">
           <div class="mode-badge green">REAL MULTIPLAYER</div>
-          <h2>Online <span data-mode-format-tag>1v1</span> (P2P)</h2>
+          <h2>Online P2P</h2>
           <p>Play friends from anywhere via WebRTC room codes! Secret drafts, simultaneous Lock Aim, and Best-of-3 Hearts.</p>
-          <button class="btn btn-secondary" id="btn-mode-online" type="button">Play Online</button>
+          <div class="mode-card-actions">
+            <button class="btn btn-secondary" id="btn-mode-online" type="button">1v1 P2P</button>
+            <button class="btn btn-primary" id="btn-mode-online-2v2" type="button">2v2 P2P</button>
+          </div>
         </article>
 
         <article class="mode-card" data-mode="bot">
           <div class="mode-badge blue">1 PLAYER</div>
-          <h2>VS Bot (<span data-mode-format-tag>1v1</span>)</h2>
+          <h2>VS Bot</h2>
           <p>Best-of-3 Hearts arena match. Draft random balls (2 free Rerolls + All Balls picker) and outsmart the AI Bot.</p>
-          <button class="btn btn-primary" id="btn-mode-bot" type="button">Start VS Bot</button>
+          <div class="mode-card-actions">
+            <button class="btn btn-primary" id="btn-mode-bot" type="button">Bot 1v1</button>
+            <button class="btn btn-gold" id="btn-mode-bot-2v2" type="button">Bot 2v2</button>
+          </div>
         </article>
 
         <article class="mode-card" data-mode="local2p">
           <div class="mode-badge purple">SAME DEVICE</div>
           <h2>Local 2-Player</h2>
-          <p>Pass-and-play <span data-mode-format-tag>1v1</span>! Secret ball drafts and hidden Lock Aim angles before all balls launch together.</p>
-          <button class="btn btn-purple" id="btn-mode-2p" type="button">Start Local 2P</button>
+          <p>Pass-and-play! Secret ball drafts and hidden Lock Aim angles before all balls launch together.</p>
+          <div class="mode-card-actions">
+            <button class="btn btn-purple" id="btn-mode-2p" type="button">Local 1v1</button>
+            <button class="btn btn-secondary" id="btn-mode-2p-2v2" type="button">Local 2v2</button>
+          </div>
         </article>
 
         <article class="mode-card" data-mode="sandbox">
           <div class="mode-badge gold">ALL UNLOCKED</div>
-          <h2>Sandbox <span data-mode-format-tag>1v1</span></h2>
-          <p>Pick any balls vs any balls directly, customize Sudden Death &amp; Hearts, or run 10 instant simulations to test metas.</p>
-          <button class="btn btn-gold" id="btn-mode-sandbox" type="button">Open Sandbox</button>
+          <h2>Sandbox Lab</h2>
+          <p>Pick any balls vs any balls directly, search all 100 balls, customize Sudden Death &amp; Hearts, or simulate 10 matches.</p>
+          <div class="mode-card-actions">
+            <button class="btn btn-gold" id="btn-mode-sandbox" type="button">Sandbox 1v1</button>
+            <button class="btn btn-primary" id="btn-mode-sandbox-2v2" type="button">Sandbox 2v2</button>
+          </div>
         </article>
       </section>
     </main>
@@ -102,9 +109,9 @@
           <h2>Online <span data-mode-format-tag>1v1</span> Multiplayer (WebRTC P2P)</h2>
           <p class="muted">Serverless PeerJS room codes — works over LAN, Tailscale, or GitHub Pages. Host sets 1v1 or 2v2 format.</p>
         </div>
-        <div class="format-toggle" data-format-toggle>
-          <button class="fmt-btn is-active" data-team-size="1" type="button">1v1 (600)</button>
-          <button class="fmt-btn" data-team-size="2" type="button">2v2 (740 Arena)</button>
+        <div class="format-btn-row" data-format-toggle>
+          <button class="btn btn-sm fmt-btn is-active" data-team-size="1" type="button">1v1 (600 Arena)</button>
+          <button class="btn btn-sm fmt-btn" data-team-size="2" type="button">2v2 Teams (740 Arena)</button>
         </div>
       </div>
 
@@ -144,12 +151,12 @@
       <div class="panel-header">
         <div>
           <h2>Sandbox <span data-mode-format-tag>1v1</span> Matchup Lab</h2>
-          <p class="muted">Select any Blue vs Red balls, swap 1v1 / 2v2 (740 Arena), or simulate 10 instant duels.</p>
+          <p class="muted">Type to search any of the 100 balls, switch between 1v1 &amp; 2v2 (740 Arena), or run 10 simulations.</p>
         </div>
         <div class="sb-top-actions">
-          <div class="format-toggle" data-format-toggle>
-            <button class="fmt-btn is-active" data-team-size="1" type="button">1v1 (600)</button>
-            <button class="fmt-btn" data-team-size="2" type="button">2v2 (740 Arena)</button>
+          <div class="format-btn-row" data-format-toggle>
+            <button class="btn btn-sm fmt-btn is-active" data-team-size="1" type="button">1v1 (600 Arena)</button>
+            <button class="btn btn-sm fmt-btn" data-team-size="2" type="button">2v2 Teams (740 Arena)</button>
           </div>
           <div class="preset-row">
             <button class="btn btn-sm btn-gold" data-preset="duplicator,titan" type="button">Duplicator vs Titan</button>
@@ -172,6 +179,7 @@
             <button class="slot-tab is-active" data-side="1" data-slot="0" type="button">Ball 1</button>
             <button class="slot-tab" data-side="1" data-slot="1" type="button">Ball 2</button>
           </div>
+          <input type="search" id="sb-p1-search" class="search-input sb-search" placeholder="Search Blue ball..." aria-label="Search Blue ball" />
           <div id="sb-p1-grid" class="mini-ball-grid"></div>
         </div>
 
@@ -209,14 +217,15 @@
               <span>Sudden Death</span>
               <select id="sb-sd">
                 <option value="15">15s (Fast)</option>
-                <option value="22" selected>22s (Standard)</option>
+                <option value="30" selected>30s (Standard)</option>
+                <option value="45">45s (Late)</option>
                 <option value="0">Off</option>
               </select>
             </label>
           </div>
 
           <div class="sb-actions">
-            <button class="btn btn-primary btn-lg" id="btn-sandbox-fight" type="button">Launch Duel</button>
+            <button class="btn btn-primary btn-lg" id="btn-sandbox-fight" type="button">Launch 1v1 Duel</button>
             <button class="btn btn-secondary" id="btn-sandbox-sim10" type="button">Simulate 10 Matches</button>
           </div>
 
@@ -233,6 +242,7 @@
             <button class="slot-tab is-active" data-side="2" data-slot="0" type="button">Ball 1</button>
             <button class="slot-tab" data-side="2" data-slot="1" type="button">Ball 2</button>
           </div>
+          <input type="search" id="sb-p2-search" class="search-input sb-search" placeholder="Search Red ball..." aria-label="Search Red ball" />
           <div id="sb-p2-grid" class="mini-ball-grid"></div>
         </div>
       </div>

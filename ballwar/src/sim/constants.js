@@ -7,7 +7,7 @@ export const DEFAULT_HEARTS = 3;
 export const DRAFT_TIMER_SEC = 25;
 export const FREE_REROLLS_PER_ROUND = 2;
 
-export const SUDDEN_DEATH_START_SEC = 22;
+export const SUDDEN_DEATH_START_SEC = 30;
 export const SUDDEN_DEATH_SHRINK_RATE = 13; // px per second per side
 export const MIN_ARENA_SIZE = 280;
 export const MIN_ARENA_SIZE_2V2 = 360;
@@ -15,7 +15,7 @@ export const MIN_ARENA_SIZE_2V2 = 360;
 export const BASE_BALL_RADIUS = 50;
 export const MAX_TEAM_BALLS = 16;
 export const BASE_CONTACT_DMG = 0;
-export const CONTACT_COOLDOWN_SEC = 0.22;
+export const CONTACT_COOLDOWN_SEC = 0.30;
 export const MIN_BALL_SPEED = 240;
 export const MAX_BALL_SPEED = 720;
 
