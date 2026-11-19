@@ -11,6 +11,7 @@ export const SUDDEN_DEATH_SHRINK_RATE = 13; // px per second per side
 export const MIN_ARENA_SIZE = 280;
 
 export const BASE_BALL_RADIUS = 50;
+export const MAX_TEAM_BALLS = 16;
 export const BASE_CONTACT_DMG = 0;
 export const CONTACT_COOLDOWN_SEC = 0.22;
 export const MIN_BALL_SPEED = 240;

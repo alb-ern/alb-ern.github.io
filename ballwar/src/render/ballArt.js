@@ -1,4 +1,5 @@
 import { getBallDef } from '../sim/balls.js';
+import { drawExtraBallPattern } from './ballArtExtra.js';
 
 function drawPolygon(ctx, cx, cy, r, sides, rot = 0) {
   ctx.beginPath();
@@ -623,6 +624,7 @@ function drawBallPattern(ctx, id, x, y, r, def, time, opts = {}) {
       break;
     }
     default:
+      drawExtraBallPattern(ctx, def, x, y, r, opts);
       break;
   }
   ctx.restore();
@@ -635,6 +637,9 @@ export function drawBallBody(ctx, ballOrDef, x, y, radius, opts = {}) {
   const owner = opts.owner || 0;
 
   ctx.save();
+  if (opts.phaseTimer > 0) {
+    ctx.globalAlpha = 0.42;
+  }
 
   // Verity transformation aura
   if (id === 'verity' && opts.stage && opts.stage > 1) {

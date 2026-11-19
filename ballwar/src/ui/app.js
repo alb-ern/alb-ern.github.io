@@ -148,17 +148,33 @@ function renderMiniBallGrid(container, selectedId, onPick) {
   }
 }
 
+function syncGridSelection(container, selectedId) {
+  for (const btn of container.querySelectorAll('.mini-ball-btn')) {
+    btn.classList.toggle('is-selected', btn.dataset.ballId === selectedId);
+  }
+}
+
 function renderSandboxGrids() {
-  renderMiniBallGrid($('sb-p1-grid'), ui.sandboxP1, (id) => {
-    ui.sandboxP1 = id;
-    renderSandboxGrids();
-    updateSandboxPreviews();
-  });
-  renderMiniBallGrid($('sb-p2-grid'), ui.sandboxP2, (id) => {
-    ui.sandboxP2 = id;
-    renderSandboxGrids();
-    updateSandboxPreviews();
-  });
+  const g1 = $('sb-p1-grid');
+  const g2 = $('sb-p2-grid');
+  if (!g1.children.length) {
+    renderMiniBallGrid(g1, ui.sandboxP1, (id) => {
+      ui.sandboxP1 = id;
+      syncGridSelection(g1, id);
+      updateSandboxPreviews();
+    });
+  } else {
+    syncGridSelection(g1, ui.sandboxP1);
+  }
+  if (!g2.children.length) {
+    renderMiniBallGrid(g2, ui.sandboxP2, (id) => {
+      ui.sandboxP2 = id;
+      syncGridSelection(g2, id);
+      updateSandboxPreviews();
+    });
+  } else {
+    syncGridSelection(g2, ui.sandboxP2);
+  }
 }
 
 function updateSandboxPreviews() {

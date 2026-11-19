@@ -111,6 +111,18 @@ function drawHazard(ctx, h, bounds, time) {
         potion_poison: ['rgba(34, 197, 94, 0.24)', 'rgba(74, 222, 128, 0.9)'],
         potion_dmg: ['rgba(239, 68, 68, 0.26)', 'rgba(251, 146, 60, 0.92)'],
         range: ['rgba(129, 140, 248, 0.14)', 'rgba(165, 180, 252, 0.85)'],
+        gravity: ['rgba(15, 23, 42, 0.58)', 'rgba(139, 92, 246, 0.95)'],
+        repulsor: ['rgba(34, 211, 238, 0.16)', 'rgba(56, 189, 248, 0.85)'],
+        chronos: ['rgba(250, 204, 21, 0.18)', 'rgba(253, 224, 71, 0.9)'],
+        anchor: ['rgba(51, 65, 85, 0.22)', 'rgba(56, 189, 248, 0.85)'],
+        tornado: ['rgba(148, 163, 184, 0.22)', 'rgba(224, 242, 254, 0.88)'],
+        vortex_pull: ['rgba(59, 130, 246, 0.18)', 'rgba(96, 165, 250, 0.85)'],
+        vortex_push: ['rgba(239, 68, 68, 0.18)', 'rgba(248, 113, 113, 0.85)'],
+        magma: ['rgba(234, 88, 12, 0.34)', 'rgba(253, 224, 71, 0.92)'],
+        cloud: ['rgba(71, 85, 105, 0.42)', 'rgba(253, 224, 71, 0.9)'],
+        sandstorm: ['rgba(217, 119, 6, 0.24)', 'rgba(253, 230, 138, 0.8)'],
+        mimic_lure: ['rgba(251, 191, 36, 0.35)', 'rgba(254, 240, 138, 0.95)'],
+        ufo_beam: ['rgba(74, 222, 128, 0.18)', 'rgba(168, 85, 247, 0.88)'],
       };
       const [fill, stroke] = palettes[h.variant] || ['rgba(239, 68, 68, 0.22)', 'rgba(248, 113, 113, 0.85)'];
       const pulse = h.variant === 'range' ? 0.96 + Math.sin(time * 9) * 0.04 : 0.92 + Math.sin(time * 6) * 0.08;
@@ -376,6 +388,78 @@ function drawHazard(ctx, h, bounds, time) {
       break;
     }
 
+    case 'portal_pair': {
+      const col = h.portalColor || '#38bdf8';
+      ctx.strokeStyle = col;
+      ctx.lineWidth = 4;
+      ctx.shadowColor = col;
+      ctx.shadowBlur = 12;
+      ctx.beginPath();
+      ctx.arc(h.x, h.y, h.radius * (0.92 + Math.sin(time * 8) * 0.08), 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.fillStyle = 'rgba(15, 23, 42, 0.72)';
+      ctx.fill();
+      ctx.shadowBlur = 0;
+      break;
+    }
+
+    case 'pinball_bumper': {
+      ctx.fillStyle = '#be185d';
+      ctx.strokeStyle = '#fef08a';
+      ctx.lineWidth = 3.5;
+      ctx.beginPath();
+      ctx.arc(h.x, h.y, h.radius, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.strokeStyle = '#f472b6';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(h.x, h.y, h.radius * 0.56, 0, Math.PI * 2);
+      ctx.stroke();
+      break;
+    }
+
+    case 'ring_wave': {
+      if (h.delay > 0) {
+        if (h.variant === 'quake') {
+          ctx.strokeStyle = 'rgba(251, 191, 36, 0.78)';
+          ctx.lineWidth = 4;
+          ctx.setLineDash([10, 8]);
+          ctx.beginPath();
+          ctx.moveTo(h.x1, h.y1);
+          ctx.lineTo(h.x2, h.y2);
+          ctx.stroke();
+          ctx.setLineDash([]);
+        } else {
+          ctx.strokeStyle = 'rgba(249, 115, 22, 0.85)';
+          ctx.fillStyle = 'rgba(234, 88, 12, 0.2)';
+          ctx.lineWidth = 2.5;
+          ctx.beginPath();
+          ctx.arc(h.x, h.y, h.blastRadius || h.radius || 85, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+        }
+      } else if (h.sweepVx != null || h.sweepVy != null) {
+        ctx.fillStyle = 'rgba(14, 165, 233, 0.52)';
+        ctx.strokeStyle = '#bae6fd';
+        ctx.lineWidth = 3;
+        const w = h.w || 44;
+        const hh = h.h || 240;
+        ctx.beginPath();
+        ctx.roundRect(h.x - w * 0.5, h.y - hh * 0.5, w, hh, 12);
+        ctx.fill();
+        ctx.stroke();
+      } else {
+        const waveCol = h.variant === 'solar' ? '#fbbf24' : h.variant === 'blood' ? '#ef4444' : h.variant === 'ghost' ? '#c084fc' : '#f472b6';
+        ctx.strokeStyle = waveCol;
+        ctx.lineWidth = 5;
+        ctx.beginPath();
+        ctx.arc(h.x, h.y, h.currentRadius || h.radius || 40, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      break;
+    }
+
     default:
       break;
   }
@@ -406,7 +490,10 @@ function drawProjectile(ctx, p, time = 0) {
     p.kind === 'harpoon' ||
     p.kind === 'arrow' ||
     p.kind === 'syringe' ||
-    p.kind === 'hook'
+    p.kind === 'hook' ||
+    p.kind === 'needle' ||
+    p.kind === 'sniper_round' ||
+    p.kind === 'dart'
   ) {
     ctx.translate(p.x, p.y);
     ctx.rotate(angle);
@@ -415,11 +502,11 @@ function drawProjectile(ctx, p, time = 0) {
     ctx.lineWidth = 2;
     const len = p.kind === 'harpoon' || p.kind === 'hook' ? 22 : Math.max(12, (p.radius || 10) * 1.35);
     const hw = Math.max(5.5, len * 0.48);
-    if (p.kind === 'arrow') {
-      ctx.strokeStyle = '#fbbf24';
+    if (p.kind === 'arrow' || p.kind === 'sniper_round') {
+      ctx.strokeStyle = p.kind === 'sniper_round' ? '#ef4444' : '#fbbf24';
       ctx.lineWidth = 3;
       ctx.beginPath();
-      ctx.moveTo(-len * 0.9, 0);
+      ctx.moveTo(-len * 1.2, 0);
       ctx.lineTo(len * 0.6, 0);
       ctx.stroke();
     }
@@ -429,6 +516,17 @@ function drawProjectile(ctx, p, time = 0) {
     ctx.lineTo(-len * 0.55, hw);
     ctx.closePath();
     ctx.fill();
+    ctx.stroke();
+  } else if (p.kind === 'boomerang') {
+    ctx.translate(p.x, p.y);
+    ctx.rotate(time * 16 + (p.id || 0));
+    ctx.strokeStyle = p.color || '#fb923c';
+    ctx.lineWidth = 5;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(-12, 8);
+    ctx.lineTo(4, -12);
+    ctx.lineTo(14, 7);
     ctx.stroke();
   } else if (p.kind === 'shuriken') {
     ctx.translate(p.x, p.y);
@@ -588,6 +686,79 @@ function drawHelper(ctx, h, sim) {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(String(h.dmg), h.x, h.y + 0.5);
+  } else if (h.kind === 'hammer') {
+    const parent = sim && sim.balls.find((b) => b.id === h.parentId);
+    if (parent) {
+      ctx.strokeStyle = '#78350f';
+      ctx.lineWidth = 9;
+      ctx.beginPath();
+      ctx.moveTo(parent.x, parent.y);
+      ctx.lineTo(h.x, h.y);
+      ctx.stroke();
+    }
+    ctx.translate(h.x, h.y);
+    ctx.rotate(h.orbitAngle + Math.PI / 2);
+    ctx.fillStyle = '#94a3b8';
+    ctx.strokeStyle = '#fef08a';
+    ctx.lineWidth = 3;
+    ctx.fillRect(-h.hitRadius * 0.9, -h.hitRadius * 0.45, h.hitRadius * 1.8, h.hitRadius * 0.9);
+    ctx.strokeRect(-h.hitRadius * 0.9, -h.hitRadius * 0.45, h.hitRadius * 1.8, h.hitRadius * 0.9);
+  } else if (h.kind === 'knight_lance') {
+    const parent = sim && sim.balls.find((b) => b.id === h.parentId);
+    if (parent) {
+      ctx.strokeStyle = '#fbbf24';
+      ctx.lineWidth = 7;
+      ctx.beginPath();
+      ctx.moveTo(parent.x, parent.y);
+      ctx.lineTo(h.x, h.y);
+      ctx.stroke();
+    }
+    ctx.translate(h.x, h.y);
+    ctx.rotate(h.orbitAngle);
+    ctx.fillStyle = '#e2e8f0';
+    ctx.strokeStyle = '#fbbf24';
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.moveTo(h.hitRadius * 1.25, 0);
+    ctx.lineTo(-h.hitRadius * 0.7, -h.hitRadius * 0.52);
+    ctx.lineTo(-h.hitRadius * 0.7, h.hitRadius * 0.52);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+  } else if (h.kind === 'chainsaw' || h.kind === 'drill') {
+    ctx.translate(h.x, h.y);
+    ctx.rotate(h.orbitAngle);
+    ctx.fillStyle = h.kind === 'chainsaw' ? '#ef4444' : '#eab308';
+    ctx.strokeStyle = '#f8fafc';
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.moveTo(h.hitRadius * 1.15, 0);
+    ctx.lineTo(-h.hitRadius * 0.7, -h.hitRadius * 0.65);
+    ctx.lineTo(-h.hitRadius * 0.7, h.hitRadius * 0.65);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+  } else if (h.kind === 'shadow_decoy') {
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.72)';
+    ctx.strokeStyle = '#ef4444';
+    ctx.lineWidth = 2.5;
+    ctx.setLineDash([5, 4]);
+    ctx.beginPath();
+    ctx.arc(h.x, h.y, h.radius, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.setLineDash([]);
+  } else if (h.kind === 'mini_turret') {
+    ctx.fillStyle = '#1e293b';
+    ctx.strokeStyle = '#38bdf8';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(h.x, h.y, h.radius, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.rotate(h.orbitAngle || 0);
+    ctx.fillStyle = '#f97316';
+    ctx.fillRect(0, -4, h.radius + 8, 8);
   }
   ctx.restore();
 }
@@ -843,10 +1014,40 @@ export function renderArena(ctx, sim, uiState = {}) {
       ctx.restore();
     }
 
+    // Shield Ball rotating reflector buckler arc
+    if (ball.shieldHalfWidth > 0) {
+      ctx.save();
+      ctx.strokeStyle = '#60a5fa';
+      ctx.lineWidth = 6;
+      ctx.lineCap = 'round';
+      ctx.shadowColor = '#93c5fd';
+      ctx.shadowBlur = 10;
+      ctx.beginPath();
+      ctx.arc(ball.x, ball.y, ball.radius + 9, ball.shieldAngle - ball.shieldHalfWidth, ball.shieldAngle + ball.shieldHalfWidth);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    // Sniper laser sight telegraph
+    if (ball.ballId === 'sniper' && (ball.state?.aiming || 0) > 0) {
+      const a = ball.state.aimAngle || 0;
+      ctx.save();
+      ctx.strokeStyle = 'rgba(239, 68, 68, 0.72)';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([8, 6]);
+      ctx.beginPath();
+      ctx.moveTo(ball.x, ball.y);
+      ctx.lineTo(ball.x + Math.cos(a) * 750, ball.y + Math.sin(a) * 750);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.restore();
+    }
+
     drawBallBody(ctx, ball, ball.x, ball.y, ball.radius, {
       owner: ball.owner,
       time,
       stage: ball.state?.stage || 1,
+      phaseTimer: ball.phaseTimer || 0,
       flashTimer: ball.flashTimer,
       stunTimer: ball.stunTimer,
       slowTimer: ball.slowTimer,
@@ -865,13 +1066,28 @@ export function renderArena(ctx, sim, uiState = {}) {
     ctx.fillStyle = '#ffffff';
     ctx.fillText(String(Math.ceil(ball.hp)), ball.x, ball.y + 1);
 
-    // Stage / Scaling / Mature badge right below ball
+    // Stage / Scaling / Status badge right below ball
     let badgeText = '';
     let badgeColor = '#fde047';
     if (ball.ballId === 'verity') {
       const stage = ball.state?.stage || 1;
       badgeText = stage === 3 ? 'DMG 40!' : stage === 2 ? 'DMG 10' : 'DMG 5';
       badgeColor = stage === 3 ? '#ef4444' : stage === 2 ? '#fbbf24' : '#fde047';
+    } else if (ball.ballId === 'doubler' && (ball.state?.mult || 1) > 1) {
+      badgeText = `x${ball.state.mult}`;
+      badgeColor = '#fbbf24';
+    } else if (ball.ballId === 'mach' && ball.baseSpeed >= 500) {
+      badgeText = `${Math.round(ball.baseSpeed)} SPD`;
+      badgeColor = '#38bdf8';
+    } else if (ball.ballId === 'gambler' && ball.state?.slotText) {
+      badgeText = ball.state.slotText;
+      badgeColor = '#fde047';
+    } else if (ball.ballId === 'banker' && (ball.state?.coins || 0) > 0) {
+      badgeText = `$${ball.state.coins}`;
+      badgeColor = '#facc15';
+    } else if (ball.ballId === 'mirror' && ball.state?._mimicId) {
+      badgeText = ball.state._mimicId.toUpperCase();
+      badgeColor = '#f0abfc';
     } else if (ball.ballId === 'fibonacci') {
       badgeText = `DMG ${ball.state?.cur || 1}`;
       badgeColor = '#34d399';
@@ -884,6 +1100,9 @@ export function renderArena(ctx, sim, uiState = {}) {
     } else if (ball.ballId === 'robux' && (ball.state?.stacks || 0) > 0) {
       badgeText = `R$${ball.state.stacks}`;
       badgeColor = '#4ade80';
+    } else if ((ball.chillStacks || 0) > 0) {
+      badgeText = `CHILL x${ball.chillStacks}`;
+      badgeColor = '#7dd3fc';
     } else if ((ball.virusStacks || 0) > 0) {
       badgeText = `VIRUS x${ball.virusStacks}`;
       badgeColor = '#c084fc';

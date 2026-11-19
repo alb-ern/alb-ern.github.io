@@ -2,7 +2,7 @@ import { RARITY_META } from './constants.js';
 import { BALL_DEFS, getBallDef } from './balls.js';
 
 /**
- * Draw N distinct random ball definitions from the full 24-ball pool.
+ * Draw N distinct random ball definitions from the full 100-ball pool.
  */
 export function drawRandomBallChoices(count = 3, rng = Math.random, excludeIds = []) {
   const pool = BALL_DEFS.filter((b) => !excludeIds.includes(b.id));
@@ -20,54 +20,21 @@ export function drawRandomBallChoices(count = 3, rng = Math.random, excludeIds =
  * Heuristic bot draft choice favoring strong meta balls with light variety.
  */
 const BOT_TIER_WEIGHTS = {
-  spider: 95,
-  shackles: 94,
-  orbital: 92,
-  conductor: 90,
-  laser: 89,
-  vampire: 88,
-  dice: 86,
-  zone: 84,
-  harpoon: 83,
-  chess: 82,
-  beam: 81,
-  hive: 80,
-  cannon: 79,
-  fibonacci: 78,
-  icecone: 77,
-  blade: 76,
-  machinegun: 75,
-  poisonspike: 74,
-  cell: 73,
-  axe: 72,
-  glass: 71,
-  thief: 70,
-  reforge: 68,
-  verity: 66,
-  snake: 86,
-  blackspider: 93,
-  bomb: 85,
-  electric: 80,
-  electroking: 82,
-  bow: 77,
-  virus: 84,
-  hook: 78,
-  charge: 71,
-  burst: 75,
-  bigspike: 79,
-  ray: 83,
-  range: 76,
-  acid: 73,
-  slime: 78,
-  potion: 87,
-  robux: 90,
-  medic: 74,
-  candybox: 88,
-  cactus: 81,
-  spear: 80,
-  apple: 76,
-  shuriken: 83,
-  poisongas: 74,
+  spider: 95, shackles: 94, orbital: 92, conductor: 90, laser: 89, vampire: 88, dice: 86,
+  zone: 84, harpoon: 83, chess: 82, beam: 81, hive: 80, cannon: 79, fibonacci: 78,
+  icecone: 77, blade: 76, machinegun: 75, poisonspike: 74, cell: 73, axe: 72, glass: 71,
+  thief: 70, reforge: 68, verity: 66, snake: 86, blackspider: 93, bomb: 85, electric: 80,
+  electroking: 82, bow: 77, virus: 84, hook: 78, charge: 71, burst: 75, bigspike: 79,
+  ray: 83, range: 76, acid: 73, slime: 78, potion: 87, robux: 90, medic: 74, candybox: 88,
+  cactus: 81, spear: 80, apple: 76, shuriken: 83, poisongas: 74,
+  duplicator: 94, doubler: 89, mach: 84, titan: 87, hydra: 91, micro: 76, gravity: 90,
+  repulsor: 82, portal: 86, chronos: 90, shield: 84, mirror: 92, boomerang: 79, chainsaw: 83,
+  sniper: 86, shotgun: 77, hammer: 82, anchor: 85, ricochet: 76, tornado: 81, ninja: 87,
+  vortex: 78, magma: 81, frost: 80, quake: 82, tsunami: 87, solar: 89, eclipse: 85,
+  cloud: 81, crystal: 78, sandstorm: 75, plasma: 82, berserker: 83, phoenix: 91,
+  gambler: 90, hacker: 88, banker: 85, necromancer: 89, mimicchest: 77, leech: 80,
+  thorn: 79, alchemist: 85, ghost: 82, rocket: 86, meteor: 83, drill: 78, ufo: 89,
+  drum: 78, pacman: 85, turret: 82, knight: 86, omega: 95,
 };
 
 export function chooseBotBall(choices, rng = Math.random) {
