@@ -209,9 +209,9 @@
 
     <!-- ARENA VIEW -->
     <main id="view-arena" class="view view-arena hidden">
-      <!-- Top VS HUD -->
-      <div class="arena-hud">
-        <div class="player-hud p1">
+      <!-- Left Side Panel: Player 1 (Blue) & Match Info -->
+      <aside class="arena-side arena-side-left">
+        <div class="player-hud p1 arena-side-card">
           <div class="hud-top">
             <span class="player-tag blue" id="hud-p1-label">YOU</span>
             <div class="hearts-row" id="hud-p1-hearts" aria-label="Player 1 Hearts"></div>
@@ -226,30 +226,15 @@
           </div>
         </div>
 
-        <div class="hud-center">
+        <div class="hud-center arena-side-card">
           <div class="round-pill" id="hud-round">ROUND 1</div>
           <div class="timer-pill" id="hud-timer">00:00</div>
         </div>
+      </aside>
 
-        <div class="player-hud p2">
-          <div class="hud-top">
-            <div class="hearts-row" id="hud-p2-hearts" aria-label="Player 2 Hearts"></div>
-            <span class="player-tag red" id="hud-p2-label">BOT</span>
-          </div>
-          <div class="hud-ball-info">
-            <span class="rarity-pill" id="hud-p2-rarity">Rare</span>
-            <strong id="hud-p2-ball">—</strong>
-          </div>
-          <div class="hp-bar-wrap">
-            <div class="hp-bar-fill red" id="hud-p2-hpbar" style="width:100%"></div>
-            <span class="hp-bar-text" id="hud-p2-hptext">100 / 100</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Canvas Stage + Overlays -->
+      <!-- Center Zoomed Canvas Stage + Overlays -->
       <div class="arena-stage-wrap">
-        <canvas id="arena-canvas" width="600" height="600"></canvas>
+        <canvas id="arena-canvas" width="840" height="840"></canvas>
 
         <!-- Round/Match Outcome Overlay -->
         <div id="arena-banner" class="arena-banner hidden">
@@ -264,7 +249,7 @@
           </div>
         </div>
 
-        <!-- Local 2P Handover Shield -->
+        <!-- Local 2P / Online Shield Overlay -->
         <div id="pass-shield" class="arena-banner hidden">
           <div class="banner-card">
             <p class="banner-kicker">LOCAL 2-PLAYER</p>
@@ -275,26 +260,43 @@
         </div>
       </div>
 
-      <!-- Bottom Controls Bar -->
-      <div class="arena-controls">
-        <div id="controls-aim" class="controls-group hidden">
-          <div class="aim-prompt" id="aim-prompt">Drag inside the arena (or A / D) to aim your ball</div>
-          <div class="aim-buttons">
-            <button class="btn btn-ghost btn-sm" id="btn-aim-ccw" type="button">↺ -10°</button>
-            <button class="btn btn-ghost btn-sm" id="btn-aim-cw" type="button">↻ +10°</button>
-            <button class="btn btn-primary btn-lg" id="btn-lock-aim" type="button">LOCK AIM (Space)</button>
+      <!-- Right Side Panel: Player 2 (Red) & Arena Controls -->
+      <aside class="arena-side arena-side-right">
+        <div class="player-hud p2 arena-side-card">
+          <div class="hud-top">
+            <span class="player-tag red" id="hud-p2-label">BOT</span>
+            <div class="hearts-row" id="hud-p2-hearts" aria-label="Player 2 Hearts"></div>
+          </div>
+          <div class="hud-ball-info">
+            <strong id="hud-p2-ball">—</strong>
+            <span class="rarity-pill" id="hud-p2-rarity">Rare</span>
+          </div>
+          <div class="hp-bar-wrap">
+            <div class="hp-bar-fill red" id="hud-p2-hpbar" style="width:100%"></div>
+            <span class="hp-bar-text" id="hud-p2-hptext">100 / 100</span>
           </div>
         </div>
 
-        <div id="controls-fight" class="controls-group hidden">
-          <span class="ability-live-tip" id="fight-tip">Balls fight automatically — watch the clash!</span>
-          <div class="fight-buttons">
-            <button class="btn btn-ghost btn-sm" id="btn-speed" type="button">Speed: 1x</button>
-            <button class="btn btn-ghost btn-sm" id="btn-pause" type="button">Pause</button>
-            <button class="btn btn-secondary btn-sm" id="btn-restart-round" type="button">Restart</button>
+        <div class="arena-controls arena-side-card">
+          <div id="controls-aim" class="controls-group hidden">
+            <div class="aim-prompt" id="aim-prompt">Drag inside the arena (or A / D) to aim your ball</div>
+            <div class="aim-buttons">
+              <button class="btn btn-ghost btn-sm" id="btn-aim-ccw" type="button">↺ -10°</button>
+              <button class="btn btn-ghost btn-sm" id="btn-aim-cw" type="button">↻ +10°</button>
+              <button class="btn btn-primary btn-lg aim-lock-btn" id="btn-lock-aim" type="button">LOCK AIM (Space)</button>
+            </div>
+          </div>
+
+          <div id="controls-fight" class="controls-group hidden">
+            <span class="ability-live-tip" id="fight-tip">Balls fight automatically — watch the clash!</span>
+            <div class="fight-buttons">
+              <button class="btn btn-ghost btn-sm" id="btn-speed" type="button">Speed: 1x</button>
+              <button class="btn btn-ghost btn-sm" id="btn-pause" type="button">Pause</button>
+              <button class="btn btn-secondary btn-sm" id="btn-restart-round" type="button">Restart</button>
+            </div>
           </div>
         </div>
-      </div>
+      </aside>
     </main>
   </div>
 
