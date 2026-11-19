@@ -199,6 +199,7 @@ h1, h2, h3, .brand-title, .round-pill, .btn, .rarity-pill {
 .r-Epic { color: #c084fc; background: rgba(192, 132, 252, 0.15); }
 .r-Legendary { color: #fbbf24; background: rgba(251, 191, 36, 0.16); }
 .r-Mythic { color: #fb7185; background: rgba(251, 113, 133, 0.18); }
+.r-Exclusive { color: #2dd4bf; background: rgba(45, 212, 191, 0.18); }
 
 /* Lobby */
 .hero-card {
@@ -932,6 +933,7 @@ h1, h2, h3, .brand-title, .round-pill, .btn, .rarity-pill {
 .draft-card.border-Epic { border-color: #9333ea; }
 .draft-card.border-Legendary { border-color: #d97706; }
 .draft-card.border-Mythic { border-color: #e11d48; }
+.draft-card.border-Exclusive { border-color: #0d9488; }
 
 .draft-card h3 {
   margin: 2px 0 0;

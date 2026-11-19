@@ -71,10 +71,38 @@ function clampAnchorToBounds(pt, b) {
   };
 }
 
+function addWallSpanHazard(sim, ball, hit, opts) {
+  const cur = { x: hit.x, y: hit.y };
+  const prev = ball.state.lastAnchor;
+  ball.state.lastAnchor = cur;
+  let p1 = prev;
+  if (!p1 || Math.hypot(cur.x - p1.x, cur.y - p1.y) < (opts.minSpan || 70)) {
+    if (opts.requirePrev) return false;
+    p1 = clampAnchorToBounds(
+      {
+        x: hit.nx !== 0 ? (hit.nx > 0 ? sim.bounds.right : sim.bounds.left) : cur.x + (sim.rng() - 0.5) * 260,
+        y: hit.ny !== 0 ? (hit.ny > 0 ? sim.bounds.bottom : sim.bounds.top) : cur.y + (sim.rng() - 0.5) * 260,
+      },
+      sim.bounds
+    );
+  }
+  sim.addHazard(
+    {
+      ...opts.hazard,
+      owner: ball.owner,
+      x1: p1.x,
+      y1: p1.y,
+      x2: cur.x,
+      y2: cur.y,
+    },
+    opts.maxPerOwner || 10
+  );
+  return true;
+}
+
 export const ABILITY_HANDLERS = {
   /**
-   * Verity Ball: Stage 1 (Happy: 5 DMG) -> Stage 2 (Displeased: 10 DMG) -> Stage 3 (Monster: 40 DMG).
-   * ~12% chance to advance stage each time Verity takes damage.
+   * Verity Ball: Stage 1 (48px, 5 DMG) -> Stage 2 (60px, 10 DMG) -> Stage 3 Monster (76px, 40 DMG).
    */
   verity: {
     onInit(sim, ball) {
@@ -90,6 +118,10 @@ export const ABILITY_HANDLERS = {
       if (ball.state.stage < 3 && sim.rng() < 0.10) {
         ball.state.stage += 1;
         ball.contactDmg = ball.state.stage === 2 ? 10 : 40;
+        ball.radius = ball.state.stage === 2 ? 60 : 76;
+        const b = sim.bounds;
+        ball.x = Math.max(b.left + ball.radius, Math.min(b.right - ball.radius, ball.x));
+        ball.y = Math.max(b.top + ball.radius, Math.min(b.bottom - ball.radius, ball.y));
         sim.scaleBallSpeed(ball, 1.08);
         const label = ball.state.stage === 2 ? 'STAGE 2!' : 'MONSTER!!';
         const color = ball.state.stage === 2 ? '#fbbf24' : '#ef4444';
@@ -114,34 +146,16 @@ export const ABILITY_HANDLERS = {
     onWallHit(sim, ball, hit) {
       if (ball.state.cd > 0) return;
       ball.state.cd = 0.12;
-      const cur = { x: hit.x, y: hit.y };
-      const prev = ball.state.lastAnchor;
-      ball.state.lastAnchor = cur;
-
-      let p1 = prev;
-      if (!p1 || Math.hypot(cur.x - p1.x, cur.y - p1.y) < 70) {
-        p1 = clampAnchorToBounds(
-          {
-            x: hit.nx !== 0 ? (hit.nx > 0 ? sim.bounds.right : sim.bounds.left) : cur.x + (sim.rng() - 0.5) * 260,
-            y: hit.ny !== 0 ? (hit.ny > 0 ? sim.bounds.bottom : sim.bounds.top) : cur.y + (sim.rng() - 0.5) * 260,
-          },
-          sim.bounds
-        );
-      }
-      sim.addHazard(
-        {
+      addWallSpanHazard(sim, ball, hit, {
+        minSpan: 70,
+        maxPerOwner: 14,
+        hazard: {
           kind: 'web_line',
-          owner: ball.owner,
-          x1: p1.x,
-          y1: p1.y,
-          x2: cur.x,
-          y2: cur.y,
           dmg: 6,
           slowDuration: 0.35,
           ttl: 24,
         },
-        14
-      );
+      });
       sim.emitEvent('ability', { kind: 'web', owner: ball.owner });
     },
   },
@@ -818,11 +832,11 @@ export const ABILITY_HANDLERS = {
       addOrbitHelper(sim, ball, {
         kind: 'axe',
         orbitAngle: 0,
-        orbitRadius: 94,
-        angularSpeed: 4.4,
-        hitRadius: 30,
-        dmg: 12,
-        knockback: 230,
+        orbitRadius: 170,
+        angularSpeed: 4.1,
+        hitRadius: 34,
+        dmg: 10,
+        knockback: 240,
       });
     },
     onUpdate(sim, ball) {
@@ -831,7 +845,7 @@ export const ABILITY_HANDLERS = {
       ball.baseSpeed = Math.min(620, ball.state.baseSpeed0 * mult);
       for (const h of sim.helpers) {
         if (h.parentId === ball.id && h.kind === 'axe') {
-          h.angularSpeed = 4.0 * (1 + missingRatio * 1.8);
+          h.angularSpeed = 4.1 * (1 + missingRatio * 1.75);
         }
       }
     },
@@ -904,4 +918,807 @@ export const ABILITY_HANDLERS = {
       }
     },
   },
+
+  snake: {
+    onInit(sim, ball) {
+      ball.state = { segCount: 9, growthTimer: 1.1, path: [], tailCds: {}, biteCd: 0 };
+      ball.tail = [];
+    },
+    onUpdate(sim, ball, dt) {
+      ball.state.biteCd = Math.max(0, ball.state.biteCd - dt);
+      ball.state.growthTimer -= dt;
+      if (ball.state.growthTimer <= 0 && ball.state.segCount < 16) {
+        ball.state.growthTimer = 1.1;
+        ball.state.segCount += 1;
+      }
+
+      const path = ball.state.path;
+      if (path.length === 0 || Math.hypot(ball.x - path[0].x, ball.y - path[0].y) >= 8) {
+        path.unshift({ x: ball.x, y: ball.y });
+        if (path.length > 125) path.length = 125;
+      }
+
+      // Build thick trailing body/tail segments along path history
+      const tail = [];
+      let pathIdx = 0;
+      let targetDist = 30;
+      let accum = 0;
+      let prev = { x: ball.x, y: ball.y };
+      for (let s = 0; s < ball.state.segCount && pathIdx < path.length; s++) {
+        while (pathIdx < path.length) {
+          const pt = path[pathIdx];
+          const stepLen = Math.hypot(pt.x - prev.x, pt.y - prev.y);
+          if (accum + stepLen >= targetDist) {
+            const need = targetDist - accum;
+            const t = stepLen > 0.001 ? need / stepLen : 0;
+            const sx = prev.x + (pt.x - prev.x) * t;
+            const sy = prev.y + (pt.y - prev.y) * t;
+            const r = Math.max(22, Math.round(40 - (s / ball.state.segCount) * 16));
+            tail.push({ x: sx, y: sy, r });
+            prev = { x: sx, y: sy };
+            accum = 0;
+            targetDist = 19;
+            break;
+          }
+          accum += stepLen;
+          prev = pt;
+          pathIdx++;
+        }
+      }
+      ball.tail = tail;
+
+      for (const k of Object.keys(ball.state.tailCds)) {
+        ball.state.tailCds[k] -= dt;
+        if (ball.state.tailCds[k] <= 0) delete ball.state.tailCds[k];
+      }
+      for (const enemy of sim.getEnemyBalls(ball.owner)) {
+        if (ball.state.tailCds[enemy.id]) continue;
+        for (const seg of ball.tail) {
+          const dx = enemy.x - seg.x;
+          const dy = enemy.y - seg.y;
+          const dist = Math.hypot(dx, dy);
+          if (dist <= enemy.radius + seg.r * 0.92) {
+            ball.state.tailCds[enemy.id] = 0.24;
+            sim.dealDamage(enemy, 8, ball.owner, 'snake');
+            if (dist > 0.01) {
+              enemy.vx += (dx / dist) * 230;
+              enemy.vy += (dy / dist) * 230;
+            }
+            break;
+          }
+        }
+      }
+    },
+    onBallHit(sim, ball, other) {
+      if (ball.state.biteCd > 0) return;
+      ball.state.biteCd = 0.35;
+      sim.dealDamage(other, 6, ball.owner, 'snake_bite');
+      sim.applyPoison(other, 2, 0.7, 1, ball.owner);
+      sim.emitText(other.x, other.y - other.radius - 10, 'FANG!', '#4ade80');
+    },
+  },
+
+  blackspider: {
+    onInit(sim, ball) {
+      ball.state = { cd: 0, lastAnchor: null };
+    },
+    onUpdate(sim, ball, dt) {
+      ball.state.cd = Math.max(0, ball.state.cd - dt);
+    },
+    onWallHit(sim, ball, hit) {
+      if (ball.state.cd > 0) return;
+      ball.state.cd = 0.25;
+      addWallSpanHazard(sim, ball, hit, {
+        minSpan: 70,
+        maxPerOwner: 8,
+        hazard: {
+          kind: 'web_line',
+          variant: 'black',
+          dmg: 5,
+          slowDuration: 0.35,
+          healOwner: 1.5,
+          ttl: 16,
+        },
+      });
+      sim.emitEvent('ability', { kind: 'web', owner: ball.owner });
+    },
+  },
+
+  bomb: {
+    onInit(sim, ball) {
+      ball.state = { timer: 0.55 };
+    },
+    onUpdate(sim, ball, dt) {
+      ball.state.timer -= dt;
+      if (ball.state.timer <= 0) {
+        ball.state.timer = 1.25;
+        const a = aimAngleToEnemy(sim, ball, 0.25);
+        sim.addHazard(
+          {
+            kind: 'bomb',
+            owner: ball.owner,
+            x: ball.x,
+            y: ball.y,
+            vx: Math.cos(a) * 195,
+            vy: Math.sin(a) * 195,
+            radius: 28,
+            blastRadius: 155,
+            armDelay: 0.16,
+            fuse: 1.15,
+            dmg: 13,
+            knockback: 340,
+            ttl: 1.4,
+          },
+          5
+        );
+      }
+    },
+  },
+
+  electric: {
+    onBallHit(sim, ball, enemy) {
+      sim.dealDamage(enemy, 5, ball.owner, 'electric');
+      enemy.stunTimer = Math.max(enemy.stunTimer, 0.55);
+      sim.emitText(enemy.x, enemy.y - enemy.radius - 10, 'ZAP!', '#fde047');
+      sim.addParticleBurst(enemy.x, enemy.y, '#fef08a', 10);
+      sim.emitEvent('ability', { kind: 'electric', owner: ball.owner });
+    },
+  },
+
+  electroking: {
+    onInit(sim, ball) {
+      ball.state = { cd: 0, lastAnchor: null };
+    },
+    onUpdate(sim, ball, dt) {
+      ball.state.cd = Math.max(0, ball.state.cd - dt);
+    },
+    onWallHit(sim, ball, hit) {
+      if (ball.state.cd > 0) return;
+      ball.state.cd = 0.16;
+      const added = addWallSpanHazard(sim, ball, hit, {
+        requirePrev: true,
+        minSpan: 75,
+        maxPerOwner: 6,
+        hazard: {
+          kind: 'laser_beam',
+          variant: 'electric',
+          armTimer: 0.28,
+          dmg: 4,
+          tickRate: 0.48,
+          ttl: 20,
+          tickTimers: {},
+        },
+      });
+      if (added) sim.emitEvent('ability', { kind: 'laserCharge', owner: ball.owner });
+    },
+  },
+
+  bow: {
+    onInit(sim, ball) {
+      ball.state = { timer: 0.9 };
+    },
+    onUpdate(sim, ball, dt) {
+      ball.state.timer -= dt;
+      if (ball.state.timer <= 0) {
+        ball.state.timer = 1.45;
+        const a = aimAngleToEnemy(sim, ball, 0.04);
+        sim.addProjectile({
+          kind: 'arrow',
+          owner: ball.owner,
+          x: ball.x + Math.cos(a) * (ball.radius + 8),
+          y: ball.y + Math.sin(a) * (ball.radius + 8),
+          vx: Math.cos(a) * 640,
+          vy: Math.sin(a) * 640,
+          radius: 12,
+          dmg: 6,
+          bouncesLeft: 3,
+          ttl: 3.2,
+          color: '#fbbf24',
+        });
+        sim.emitEvent('ability', { kind: 'bow', owner: ball.owner });
+      }
+    },
+  },
+
+  virus: {
+    onInit(sim, ball) {
+      ball.state = { pulseTimer: 1.8 };
+    },
+    onBallHit(sim, ball, enemy) {
+      enemy.virusStacks = Math.min(4, (enemy.virusStacks || 0) + 1);
+      sim.applyPoison(enemy, 1 + enemy.virusStacks, 4, ball.owner);
+      sim.emitText(enemy.x, enemy.y - enemy.radius - 10, `VIRUS x${enemy.virusStacks}`, '#c084fc');
+      sim.addParticleBurst(enemy.x, enemy.y, '#a855f7', 8);
+    },
+    onUpdate(sim, ball, dt) {
+      ball.state.pulseTimer -= dt;
+      if (ball.state.pulseTimer <= 0) {
+        ball.state.pulseTimer = 2.0;
+        for (const enemy of sim.getEnemyBalls(ball.owner)) {
+          if (Math.hypot(enemy.x - ball.x, enemy.y - ball.y) <= ball.radius + enemy.radius + 55) {
+            enemy.virusStacks = Math.min(4, (enemy.virusStacks || 0) + 1);
+            sim.applyPoison(enemy, 1 + enemy.virusStacks, 3, ball.owner);
+            sim.addParticleBurst(enemy.x, enemy.y, '#4ade80', 6);
+          }
+        }
+      }
+    },
+  },
+
+  hook: {
+    onInit(sim, ball) {
+      ball.state = { timer: 0.7 };
+    },
+    onUpdate(sim, ball, dt) {
+      ball.state.timer -= dt;
+      if (ball.state.timer <= 0) {
+        ball.state.timer = 1.55;
+        const a = aimAngleToEnemy(sim, ball, 0.05);
+        sim.addProjectile({
+          kind: 'hook',
+          owner: ball.owner,
+          parentId: ball.id,
+          x: ball.x + Math.cos(a) * (ball.radius + 8),
+          y: ball.y + Math.sin(a) * (ball.radius + 8),
+          vx: Math.cos(a) * 720,
+          vy: Math.sin(a) * 720,
+          radius: 21,
+          dmg: 10,
+          bouncesLeft: 1,
+          spinDuration: 0.95,
+          ttl: 2.0,
+          color: '#94a3b8',
+        });
+        sim.emitEvent('ability', { kind: 'harpoon', owner: ball.owner });
+      }
+    },
+  },
+
+  charge: {
+    onInit(sim, ball) {
+      ball.state = { charge: 0 };
+      ball.contactDmg = 2;
+    },
+    onUpdate(sim, ball, dt) {
+      ball.state.charge = Math.min(1, ball.state.charge + dt / 2.8);
+      ball.contactDmg = Math.round(2 + ball.state.charge * 22);
+    },
+    onBallHit(sim, ball, enemy) {
+      const ch = ball.state.charge;
+      if (ch >= 0.4) {
+        sim.emitText(enemy.x, enemy.y - enemy.radius - 10, `SLAM ${ball.contactDmg}!`, '#22d3ee');
+        const dx = enemy.x - ball.x;
+        const dy = enemy.y - ball.y;
+        const d = Math.hypot(dx, dy) || 1;
+        enemy.vx += (dx / d) * (240 * ch);
+        enemy.vy += (dy / d) * (240 * ch);
+        sim.addParticleBurst(enemy.x, enemy.y, '#67e8f9', 10);
+      }
+      ball.state.charge = 0;
+      ball.contactDmg = 2;
+    },
+  },
+
+  burst: {
+    onInit(sim, ball) {
+      ball.state = { timer: 1.5 };
+      ball.contactDmg = 3;
+    },
+    onUpdate(sim, ball, dt) {
+      ball.contactDmg = ball.dashTimer > 0 ? 10 : 3;
+      ball.state.timer -= dt;
+      if (ball.state.timer <= 0 && ball.stunTimer <= 0 && !ball.trappedCageId) {
+        ball.state.timer = 2.5;
+        ball.dashTimer = 0.65;
+        const a = aimAngleToEnemy(sim, ball, 0.12);
+        const burstSpeed = ball.baseSpeed * 1.9;
+        ball.vx = Math.cos(a) * burstSpeed;
+        ball.vy = Math.sin(a) * burstSpeed;
+        sim.emitText(ball.x, ball.y - ball.radius - 8, 'BURST!', '#fb923c');
+        sim.addParticleBurst(ball.x, ball.y, '#fdba74', 10);
+        sim.emitEvent('ability', { kind: 'dash', owner: ball.owner });
+      }
+    },
+    onBallHit(sim, ball, enemy) {
+      if (ball.dashTimer > 0) {
+        const dx = enemy.x - ball.x;
+        const dy = enemy.y - ball.y;
+        const d = Math.hypot(dx, dy) || 1;
+        enemy.vx += (dx / d) * 260;
+        enemy.vy += (dy / d) * 260;
+        sim.emitText(enemy.x, enemy.y - enemy.radius - 10, 'CRASH!', '#fbbf24');
+      }
+    },
+  },
+
+  bigspike: {
+    onInit(sim, ball) {
+      ball.state = { cd: 0 };
+    },
+    onUpdate(sim, ball, dt) {
+      ball.state.cd = Math.max(0, ball.state.cd - dt);
+    },
+    onWallHit(sim, ball, hit) {
+      if (ball.state.cd > 0) return;
+      ball.state.cd = 0.2;
+      sim.addHazard(
+        {
+          kind: 'poison_spike',
+          variant: 'big',
+          owner: ball.owner,
+          x: hit.x + hit.nx * 24,
+          y: hit.y + hit.ny * 24,
+          nx: hit.nx,
+          ny: hit.ny,
+          radius: 42,
+          dmg: 8,
+          poisonTicks: 0,
+          slowDuration: 0.65,
+          hitCooldown: 0,
+          ttl: 30,
+        },
+        6
+      );
+    },
+  },
+
+  ray: {
+    onInit(sim, ball) {
+      ball.state = { cd: 0 };
+    },
+    onUpdate(sim, ball, dt) {
+      ball.state.cd = Math.max(0, ball.state.cd - dt);
+    },
+    onWallHit(sim, ball, hit) {
+      if (ball.state.cd > 0) return;
+      ball.state.cd = 0.55;
+      sim.addHazard(
+        {
+          kind: 'turret',
+          beamTurret: true,
+          owner: ball.owner,
+          x: hit.x + hit.nx * 18,
+          y: hit.y + hit.ny * 18,
+          nx: hit.nx,
+          ny: hit.ny,
+          radius: 22,
+          fireTimer: 1.1,
+          fireRate: 2.75,
+          ttl: 20,
+        },
+        2
+      );
+      sim.emitEvent('ability', { kind: 'deploy', owner: ball.owner });
+    },
+  },
+
+  range: {
+    onInit(sim, ball) {
+      ball.state = { pulse: 0 };
+      sim.addHazard(
+        {
+          kind: 'red_zone',
+          variant: 'range',
+          owner: ball.owner,
+          followParentId: ball.id,
+          x: ball.x,
+          y: ball.y,
+          radius: 145,
+          dmg: 3,
+          tickRate: 0.45,
+          ttl: 999,
+          tickTimers: {},
+        },
+        1
+      );
+    },
+    onUpdate(sim, ball, dt) {
+      ball.state.pulse += dt * 3;
+    },
+  },
+
+  acid: {
+    onInit(sim, ball) {
+      ball.state = { timer: 1.0 };
+    },
+    onUpdate(sim, ball, dt) {
+      ball.state.timer -= dt;
+      if (ball.state.timer <= 0) {
+        ball.state.timer = 1.9;
+        const b = sim.bounds;
+        const px = Math.max(b.left + 75, Math.min(b.right - 75, ball.x + (sim.rng() - 0.5) * 90));
+        const py = Math.max(b.top + 75, Math.min(b.bottom - 75, ball.y + (sim.rng() - 0.5) * 90));
+        sim.addHazard(
+          {
+            kind: 'red_zone',
+            variant: 'acid',
+            owner: ball.owner,
+            x: px,
+            y: py,
+            radius: 74,
+            dmg: 3,
+            tickRate: 0.35,
+            ttl: 10,
+            tickTimers: {},
+          },
+          6
+        );
+        sim.emitEvent('ability', { kind: 'zone', owner: ball.owner });
+      }
+    },
+  },
+
+  slime: {
+    onInit(sim, ball) {
+      ball.state = { timer: 0.9, generation: ball.generation || 0 };
+    },
+    onUpdate(sim, ball, dt) {
+      ball.state.timer -= dt;
+      if (ball.state.timer <= 0) {
+        ball.state.timer = 1.7;
+        sim.addHazard(
+          {
+            kind: 'red_zone',
+            variant: 'slime',
+            owner: ball.owner,
+            x: ball.x,
+            y: ball.y,
+            radius: Math.max(40, Math.round(ball.radius * 1.15)),
+            dmg: 1,
+            slowDuration: 0.75,
+            tickRate: 0.42,
+            ttl: 7.5,
+            tickTimers: {},
+          },
+          6
+        );
+      }
+    },
+    onDeath(sim, ball) {
+      if (ball.state.generation >= 2) return;
+      const activeTeam = sim.balls.filter((b) => b.owner === ball.owner && b.hp > 0).length;
+      const toSpawn = Math.min(2, 6 - activeTeam);
+      if (toSpawn <= 0) return;
+      const nextGen = ball.state.generation + 1;
+      const childHp = nextGen === 1 ? 45 : 20;
+      const childRadius = nextGen === 1 ? 36 : 26;
+      const baseAngle = Math.atan2(ball.vy, ball.vx);
+      for (let i = 0; i < toSpawn; i++) {
+        const a = baseAngle + (i === 0 ? -0.8 : 0.8);
+        sim.spawnSplitBall({
+          owner: ball.owner,
+          ballId: 'slime',
+          generation: nextGen,
+          x: Math.max(sim.bounds.left + childRadius, Math.min(sim.bounds.right - childRadius, ball.x + Math.cos(a) * 28)),
+          y: Math.max(sim.bounds.top + childRadius, Math.min(sim.bounds.bottom - childRadius, ball.y + Math.sin(a) * 28)),
+          vx: Math.cos(a) * 345,
+          vy: Math.sin(a) * 345,
+          radius: childRadius,
+          hp: childHp,
+          contactDmg: 0,
+        });
+      }
+      sim.emitText(ball.x, ball.y - 20, 'SPLIT!', '#4ade80');
+      sim.addParticleBurst(ball.x, ball.y, '#86efac', 14);
+      sim.emitEvent('ability', { kind: 'split', owner: ball.owner });
+    },
+  },
+
+  potion: {
+    onInit(sim, ball) {
+      ball.state = { timer: 0.9 };
+    },
+    onUpdate(sim, ball, dt) {
+      ball.state.timer -= dt;
+      if (ball.state.timer <= 0) {
+        ball.state.timer = 2.7;
+        const kinds = ['potion_freeze', 'potion_poison', 'potion_dmg'];
+        const variant = kinds[Math.floor(sim.rng() * kinds.length)];
+        const b = sim.bounds;
+        const enemy = sim.getClosestEnemy(ball);
+        const tx = enemy ? (ball.x + enemy.x) * 0.5 : ball.x;
+        const ty = enemy ? (ball.y + enemy.y) * 0.5 : ball.y;
+        sim.addHazard(
+          {
+            kind: 'red_zone',
+            variant,
+            owner: ball.owner,
+            x: Math.max(b.left + 66, Math.min(b.right - 66, tx + (sim.rng() - 0.5) * 90)),
+            y: Math.max(b.top + 66, Math.min(b.bottom - 66, ty + (sim.rng() - 0.5) * 90)),
+            radius: 66,
+            dmg: variant === 'potion_dmg' ? 4 : variant === 'potion_poison' ? 1.5 : 2,
+            speedDmgScale: variant === 'potion_freeze',
+            poisonTicks: variant === 'potion_poison' ? 3 : 0,
+            slowDuration: variant === 'potion_freeze' ? 0.9 : variant === 'potion_poison' ? 0.5 : 0,
+            tickRate: 0.52,
+            ttl: 4.0,
+            tickTimers: {},
+          },
+          2
+        );
+        sim.emitEvent('ability', { kind: 'zone', owner: ball.owner });
+      }
+    },
+  },
+
+  robux: {
+    onInit(sim, ball) {
+      ball.state = { timer: 0.4, elapsed: 0 };
+    },
+    onUpdate(sim, ball, dt) {
+      ball.state.elapsed += dt;
+      ball.state.timer -= dt;
+      if (ball.state.timer <= 0) {
+        ball.state.timer = Math.max(0.24, 0.85 - ball.state.elapsed * 0.025);
+        const a = aimAngleToEnemy(sim, ball, 0.14);
+        sim.addProjectile({
+          kind: 'robux',
+          owner: ball.owner,
+          x: ball.x + Math.cos(a) * (ball.radius + 8),
+          y: ball.y + Math.sin(a) * (ball.radius + 8),
+          vx: Math.cos(a) * 540,
+          vy: Math.sin(a) * 540,
+          radius: 13,
+          dmg: 3,
+          bouncesLeft: 1,
+          ttl: 2.2,
+          color: '#22c55e',
+        });
+        sim.emitEvent('ability', { kind: 'shot', owner: ball.owner });
+      }
+    },
+  },
+
+  medic: {
+    onInit(sim, ball) {
+      ball.state = { timer: 1.0, healTimer: 2.4 };
+    },
+    onUpdate(sim, ball, dt) {
+      ball.state.timer -= dt;
+      if (ball.state.timer <= 0) {
+        ball.state.timer = 1.7;
+        const a = aimAngleToEnemy(sim, ball, 0.06);
+        sim.addProjectile({
+          kind: 'syringe',
+          owner: ball.owner,
+          x: ball.x + Math.cos(a) * (ball.radius + 8),
+          y: ball.y + Math.sin(a) * (ball.radius + 8),
+          vx: Math.cos(a) * 560,
+          vy: Math.sin(a) * 560,
+          radius: 11,
+          dmg: 4,
+          bouncesLeft: 0,
+          ttl: 1.6,
+          color: '#ef4444',
+        });
+        sim.emitEvent('ability', { kind: 'shot', owner: ball.owner });
+      }
+      ball.state.healTimer -= dt;
+      if (ball.state.healTimer <= 0) {
+        ball.state.healTimer = 2.8;
+        sim.healBall(ball, 7);
+        sim.addParticleBurst(ball.x, ball.y, '#4ade80', 8);
+      }
+    },
+  },
+
+  candybox: {
+    onInit(sim, ball) {
+      ball.state = { timer: 0.7, hurtCd: 0 };
+    },
+    onUpdate(sim, ball, dt) {
+      ball.state.hurtCd = Math.max(0, ball.state.hurtCd - dt);
+      ball.state.timer -= dt;
+      if (ball.state.timer <= 0) {
+        ball.state.timer = 1.25;
+        const big = sim.rng() < 0.4;
+        const a = aimAngleToEnemy(sim, ball, 0.35);
+        const spd = 240 + sim.rng() * 80;
+        sim.addHazard(
+          {
+            kind: 'pickup_drop',
+            variant: big ? 'candy_big' : 'candy_small',
+            owner: ball.owner,
+            x: ball.x,
+            y: ball.y,
+            vx: Math.cos(a) * spd,
+            vy: Math.sin(a) * spd,
+            allyGrace: 0.75,
+            radius: big ? 26 : 21,
+            heal: big ? 3.5 : 2,
+            enemyDmg: big ? 12 : 8,
+            ttl: 12,
+          },
+          8
+        );
+      }
+    },
+    onTakeDamage(sim, ball, amount) {
+      if (amount <= 0 || ball.hp <= 0 || ball.state.hurtCd > 0) return;
+      ball.state.hurtCd = 0.6;
+      const a = aimAngleToEnemy(sim, ball, 0.45);
+      sim.addHazard(
+        {
+          kind: 'pickup_drop',
+          variant: 'candy_small',
+          owner: ball.owner,
+          x: ball.x,
+          y: ball.y,
+          vx: Math.cos(a) * 230,
+          vy: Math.sin(a) * 230,
+          allyGrace: 0.75,
+          radius: 21,
+          heal: 2,
+          enemyDmg: 8,
+          ttl: 12,
+        },
+        8
+      );
+    },
+  },
+
+  cactus: {
+    onInit(sim, ball) {
+      ball.state = { timer: 1.0 };
+    },
+    onUpdate(sim, ball, dt) {
+      ball.state.timer -= dt;
+      if (ball.state.timer <= 0) {
+        ball.state.timer = 2.1;
+        sim.addHazard(
+          {
+            kind: 'cactus',
+            owner: ball.owner,
+            x: ball.x,
+            y: ball.y,
+            radius: 34,
+            dmg: 7,
+            knockback: 220,
+            hitCooldown: 0,
+            ttl: 16,
+          },
+          5
+        );
+      }
+    },
+  },
+
+  spear: {
+    onInit(sim, ball) {
+      ball.state = { timer: 1.1, thrustTimer: 0 };
+      addOrbitHelper(sim, ball, {
+        kind: 'spear',
+        orbitAngle: ball.owner === 1 ? 0 : Math.PI,
+        orbitRadius: ball.radius + 76,
+        angularSpeed: 0,
+        hitRadius: 20,
+        dmg: 6,
+        knockback: 210,
+      });
+    },
+    onUpdate(sim, ball, dt) {
+      const spear = sim.helpers.find((h) => h.parentId === ball.id && h.kind === 'spear');
+      if (!spear) return;
+      const enemy = sim.getClosestEnemy(ball);
+      if (enemy) {
+        const desired = Math.atan2(enemy.y - ball.y, enemy.x - ball.x);
+        let diff = desired - spear.orbitAngle;
+        while (diff > Math.PI) diff -= Math.PI * 2;
+        while (diff < -Math.PI) diff += Math.PI * 2;
+        spear.orbitAngle += Math.max(-3.6 * dt, Math.min(3.6 * dt, diff));
+      }
+      if (ball.state.thrustTimer > 0) {
+        ball.state.thrustTimer -= dt;
+        spear.orbitRadius = ball.radius + 118;
+      } else {
+        spear.orbitRadius = ball.radius + 76;
+      }
+      ball.state.timer -= dt;
+      if (ball.state.timer <= 0) {
+        ball.state.timer = 1.45;
+        ball.state.thrustTimer = 0.28;
+        ball.dashTimer = 0.22;
+        ball.vx = Math.cos(spear.orbitAngle) * ball.baseSpeed * 1.45;
+        ball.vy = Math.sin(spear.orbitAngle) * ball.baseSpeed * 1.45;
+        sim.emitEvent('ability', { kind: 'dash', owner: ball.owner });
+      }
+    },
+  },
+
+  apple: {
+    onInit(sim, ball) {
+      ball.state = { timer: 0.65 };
+    },
+    onUpdate(sim, ball, dt) {
+      ball.state.timer -= dt;
+      if (ball.state.timer <= 0) {
+        ball.state.timer = 1.25;
+        const a = aimAngleToEnemy(sim, ball, 0.3);
+        const spd = 245 + sim.rng() * 75;
+        sim.addHazard(
+          {
+            kind: 'pickup_drop',
+            variant: 'apple',
+            owner: ball.owner,
+            x: ball.x,
+            y: ball.y,
+            vx: Math.cos(a) * spd,
+            vy: Math.sin(a) * spd,
+            allyGrace: 0.75,
+            radius: 26,
+            heal: 4,
+            enemyDmg: 10,
+            ttl: 12,
+          },
+          7
+        );
+      }
+    },
+  },
+
+  shuriken: {
+    onInit(sim, ball) {
+      ball.state = { timer: 1.1, volley: 1 };
+    },
+    onUpdate(sim, ball, dt) {
+      ball.state.timer -= dt;
+      if (ball.state.timer <= 0) {
+        ball.state.timer = 2.5;
+        const base = aimAngleToEnemy(sim, ball, 0.08);
+        const count = ball.state.volley;
+        for (let k = 0; k < count; k++) {
+          const offset = (k - (count - 1) * 0.5) * 0.24;
+          const a = base + offset;
+          sim.addProjectile({
+            kind: 'shuriken',
+            owner: ball.owner,
+            x: ball.x + Math.cos(a) * (ball.radius + 8),
+            y: ball.y + Math.sin(a) * (ball.radius + 8),
+            vx: Math.cos(a) * 520,
+            vy: Math.sin(a) * 520,
+            radius: 14,
+            dmg: 4,
+            bouncesLeft: 3,
+            ttl: 3.0,
+            color: '#38bdf8',
+          });
+        }
+        ball.state.volley = Math.min(4, count + 1);
+        sim.emitEvent('ability', { kind: 'knife', owner: ball.owner });
+      }
+    },
+  },
+
+  poisongas: {
+    onInit(sim, ball) {
+      ball.state = { timer: 1.0 };
+    },
+    onUpdate(sim, ball, dt) {
+      ball.state.timer -= dt;
+      if (ball.state.timer <= 0) {
+        ball.state.timer = 2.3;
+        const a = sim.rng() * Math.PI * 2;
+        sim.addHazard(
+          {
+            kind: 'red_zone',
+            variant: 'gas',
+            owner: ball.owner,
+            x: ball.x,
+            y: ball.y,
+            vx: Math.cos(a) * 48,
+            vy: Math.sin(a) * 48,
+            radius: 86,
+            dmg: 2,
+            poisonTicks: 2,
+            tickRate: 0.45,
+            ttl: 9,
+            tickTimers: {},
+          },
+          4
+        );
+        sim.emitEvent('ability', { kind: 'zone', owner: ball.owner });
+      }
+    },
+  },
 };
+

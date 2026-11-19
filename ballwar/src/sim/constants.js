@@ -61,4 +61,11 @@ export const RARITY_META = Object.freeze({
     border: '#e11d48',
     order: 4,
   },
+  Exclusive: {
+    label: 'Exclusive',
+    color: '#2dd4bf',
+    bg: 'rgba(45, 212, 191, 0.18)',
+    border: '#0d9488',
+    order: 5,
+  },
 });

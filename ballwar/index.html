@@ -19,7 +19,7 @@
         <span class="brand-tag">WEB ARENA</span>
       </div>
       <div class="topbar-actions">
-        <button class="btn btn-ghost" id="btn-open-dex" type="button">Ball Dex (24)</button>
+        <button class="btn btn-ghost" id="btn-open-dex" type="button">Ball Dex (48)</button>
         <button class="btn btn-ghost" id="btn-toggle-timer" type="button" title="Toggle Draft Countdown">Timer: ON</button>
         <button class="btn btn-ghost" id="btn-toggle-mute" type="button" aria-label="Toggle Sound">SFX: ON</button>
         <button class="btn btn-secondary hidden" id="btn-back-lobby" type="button">Lobby</button>
@@ -30,7 +30,7 @@
     <main id="view-lobby" class="view view-lobby">
       <section class="hero-card">
         <div class="hero-copy">
-          <p class="hero-kicker">1v1 Physics Auto-Battler • 24 Iconic Balls Unlocked</p>
+          <p class="hero-kicker">1v1 Physics Auto-Battler • 48 Iconic Balls Unlocked</p>
           <h1>Pick. Aim. <span class="accent-gold">Bounce to Win!</span></h1>
           <p class="hero-sub">
             Draft from 3 random balls or pick any matchup directly, lock your opening trajectory,
@@ -315,7 +315,7 @@
 
       <div id="draft-all-panel" class="draft-all-panel hidden">
         <div class="all-panel-head">
-          <strong>All 24 Balls — Pick Any</strong>
+          <strong>All 48 Balls — Pick Any</strong>
           <button class="btn btn-ghost btn-sm" id="btn-close-all-balls" type="button">Back to 3 Choices</button>
         </div>
         <div id="draft-all-grid" class="mini-ball-grid"></div>
@@ -333,7 +333,7 @@
     <div class="modal-card dex-modal">
       <div class="modal-head">
         <div>
-          <h2 id="dex-title">Ball Dex — All 24 Balls</h2>
+          <h2 id="dex-title">Ball Dex — All 48 Balls</h2>
           <p class="muted">Every ball is unlocked from the start. Click any ball to test it in Sandbox.</p>
         </div>
         <button class="btn btn-ghost" id="btn-close-dex" type="button">Close</button>
@@ -341,7 +341,8 @@
 
       <div class="dex-filters">
         <div class="chip-row" id="dex-rarity-chips">
-          <button class="chip is-active" data-rarity="ALL" type="button">All (24)</button>
+          <button class="chip is-active" data-rarity="ALL" type="button">All (48)</button>
+          <button class="chip" data-rarity="Exclusive" type="button">Exclusive</button>
           <button class="chip" data-rarity="Mythic" type="button">Mythic</button>
           <button class="chip" data-rarity="Legendary" type="button">Legendary</button>
           <button class="chip" data-rarity="Epic" type="button">Epic</button>

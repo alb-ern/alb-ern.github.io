@@ -79,27 +79,43 @@ function drawHazard(ctx, h, bounds, time) {
 
   switch (h.kind) {
     case 'web_line': {
-      ctx.strokeStyle = 'rgba(241, 245, 249, 0.86)';
-      ctx.lineWidth = 2.4;
-      ctx.shadowColor = 'rgba(167, 139, 250, 0.6)';
-      ctx.shadowBlur = 4;
+      const isBlack = h.variant === 'black';
+      ctx.strokeStyle = isBlack ? 'rgba(15, 23, 42, 0.92)' : 'rgba(241, 245, 249, 0.86)';
+      ctx.lineWidth = isBlack ? 4 : 2.4;
+      ctx.shadowColor = isBlack ? 'rgba(244, 63, 94, 0.75)' : 'rgba(167, 139, 250, 0.6)';
+      ctx.shadowBlur = isBlack ? 6 : 4;
       ctx.beginPath();
       ctx.moveTo(h.x1, h.y1);
       ctx.lineTo(h.x2, h.y2);
       ctx.stroke();
+      if (isBlack) {
+        ctx.strokeStyle = 'rgba(244, 63, 94, 0.85)';
+        ctx.lineWidth = 1.6;
+        ctx.stroke();
+      }
       ctx.shadowBlur = 0;
-      ctx.fillStyle = '#e2e8f0';
+      ctx.fillStyle = isBlack ? '#fb7185' : '#e2e8f0';
       ctx.beginPath();
-      ctx.arc(h.x1, h.y1, 3.5, 0, Math.PI * 2);
-      ctx.arc(h.x2, h.y2, 3.5, 0, Math.PI * 2);
+      ctx.arc(h.x1, h.y1, 4, 0, Math.PI * 2);
+      ctx.arc(h.x2, h.y2, 4, 0, Math.PI * 2);
       ctx.fill();
       break;
     }
 
     case 'red_zone': {
-      const pulse = 0.92 + Math.sin(time * 6) * 0.08;
-      ctx.fillStyle = 'rgba(239, 68, 68, 0.22)';
-      ctx.strokeStyle = 'rgba(248, 113, 113, 0.85)';
+      const palettes = {
+        acid: ['rgba(163, 230, 53, 0.24)', 'rgba(132, 204, 22, 0.88)'],
+        slime: ['rgba(74, 222, 128, 0.22)', 'rgba(34, 197, 94, 0.85)'],
+        gas: ['rgba(132, 204, 22, 0.20)', 'rgba(190, 242, 100, 0.65)'],
+        potion_freeze: ['rgba(56, 189, 248, 0.24)', 'rgba(125, 211, 252, 0.92)'],
+        potion_poison: ['rgba(34, 197, 94, 0.24)', 'rgba(74, 222, 128, 0.9)'],
+        potion_dmg: ['rgba(239, 68, 68, 0.26)', 'rgba(251, 146, 60, 0.92)'],
+        range: ['rgba(129, 140, 248, 0.14)', 'rgba(165, 180, 252, 0.85)'],
+      };
+      const [fill, stroke] = palettes[h.variant] || ['rgba(239, 68, 68, 0.22)', 'rgba(248, 113, 113, 0.85)'];
+      const pulse = h.variant === 'range' ? 0.96 + Math.sin(time * 9) * 0.04 : 0.92 + Math.sin(time * 6) * 0.08;
+      ctx.fillStyle = fill;
+      ctx.strokeStyle = stroke;
       ctx.lineWidth = 2.5;
       ctx.beginPath();
       ctx.arc(h.x, h.y, h.radius * pulse, 0, Math.PI * 2);
@@ -165,20 +181,26 @@ function drawHazard(ctx, h, bounds, time) {
     }
 
     case 'laser_beam': {
+      const isElec = h.variant === 'electric';
       if (h.armTimer > 0) {
         ctx.setLineDash([8, 8]);
-        ctx.strokeStyle = 'rgba(240, 171, 252, 0.55)';
+        ctx.strokeStyle = isElec ? 'rgba(56, 189, 248, 0.55)' : 'rgba(240, 171, 252, 0.55)';
         ctx.lineWidth = 2;
       } else {
-        ctx.strokeStyle = '#e879f9';
+        ctx.strokeStyle = isElec ? '#38bdf8' : '#e879f9';
         ctx.lineWidth = 5;
-        ctx.shadowColor = '#f0abfc';
+        ctx.shadowColor = isElec ? '#fde047' : '#f0abfc';
         ctx.shadowBlur = 10;
       }
       ctx.beginPath();
       ctx.moveTo(h.x1, h.y1);
       ctx.lineTo(h.x2, h.y2);
       ctx.stroke();
+      if (isElec && h.armTimer <= 0) {
+        ctx.strokeStyle = '#fde047';
+        ctx.lineWidth = 1.8;
+        ctx.stroke();
+      }
       ctx.shadowBlur = 0;
       ctx.setLineDash([]);
       break;
@@ -257,11 +279,12 @@ function drawHazard(ctx, h, bounds, time) {
     }
 
     case 'poison_spike': {
+      const isBig = h.variant === 'big';
       const spikeLen = (h.radius || 23) * 0.9;
       const spikeHalf = (h.radius || 23) * 0.28;
-      ctx.fillStyle = '#84cc16';
-      ctx.strokeStyle = '#14532d';
-      ctx.lineWidth = 2;
+      ctx.fillStyle = isBig ? '#9ca3af' : '#84cc16';
+      ctx.strokeStyle = isBig ? '#dc2626' : '#14532d';
+      ctx.lineWidth = isBig ? 2.5 : 2;
       for (let k = -1; k <= 1; k++) {
         const angle = Math.atan2(h.ny, h.nx) + k * 0.48;
         const tipX = h.x + Math.cos(angle) * spikeLen;
@@ -279,6 +302,80 @@ function drawHazard(ctx, h, bounds, time) {
       break;
     }
 
+    case 'bomb': {
+      const flash = h.fuse < 0.5 && Math.sin(time * 28) > 0;
+      if (h.blastRadius && h.fuse < 0.6) {
+        ctx.strokeStyle = 'rgba(251, 146, 60, 0.55)';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([6, 6]);
+        ctx.beginPath();
+        ctx.arc(h.x, h.y, h.blastRadius, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+      ctx.fillStyle = flash ? '#ef4444' : '#18181b';
+      ctx.strokeStyle = '#fde047';
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.arc(h.x, h.y, h.radius, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = '#fb923c';
+      ctx.beginPath();
+      ctx.arc(h.x + h.radius * 0.35, h.y - h.radius * 0.55, 5, 0, Math.PI * 2);
+      ctx.fill();
+      break;
+    }
+
+    case 'cactus': {
+      ctx.fillStyle = '#16a34a';
+      ctx.strokeStyle = '#14532d';
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      for (let i = 0; i < 12; i++) {
+        const a = (i * Math.PI * 2) / 12;
+        const r = i % 2 === 0 ? h.radius : h.radius * 0.68;
+        const px = h.x + Math.cos(a) * r;
+        const py = h.y + Math.sin(a) * r;
+        if (i === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+      }
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = '#fef08a';
+      ctx.beginPath();
+      ctx.arc(h.x, h.y, 6, 0, Math.PI * 2);
+      ctx.fill();
+      break;
+    }
+
+    case 'pickup_drop': {
+      if (h.variant === 'apple') {
+        ctx.fillStyle = '#dc2626';
+        ctx.strokeStyle = '#7f1d1d';
+        ctx.lineWidth = 2.2;
+        ctx.beginPath();
+        ctx.arc(h.x, h.y, h.radius * 0.78, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = '#4ade80';
+        ctx.beginPath();
+        ctx.ellipse(h.x + 5, h.y - h.radius * 0.75, 6, 3.5, -0.4, 0, Math.PI * 2);
+        ctx.fill();
+      } else {
+        const big = h.variant === 'candy_big';
+        ctx.fillStyle = big ? '#fde047' : '#f472b6';
+        ctx.strokeStyle = '#831843';
+        ctx.lineWidth = 2.2;
+        ctx.beginPath();
+        ctx.arc(h.x, h.y, h.radius * 0.75, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+      }
+      break;
+    }
+
     default:
       break;
   }
@@ -286,7 +383,7 @@ function drawHazard(ctx, h, bounds, time) {
   ctx.restore();
 }
 
-function drawProjectile(ctx, p) {
+function drawProjectile(ctx, p, time = 0) {
   ctx.save();
   const angle = Math.atan2(p.vy, p.vx);
 
@@ -302,21 +399,65 @@ function drawProjectile(ctx, p) {
     ctx.stroke();
     ctx.fillStyle = '#fef08a';
     ctx.fillRect(28, -13, 12, 26);
-  } else if (p.kind === 'knife' || p.kind === 'shard' || p.kind === 'ice_spike' || p.kind === 'harpoon') {
+  } else if (
+    p.kind === 'knife' ||
+    p.kind === 'shard' ||
+    p.kind === 'ice_spike' ||
+    p.kind === 'harpoon' ||
+    p.kind === 'arrow' ||
+    p.kind === 'syringe' ||
+    p.kind === 'hook'
+  ) {
     ctx.translate(p.x, p.y);
     ctx.rotate(angle);
     ctx.fillStyle = p.color || '#ffffff';
     ctx.strokeStyle = '#0f172a';
     ctx.lineWidth = 2;
-    const len = p.kind === 'harpoon' ? 22 : Math.max(12, (p.radius || 10) * 1.35);
+    const len = p.kind === 'harpoon' || p.kind === 'hook' ? 22 : Math.max(12, (p.radius || 10) * 1.35);
     const hw = Math.max(5.5, len * 0.48);
+    if (p.kind === 'arrow') {
+      ctx.strokeStyle = '#fbbf24';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(-len * 0.9, 0);
+      ctx.lineTo(len * 0.6, 0);
+      ctx.stroke();
+    }
     ctx.beginPath();
     ctx.moveTo(len, 0);
-    ctx.lineTo(-len * 0.6, -hw);
-    ctx.lineTo(-len * 0.6, hw);
+    ctx.lineTo(-len * 0.55, -hw);
+    ctx.lineTo(-len * 0.55, hw);
     ctx.closePath();
     ctx.fill();
     ctx.stroke();
+  } else if (p.kind === 'shuriken') {
+    ctx.translate(p.x, p.y);
+    ctx.rotate(time * 18 + (p.id || 0));
+    ctx.fillStyle = '#e2e8f0';
+    ctx.strokeStyle = '#38bdf8';
+    ctx.lineWidth = 2;
+    for (let k = 0; k < 4; k++) {
+      ctx.rotate(Math.PI / 2);
+      ctx.beginPath();
+      ctx.moveTo(0, -p.radius);
+      ctx.lineTo(4.5, -4.5);
+      ctx.lineTo(0, 0);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+    }
+  } else if (p.kind === 'robux') {
+    ctx.translate(p.x, p.y);
+    ctx.rotate(time * 8);
+    ctx.fillStyle = '#10b981';
+    ctx.strokeStyle = '#fef08a';
+    ctx.lineWidth = 2.2;
+    ctx.beginPath();
+    ctx.roundRect(-p.radius * 0.85, -p.radius * 0.85, p.radius * 1.7, p.radius * 1.7, 4);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = '#fef08a';
+    ctx.fillRect(-3.5, -3.5, 7, 7);
   } else if (p.kind === 'bee') {
     ctx.translate(p.x, p.y);
     ctx.rotate(angle);
@@ -358,7 +499,7 @@ function drawProjectile(ctx, p) {
   ctx.restore();
 }
 
-function drawHelper(ctx, h) {
+function drawHelper(ctx, h, sim) {
   ctx.save();
   if (h.kind === 'orbital') {
     ctx.fillStyle = '#38bdf8';
@@ -386,14 +527,51 @@ function drawHelper(ctx, h) {
     ctx.fill();
     ctx.stroke();
   } else if (h.kind === 'axe') {
+    const parent = sim && sim.balls.find((b) => b.id === h.parentId);
+    if (parent) {
+      // Draw heavy two-ball-length shaft from Axe Ball to the curved battle-axe head
+      ctx.strokeStyle = '#78350f';
+      ctx.lineWidth = 10;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(parent.x, parent.y);
+      ctx.lineTo(h.x, h.y);
+      ctx.stroke();
+      ctx.strokeStyle = '#cbd5e1';
+      ctx.lineWidth = 4;
+      ctx.stroke();
+    }
     ctx.translate(h.x, h.y);
     ctx.rotate(h.orbitAngle + Math.PI / 2);
     ctx.fillStyle = '#dc2626';
     ctx.strokeStyle = '#f8fafc';
-    ctx.lineWidth = 2.5;
+    ctx.lineWidth = 3;
     ctx.beginPath();
-    ctx.arc(0, 0, h.hitRadius, -1.1, 1.1);
+    ctx.arc(0, 0, h.hitRadius, -1.15, 1.15);
     ctx.lineTo(0, 0);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+  } else if (h.kind === 'spear') {
+    const parent = sim && sim.balls.find((b) => b.id === h.parentId);
+    if (parent) {
+      ctx.strokeStyle = '#cbd5e1';
+      ctx.lineWidth = 6;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(parent.x, parent.y);
+      ctx.lineTo(h.x, h.y);
+      ctx.stroke();
+    }
+    ctx.translate(h.x, h.y);
+    ctx.rotate(h.orbitAngle);
+    ctx.fillStyle = '#eab308';
+    ctx.strokeStyle = '#f8fafc';
+    ctx.lineWidth = 2.4;
+    ctx.beginPath();
+    ctx.moveTo(h.hitRadius * 1.15, 0);
+    ctx.lineTo(-h.hitRadius * 0.65, -h.hitRadius * 0.55);
+    ctx.lineTo(-h.hitRadius * 0.65, h.hitRadius * 0.55);
     ctx.closePath();
     ctx.fill();
     ctx.stroke();
@@ -573,8 +751,8 @@ export function renderArena(ctx, sim, uiState = {}) {
   }
 
   // Projectiles & Helpers
-  for (const p of sim.projectiles) drawProjectile(ctx, p);
-  for (const h of sim.helpers) drawHelper(ctx, h);
+  for (const p of sim.projectiles) drawProjectile(ctx, p, time);
+  for (const h of sim.helpers) drawHelper(ctx, h, sim);
 
   // Aiming arrows during Lock Aim phase
   if (sim.phase === PHASES.AIM) {
@@ -592,8 +770,79 @@ export function renderArena(ctx, sim, uiState = {}) {
     }
   }
 
+  // Snake Ball chunky trailing body segments (draw back-to-front so neck tucks under head)
+  for (const ball of sim.balls) {
+    if (ball.ballId !== 'snake' || !Array.isArray(ball.tail) || ball.tail.length === 0) continue;
+    ctx.save();
+    for (let i = ball.tail.length - 1; i >= 0; i--) {
+      const seg = ball.tail[i];
+      ctx.fillStyle = i % 2 === 0 ? '#15803d' : '#22c55e';
+      ctx.strokeStyle = ball.owner === 1 ? '#38bdf8' : '#fb7185';
+      ctx.lineWidth = 3.2;
+      ctx.beginPath();
+      ctx.arc(seg.x, seg.y, seg.r, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = '#fde047';
+      ctx.beginPath();
+      ctx.arc(seg.x, seg.y, seg.r * 0.36, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
   // Balls & On-Ball Bold HP
   for (const ball of sim.balls) {
+    // Snake red forked tongue flicking forward
+    if (ball.ballId === 'snake') {
+      const sp = Math.hypot(ball.vx, ball.vy);
+      const ang = sp > 1 ? Math.atan2(ball.vy, ball.vx) : 0;
+      const flick = Math.sin(time * 0.018 + ball.id) > -0.25;
+      if (flick) {
+        const tx = ball.x + Math.cos(ang) * (ball.radius - 2);
+        const ty = ball.y + Math.sin(ang) * (ball.radius - 2);
+        const midX = tx + Math.cos(ang) * 14;
+        const midY = ty + Math.sin(ang) * 14;
+        ctx.save();
+        ctx.strokeStyle = '#ef4444';
+        ctx.lineWidth = 3.2;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(tx, ty);
+        ctx.lineTo(midX, midY);
+        ctx.lineTo(midX + Math.cos(ang + 0.55) * 9, midY + Math.sin(ang + 0.55) * 9);
+        ctx.moveTo(midX, midY);
+        ctx.lineTo(midX + Math.cos(ang - 0.55) * 9, midY + Math.sin(ang - 0.55) * 9);
+        ctx.stroke();
+        ctx.restore();
+      }
+    }
+
+    // Charge Ball kinetic lightning aura
+    if (ball.ballId === 'charge' && (ball.state?.charge || 0) > 0.15) {
+      const ch = Math.min(1, ball.state.charge);
+      ctx.save();
+      ctx.strokeStyle = `rgba(34, 211, 238, ${0.35 + ch * 0.55})`;
+      ctx.lineWidth = 2.5 + ch * 3.5;
+      ctx.setLineDash([7, 5]);
+      ctx.beginPath();
+      ctx.arc(ball.x, ball.y, ball.radius + 7 + ch * 5, time * 0.008, time * 0.008 + Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    // Burst Ball nitro boost flame ring
+    if (ball.dashTimer > 0) {
+      ctx.save();
+      ctx.strokeStyle = 'rgba(249, 115, 22, 0.85)';
+      ctx.lineWidth = 5;
+      ctx.beginPath();
+      ctx.arc(ball.x, ball.y, ball.radius + 8, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    }
+
     drawBallBody(ctx, ball, ball.x, ball.y, ball.radius, {
       owner: ball.owner,
       time,
@@ -617,27 +866,34 @@ export function renderArena(ctx, sim, uiState = {}) {
     ctx.fillText(String(Math.ceil(ball.hp)), ball.x, ball.y + 1);
 
     // Stage / Scaling / Mature badge right below ball
+    let badgeText = '';
+    let badgeColor = '#fde047';
     if (ball.ballId === 'verity') {
       const stage = ball.state?.stage || 1;
-      const badge = stage === 3 ? 'DMG 40!' : stage === 2 ? 'DMG 10' : 'DMG 5';
-      ctx.font = '800 12px system-ui, sans-serif';
-      ctx.lineWidth = 3.5;
-      ctx.strokeText(badge, ball.x, ball.y + ball.radius + 14);
-      ctx.fillStyle = stage === 3 ? '#ef4444' : stage === 2 ? '#fbbf24' : '#fde047';
-      ctx.fillText(badge, ball.x, ball.y + ball.radius + 14);
+      badgeText = stage === 3 ? 'DMG 40!' : stage === 2 ? 'DMG 10' : 'DMG 5';
+      badgeColor = stage === 3 ? '#ef4444' : stage === 2 ? '#fbbf24' : '#fde047';
     } else if (ball.ballId === 'fibonacci') {
-      const cur = ball.state?.cur || 1;
-      ctx.font = '800 12px system-ui, sans-serif';
-      ctx.lineWidth = 3.5;
-      ctx.strokeText(`DMG ${cur}`, ball.x, ball.y + ball.radius + 14);
-      ctx.fillStyle = '#34d399';
-      ctx.fillText(`DMG ${cur}`, ball.x, ball.y + ball.radius + 14);
+      badgeText = `DMG ${ball.state?.cur || 1}`;
+      badgeColor = '#34d399';
     } else if (ball.ballId === 'cell' && ball.state?.mature) {
+      badgeText = 'SPLIT READY';
+      badgeColor = '#6ee7b7';
+    } else if (ball.ballId === 'charge') {
+      badgeText = `CHG ${Math.round((ball.state?.charge || 0) * 100)}%`;
+      badgeColor = '#22d3ee';
+    } else if (ball.ballId === 'robux' && (ball.state?.stacks || 0) > 0) {
+      badgeText = `R$${ball.state.stacks}`;
+      badgeColor = '#4ade80';
+    } else if ((ball.virusStacks || 0) > 0) {
+      badgeText = `VIRUS x${ball.virusStacks}`;
+      badgeColor = '#c084fc';
+    }
+    if (badgeText) {
       ctx.font = '800 12px system-ui, sans-serif';
       ctx.lineWidth = 3.5;
-      ctx.strokeText('SPLIT READY', ball.x, ball.y + ball.radius + 14);
-      ctx.fillStyle = '#6ee7b7';
-      ctx.fillText('SPLIT READY', ball.x, ball.y + ball.radius + 14);
+      ctx.strokeText(badgeText, ball.x, ball.y + ball.radius + 14);
+      ctx.fillStyle = badgeColor;
+      ctx.fillText(badgeText, ball.x, ball.y + ball.radius + 14);
     }
     ctx.restore();
   }

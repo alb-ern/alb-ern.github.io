@@ -155,10 +155,14 @@ export class ArenaSimulation {
       poisonTick: 0,
       poisonDmg: 0,
       poisonOwner: 0,
+      dashTimer: 0,
+      hookSpinTimer: 0,
+      virusStacks: 0,
       _dmgCarry: 0,
       flashTimer: 0,
       contactCooldowns: {},
       trail: [],
+      tail: [],
       state: {},
     };
   }
@@ -447,6 +451,8 @@ export class ArenaSimulation {
     if (ball.flashTimer > 0) ball.flashTimer = Math.max(0, ball.flashTimer - dt);
     if (ball.stunTimer > 0) ball.stunTimer = Math.max(0, ball.stunTimer - dt);
     if (ball.slowTimer > 0) ball.slowTimer = Math.max(0, ball.slowTimer - dt);
+    if (ball.dashTimer > 0) ball.dashTimer = Math.max(0, ball.dashTimer - dt);
+    if (ball.hookSpinTimer > 0) ball.hookSpinTimer = Math.max(0, ball.hookSpinTimer - dt);
     if (ball.cageBounceCd > 0) ball.cageBounceCd = Math.max(0, ball.cageBounceCd - dt);
 
     for (const key of Object.keys(ball.contactCooldowns)) {
@@ -471,9 +477,20 @@ export class ArenaSimulation {
       return;
     }
 
-    const speedBoost = this.suddenDeathActive ? 1.15 : 1;
+    if (ball.hookSpinTimer > 0) {
+      const spinAngle = 9.2 * dt;
+      const cosA = Math.cos(spinAngle);
+      const sinA = Math.sin(spinAngle);
+      const nvx = ball.vx * cosA - ball.vy * sinA;
+      const nvy = ball.vx * sinA + ball.vy * cosA;
+      ball.vx = nvx;
+      ball.vy = nvy;
+    }
+
+    const speedBoost = (this.suddenDeathActive ? 1.15 : 1) * (ball.dashTimer > 0 ? 1.85 : 1);
     const slowFactor = ball.slowTimer > 0 ? 0.65 : 1;
-    const targetSpeed = Math.min(MAX_BALL_SPEED, ball.baseSpeed * speedBoost * slowFactor);
+    const capSpeed = ball.dashTimer > 0 ? MAX_BALL_SPEED * 1.15 : MAX_BALL_SPEED;
+    const targetSpeed = Math.min(capSpeed, ball.baseSpeed * speedBoost * slowFactor);
 
     let speed = Math.hypot(ball.vx, ball.vy);
     if (speed < 10) {
@@ -483,7 +500,7 @@ export class ArenaSimulation {
     } else {
       ball.lastDirX = ball.vx / speed;
       ball.lastDirY = ball.vy / speed;
-      const nextSpeed = speed + (targetSpeed - speed) * Math.min(1, dt * 3.5);
+      const nextSpeed = speed + (targetSpeed - speed) * Math.min(1, dt * (ball.dashTimer > 0 ? 8 : 3.5));
       ball.vx = ball.lastDirX * nextSpeed;
       ball.vy = ball.lastDirY * nextSpeed;
     }
@@ -661,22 +678,31 @@ export class ArenaSimulation {
           }
         }
       } else {
-        // Orbiting weapon helper (orbital, blade, axe)
+        // Orbiting weapon helper (orbital, blade, axe, spear)
         h.orbitAngle += h.angularSpeed * dt;
         h.x = parent.x + Math.cos(h.orbitAngle) * h.orbitRadius;
         h.y = parent.y + Math.sin(h.orbitAngle) * h.orbitRadius;
+
+        const hasShaft = h.kind === 'axe' || h.kind === 'spear';
+        const sx = hasShaft ? parent.x + Math.cos(h.orbitAngle) * (h.orbitRadius * 0.68) : h.x;
+        const sy = hasShaft ? parent.y + Math.sin(h.orbitAngle) * (h.orbitRadius * 0.68) : h.y;
 
         for (const enemy of this.getEnemyBalls(h.owner)) {
           if (h.hitCooldowns[enemy.id]) continue;
           const dx = enemy.x - h.x;
           const dy = enemy.y - h.y;
-          const dist = Math.hypot(dx, dy);
-          if (dist <= enemy.radius + h.hitRadius) {
+          const distTip = Math.hypot(dx, dy);
+          const hitTip = distTip <= enemy.radius + h.hitRadius;
+          const hitShaft = hasShaft && Math.hypot(enemy.x - sx, enemy.y - sy) <= enemy.radius + h.hitRadius * 0.68;
+          if (hitTip || hitShaft) {
             h.hitCooldowns[enemy.id] = 0.38;
             this.dealDamage(enemy, h.dmg, h.owner, 'orbit');
-            if (h.knockback && dist > 0.01) {
-              enemy.vx += (dx / dist) * h.knockback;
-              enemy.vy += (dy / dist) * h.knockback;
+            const pdx = enemy.x - parent.x;
+            const pdy = enemy.y - parent.y;
+            const pdist = Math.hypot(pdx, pdy);
+            if (h.knockback && pdist > 0.01) {
+              enemy.vx += (pdx / pdist) * h.knockback;
+              enemy.vy += (pdy / pdist) * h.knockback;
             }
           }
         }
@@ -721,6 +747,50 @@ export class ArenaSimulation {
         continue;
       }
 
+      if (h.kind === 'bomb') {
+        if (h.vx || h.vy) {
+          h.x += h.vx * dt;
+          h.y += h.vy * dt;
+          const damp = Math.pow(0.45, dt);
+          h.vx *= damp;
+          h.vy *= damp;
+          if (h.x - h.radius < b.left) { h.x = b.left + h.radius; h.vx = Math.abs(h.vx); }
+          if (h.x + h.radius > b.right) { h.x = b.right - h.radius; h.vx = -Math.abs(h.vx); }
+          if (h.y - h.radius < b.top) { h.y = b.top + h.radius; h.vy = Math.abs(h.vy); }
+          if (h.y + h.radius > b.bottom) { h.y = b.bottom - h.radius; h.vy = -Math.abs(h.vy); }
+        }
+        if (h.armDelay > 0) h.armDelay = Math.max(0, h.armDelay - dt);
+        if (h.armDelay <= 0) {
+          for (const enemy of this.getEnemyBalls(h.owner)) {
+            if (Math.hypot(enemy.x - h.x, enemy.y - h.y) <= enemy.radius + h.radius + 6) {
+              h.fuse = 0;
+              break;
+            }
+          }
+        }
+        h.fuse -= dt;
+        if (h.fuse <= 0) {
+          for (const enemy of this.getEnemyBalls(h.owner)) {
+            const dx = enemy.x - h.x;
+            const dy = enemy.y - h.y;
+            const dist = Math.hypot(dx, dy);
+            if (dist <= h.blastRadius + enemy.radius) {
+              this.dealDamage(enemy, h.dmg, h.owner, 'bomb');
+              if (h.knockback && dist > 0.01) {
+                enemy.vx += (dx / dist) * h.knockback;
+                enemy.vy += (dy / dist) * h.knockback;
+              }
+            }
+          }
+          this.emitText(h.x, h.y - 16, 'BOOM!', '#fb923c');
+          this.addParticleBurst(h.x, h.y, '#fbbf24', 18);
+          this.triggerShake(7, 0.16);
+          this.emitEvent('ability', { kind: 'explode', owner: h.owner });
+          this.hazards.splice(i, 1);
+        }
+        continue;
+      }
+
       if (h.kind === 'ice_bomb') {
         h.fuse -= dt;
         if (h.fuse <= 0) {
@@ -759,19 +829,42 @@ export class ArenaSimulation {
           const enemy = this.balls.find((ball) => ball.owner !== h.owner && ball.hp > 0);
           if (enemy) {
             const a = Math.atan2(enemy.y - h.y, enemy.x - h.x);
-            this.addProjectile({
-              kind: 'cannonball',
-              owner: h.owner,
-              x: h.x + Math.cos(a) * 24,
-              y: h.y + Math.sin(a) * 24,
-              vx: Math.cos(a) * 450,
-              vy: Math.sin(a) * 450,
-              radius: 14,
-              dmg: 5,
-              bouncesLeft: 0,
-              ttl: 1.9,
-              color: '#94a3b8',
-            });
+            if (h.beamTurret) {
+              const dx = Math.cos(a);
+              const dy = Math.sin(a);
+              this.addHazard(
+                {
+                  kind: 'plasma_blast',
+                  variant: 'ray',
+                  owner: h.owner,
+                  x1: h.x,
+                  y1: h.y,
+                  x2: h.x + dx * 950,
+                  y2: h.y + dy * 950,
+                  dx,
+                  dy,
+                  dmg: 4,
+                  hitIds: {},
+                  ttl: 0.16,
+                },
+                6
+              );
+              this.emitEvent('ability', { kind: 'beamFire', owner: h.owner });
+            } else {
+              this.addProjectile({
+                kind: 'cannonball',
+                owner: h.owner,
+                x: h.x + Math.cos(a) * 24,
+                y: h.y + Math.sin(a) * 24,
+                vx: Math.cos(a) * 450,
+                vy: Math.sin(a) * 450,
+                radius: 14,
+                dmg: 5,
+                bouncesLeft: 0,
+                ttl: 1.9,
+                color: '#94a3b8',
+              });
+            }
           }
         }
         continue;
@@ -803,7 +896,11 @@ export class ArenaSimulation {
             if (h.slowDuration) {
               enemy.slowTimer = Math.max(enemy.slowTimer, h.slowDuration);
             }
-            this.addParticleBurst(enemy.x, enemy.y, '#e2e8f0', 6);
+            if (h.healOwner) {
+              const ownerBall = this.balls.find((ball) => ball.owner === h.owner && ball.hp > 0);
+              if (ownerBall) this.healBall(ownerBall, h.healOwner);
+            }
+            this.addParticleBurst(enemy.x, enemy.y, h.variant === 'black' ? '#fb7185' : '#e2e8f0', 6);
             broken = true;
             break;
           }
@@ -845,6 +942,20 @@ export class ArenaSimulation {
       }
 
       if (h.kind === 'red_zone') {
+        if (h.followParentId) {
+          const parent = this.balls.find((ball) => ball.id === h.followParentId && ball.hp > 0);
+          if (!parent) {
+            this.hazards.splice(i, 1);
+            continue;
+          }
+          h.x = parent.x;
+          h.y = parent.y;
+        } else if (h.vx || h.vy) {
+          h.x += (h.vx || 0) * dt;
+          h.y += (h.vy || 0) * dt;
+          if (h.x - h.radius * 0.5 < b.left || h.x + h.radius * 0.5 > b.right) h.vx = -(h.vx || 0);
+          if (h.y - h.radius * 0.5 < b.top || h.y + h.radius * 0.5 > b.bottom) h.vy = -(h.vy || 0);
+        }
         for (const k of Object.keys(h.tickTimers)) {
           h.tickTimers[k] -= dt;
           if (h.tickTimers[k] <= 0) delete h.tickTimers[k];
@@ -854,7 +965,16 @@ export class ArenaSimulation {
           if (dist <= enemy.radius + h.radius * 0.88) {
             if (!h.tickTimers[enemy.id]) {
               h.tickTimers[enemy.id] = h.tickRate;
-              this.dealDamage(enemy, h.dmg, h.owner, 'zone');
+              const dmg = h.speedDmgScale
+                ? Math.max(h.dmg, Math.round(Math.hypot(enemy.vx, enemy.vy) * 0.022))
+                : h.dmg;
+              if (dmg > 0) this.dealDamage(enemy, dmg, h.owner, 'zone');
+              if (h.slowDuration) {
+                enemy.slowTimer = Math.max(enemy.slowTimer, h.slowDuration);
+              }
+              if (h.poisonTicks > 0) {
+                this.applyPoison(enemy, 2, h.poisonTicks, h.owner);
+              }
             }
           }
         }
@@ -879,6 +999,64 @@ export class ArenaSimulation {
         continue;
       }
 
+      if (h.kind === 'cactus') {
+        if (h.hitCooldown > 0) h.hitCooldown = Math.max(0, h.hitCooldown - dt);
+        if (h.hitCooldown <= 0) {
+          for (const enemy of this.getEnemyBalls(h.owner)) {
+            const dx = enemy.x - h.x;
+            const dy = enemy.y - h.y;
+            const dist = Math.hypot(dx, dy);
+            if (dist <= enemy.radius + h.radius) {
+              h.hitCooldown = 0.52;
+              this.dealDamage(enemy, h.dmg, h.owner, 'cactus');
+              if (h.knockback && dist > 0.01) {
+                enemy.vx += (dx / dist) * h.knockback;
+                enemy.vy += (dy / dist) * h.knockback;
+              }
+              break;
+            }
+          }
+        }
+        continue;
+      }
+
+      if (h.kind === 'pickup_drop') {
+        if (h.vx || h.vy) {
+          h.x += h.vx * dt;
+          h.y += h.vy * dt;
+          const damp = Math.pow(0.55, dt);
+          h.vx *= damp;
+          h.vy *= damp;
+          if (h.x - h.radius < b.left) { h.x = b.left + h.radius; h.vx = Math.abs(h.vx); }
+          if (h.x + h.radius > b.right) { h.x = b.right - h.radius; h.vx = -Math.abs(h.vx); }
+          if (h.y - h.radius < b.top) { h.y = b.top + h.radius; h.vy = Math.abs(h.vy); }
+          if (h.y + h.radius > b.bottom) { h.y = b.bottom - h.radius; h.vy = -Math.abs(h.vy); }
+        }
+        if (h.allyGrace > 0) h.allyGrace = Math.max(0, h.allyGrace - dt);
+        let taken = false;
+        for (const enemy of this.getEnemyBalls(h.owner)) {
+          if (Math.hypot(enemy.x - h.x, enemy.y - h.y) <= enemy.radius + h.radius) {
+            this.dealDamage(enemy, h.enemyDmg, h.owner, 'drop');
+            this.addParticleBurst(h.x, h.y, '#fda4af', 6);
+            taken = true;
+            break;
+          }
+        }
+        if (!taken && !(h.allyGrace > 0)) {
+          for (const ally of this.balls) {
+            if (ally.owner !== h.owner || ally.hp <= 0 || ally.hp >= ally.maxHp) continue;
+            if (Math.hypot(ally.x - h.x, ally.y - h.y) <= ally.radius + h.radius) {
+              this.healBall(ally, h.heal);
+              this.addParticleBurst(h.x, h.y, '#86efac', 6);
+              taken = true;
+              break;
+            }
+          }
+        }
+        if (taken) this.hazards.splice(i, 1);
+        continue;
+      }
+
       if (h.kind === 'poison_spike') {
         h.x = Math.max(b.left + 18, Math.min(b.right - 18, h.x));
         h.y = Math.max(b.top + 18, Math.min(b.bottom - 18, h.y));
@@ -889,7 +1067,9 @@ export class ArenaSimulation {
             if (dist <= enemy.radius + h.radius) {
               h.hitCooldown = 0.65;
               this.dealDamage(enemy, h.dmg, h.owner, 'spike');
-              this.applyPoison(enemy, 2, h.poisonTicks, h.owner);
+              if (h.poisonTicks > 0) {
+                this.applyPoison(enemy, 2, h.poisonTicks, h.owner);
+              }
               if (h.slowDuration) {
                 enemy.slowTimer = Math.max(enemy.slowTimer, h.slowDuration);
               }
@@ -999,6 +1179,10 @@ export class ArenaSimulation {
             p.dragTick = 0.25;
             p.ttl = Math.min(p.ttl, 0.75);
             this.emitText(enemy.x, enemy.y - enemy.radius - 10, 'HOOKED!', '#38bdf8');
+          } else if (p.kind === 'hook') {
+            enemy.hookSpinTimer = Math.max(enemy.hookSpinTimer, p.spinDuration || 0.95);
+            this.emitText(enemy.x, enemy.y - enemy.radius - 10, 'SPIN OUT!', '#94a3b8');
+            this.addParticleBurst(enemy.x, enemy.y, '#cbd5e1', 8);
           }
 
           if (!p.piercing) {
