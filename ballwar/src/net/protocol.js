@@ -40,6 +40,9 @@ export function encodeSnapshot(sim, pendingEvents = [], fxWatermark = { lastId: 
   return {
     type: 'snap',
     phase: sim.phase,
+    teamSize: sim.teamSize,
+    arenaSize: sim.arenaSize,
+    minArenaSize: sim.minArenaSize,
     roundNumber: sim.roundNumber,
     roundTime: Number(sim.roundTime.toFixed(3)),
     suddenDeathActive: sim.suddenDeathActive,
@@ -47,6 +50,10 @@ export function encodeSnapshot(sim, pendingEvents = [], fxWatermark = { lastId: 
     roundWinner: sim.roundWinner,
     hearts: { ...sim.hearts },
     heartsToWin: sim.heartsToWin,
+    selectedTeams: {
+      1: [...(sim.selectedTeams?.[1] || [sim.selectedBallIds[1]])],
+      2: [...(sim.selectedTeams?.[2] || [sim.selectedBallIds[2]])],
+    },
     selectedBallIds: { ...sim.selectedBallIds },
     bounds: { ...sim.bounds },
     shakeTimer: sim.shakeTimer,
@@ -54,6 +61,8 @@ export function encodeSnapshot(sim, pendingEvents = [], fxWatermark = { lastId: 
     balls: sim.balls.map((b) => ({
       id: b.id,
       owner: b.owner,
+      slotIndex: b.slotIndex ?? 0,
+      aimAngle: b.aimAngle ?? 0,
       ballId: b.ballId,
       name: b.name,
       rarity: b.rarity,
@@ -156,6 +165,9 @@ export function applySnapshot(mirrorSim, snap) {
   }
 
   mirrorSim.phase = snap.phase;
+  if (snap.teamSize != null) mirrorSim.setTeamSize(snap.teamSize);
+  if (snap.arenaSize != null) mirrorSim.arenaSize = snap.arenaSize;
+  if (snap.minArenaSize != null) mirrorSim.minArenaSize = snap.minArenaSize;
   mirrorSim.roundNumber = snap.roundNumber;
   mirrorSim.roundTime = snap.roundTime;
   mirrorSim.suddenDeathActive = snap.suddenDeathActive;
@@ -163,6 +175,12 @@ export function applySnapshot(mirrorSim, snap) {
   mirrorSim.roundWinner = snap.roundWinner;
   mirrorSim.hearts = { ...snap.hearts };
   mirrorSim.heartsToWin = snap.heartsToWin;
+  if (snap.selectedTeams) {
+    mirrorSim.selectedTeams = {
+      1: [...(snap.selectedTeams[1] || [])],
+      2: [...(snap.selectedTeams[2] || [])],
+    };
+  }
   mirrorSim.selectedBallIds = { ...snap.selectedBallIds };
   mirrorSim.bounds = { ...snap.bounds };
   mirrorSim.shakeTimer = Math.max(mirrorSim.shakeTimer || 0, snap.shakeTimer || 0);

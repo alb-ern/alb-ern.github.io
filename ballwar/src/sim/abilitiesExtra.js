@@ -300,7 +300,7 @@ export const EXTRA_ABILITY_HANDLERS = {
       ball.state.timer -= dt;
       if (ball.state.timer <= 0) {
         ball.state.timer = 4.6;
-        const pos = clampPos(sim, (ball.x + ARENA_SIZE * 0.5) * 0.5, (ball.y + ARENA_SIZE * 0.5) * 0.5, 110);
+        const pos = clampPos(sim, (ball.x + (sim.arenaSize || ARENA_SIZE) * 0.5) * 0.5, (ball.y + (sim.arenaSize || ARENA_SIZE) * 0.5) * 0.5, 110);
         sim.addHazard(
           {
             kind: 'red_zone',
@@ -1007,8 +1007,8 @@ export const EXTRA_ABILITY_HANDLERS = {
         const horiz = Math.abs(ball.vy) > Math.abs(ball.vx);
         const enemy = sim.getClosestEnemy(ball);
         const b = sim.bounds;
-        const y = enemy ? enemy.y : ARENA_SIZE * 0.5;
-        const x = enemy ? enemy.x : ARENA_SIZE * 0.5;
+        const y = enemy ? enemy.y : (sim.arenaSize || ARENA_SIZE) * 0.5;
+        const x = enemy ? enemy.x : (sim.arenaSize || ARENA_SIZE) * 0.5;
         sim.addHazard(
           {
             kind: 'ring_wave',
@@ -1151,8 +1151,8 @@ export const EXTRA_ABILITY_HANDLERS = {
           kind: 'red_zone',
           variant: 'cloud',
           owner: ball.owner,
-          x: ARENA_SIZE * 0.5,
-          y: ARENA_SIZE * 0.5,
+          x: (sim.arenaSize || ARENA_SIZE) * 0.5,
+          y: (sim.arenaSize || ARENA_SIZE) * 0.5,
           vx: 55,
           vy: 42,
           radius: 74,
@@ -1800,7 +1800,7 @@ export const EXTRA_ABILITY_HANDLERS = {
       if (ball.state.timer <= 0) {
         ball.state.timer = 1.65;
         const enemy = sim.getClosestEnemy(ball);
-        const pos = enemy ? clampPos(sim, enemy.x + enemy.vx * 0.2, enemy.y + enemy.vy * 0.2, 65) : { x: ARENA_SIZE * 0.5, y: ARENA_SIZE * 0.5 };
+        const pos = enemy ? clampPos(sim, enemy.x + enemy.vx * 0.2, enemy.y + enemy.vy * 0.2, 65) : { x: (sim.arenaSize || ARENA_SIZE) * 0.5, y: (sim.arenaSize || ARENA_SIZE) * 0.5 };
         sim.addHazard(
           {
             kind: 'ring_wave',

@@ -30,15 +30,22 @@
     <main id="view-lobby" class="view view-lobby">
       <section class="hero-card">
         <div class="hero-copy">
-          <p class="hero-kicker">1v1 Physics Auto-Battler • 100 Iconic Balls Unlocked</p>
+          <p class="hero-kicker" id="lobby-kicker">1v1 / 2v2 Physics Auto-Battler • 100 Iconic Balls Unlocked</p>
           <h1>Pick. Aim. <span class="accent-gold">Bounce to Win!</span></h1>
           <p class="hero-sub">
             Draft from 3 random balls or pick any matchup directly, lock your opening trajectory,
             and watch automated wall-bounce abilities clash until all 3 hearts shatter.
           </p>
+          <div class="format-bar">
+            <span class="format-label">Battle Mode:</span>
+            <div class="format-toggle" data-format-toggle>
+              <button class="fmt-btn is-active" data-team-size="1" type="button">1v1 Arena (600)</button>
+              <button class="fmt-btn" data-team-size="2" type="button">2v2 Teams (740 Arena)</button>
+            </div>
+          </div>
           <div class="hero-cta-row">
             <button class="btn btn-primary btn-lg" id="btn-quick-bot" type="button">Play VS Bot</button>
-            <button class="btn btn-secondary btn-lg" id="btn-quick-online" type="button">Online 1v1 (P2P)</button>
+            <button class="btn btn-secondary btn-lg" id="btn-quick-online" type="button">Online P2P</button>
             <button class="btn btn-gold btn-lg" id="btn-verity-spider" type="button">Test: Verity vs Spider</button>
           </div>
         </div>
@@ -60,29 +67,29 @@
       <section class="mode-grid" aria-label="Game Modes">
         <article class="mode-card" data-mode="online">
           <div class="mode-badge green">REAL MULTIPLAYER</div>
-          <h2>Online 1v1 (P2P)</h2>
-          <p>Play friends from anywhere via WebRTC room codes! Secret 3-ball drafts, simultaneous Lock Aim, and Best-of-3 Hearts.</p>
-          <button class="btn btn-secondary" id="btn-mode-online" type="button">Play Online 1v1</button>
+          <h2>Online <span data-mode-format-tag>1v1</span> (P2P)</h2>
+          <p>Play friends from anywhere via WebRTC room codes! Secret drafts, simultaneous Lock Aim, and Best-of-3 Hearts.</p>
+          <button class="btn btn-secondary" id="btn-mode-online" type="button">Play Online</button>
         </article>
 
         <article class="mode-card" data-mode="bot">
           <div class="mode-badge blue">1 PLAYER</div>
-          <h2>VS Bot (1v1)</h2>
-          <p>Best-of-3 Hearts arena match. Draft 3 random balls (2 free Rerolls + All Balls picker) and outsmart the AI Bot.</p>
+          <h2>VS Bot (<span data-mode-format-tag>1v1</span>)</h2>
+          <p>Best-of-3 Hearts arena match. Draft random balls (2 free Rerolls + All Balls picker) and outsmart the AI Bot.</p>
           <button class="btn btn-primary" id="btn-mode-bot" type="button">Start VS Bot</button>
         </article>
 
         <article class="mode-card" data-mode="local2p">
           <div class="mode-badge purple">SAME DEVICE</div>
           <h2>Local 2-Player</h2>
-          <p>Pass-and-play 1v1! Secret ball drafts and hidden Lock Aim angles before both balls launch simultaneously.</p>
+          <p>Pass-and-play <span data-mode-format-tag>1v1</span>! Secret ball drafts and hidden Lock Aim angles before all balls launch together.</p>
           <button class="btn btn-purple" id="btn-mode-2p" type="button">Start Local 2P</button>
         </article>
 
         <article class="mode-card" data-mode="sandbox">
           <div class="mode-badge gold">ALL UNLOCKED</div>
-          <h2>Sandbox 1v1</h2>
-          <p>Pick any ball vs any ball directly, customize Sudden Death &amp; Hearts, or run 10 instant simulations to test metas.</p>
+          <h2>Sandbox <span data-mode-format-tag>1v1</span></h2>
+          <p>Pick any balls vs any balls directly, customize Sudden Death &amp; Hearts, or run 10 instant simulations to test metas.</p>
           <button class="btn btn-gold" id="btn-mode-sandbox" type="button">Open Sandbox</button>
         </article>
       </section>
@@ -92,8 +99,12 @@
     <section id="view-online" class="view view-online hidden">
       <div class="panel-header">
         <div>
-          <h2>Online 1v1 Multiplayer (WebRTC P2P)</h2>
-          <p class="muted">Serverless PeerJS room codes — works over LAN, Tailscale, or GitHub Pages. Best-of-3 Hearts Draft mode.</p>
+          <h2>Online <span data-mode-format-tag>1v1</span> Multiplayer (WebRTC P2P)</h2>
+          <p class="muted">Serverless PeerJS room codes — works over LAN, Tailscale, or GitHub Pages. Host sets 1v1 or 2v2 format.</p>
+        </div>
+        <div class="format-toggle" data-format-toggle>
+          <button class="fmt-btn is-active" data-team-size="1" type="button">1v1 (600)</button>
+          <button class="fmt-btn" data-team-size="2" type="button">2v2 (740 Arena)</button>
         </div>
       </div>
 
@@ -125,22 +136,28 @@
         </div>
       </div>
 
-      <div id="online-status" class="online-status-bar">Ready to host or join an Online 1v1 duel.</div>
+      <div id="online-status" class="online-status-bar">Ready to host or join an Online duel.</div>
     </section>
 
     <!-- SANDBOX SETUP VIEW -->
     <section id="view-sandbox" class="view view-sandbox hidden">
       <div class="panel-header">
         <div>
-          <h2>Sandbox 1v1 Matchup Lab</h2>
-          <p class="muted">Select any Blue vs Red matchup, tweak arena rules, or simulate 10 instant duels.</p>
+          <h2>Sandbox <span data-mode-format-tag>1v1</span> Matchup Lab</h2>
+          <p class="muted">Select any Blue vs Red balls, swap 1v1 / 2v2 (740 Arena), or simulate 10 instant duels.</p>
         </div>
-        <div class="preset-row">
-          <button class="btn btn-sm btn-gold" data-preset="duplicator,titan" type="button">Duplicator vs Titan</button>
-          <button class="btn btn-sm btn-ghost" data-preset="mach,gravity" type="button">Mach vs Gravity</button>
-          <button class="btn btn-sm btn-ghost" data-preset="verity,spider" type="button">Verity vs Spider</button>
-          <button class="btn btn-sm btn-ghost" data-preset="shackles,orbital" type="button">Shackles vs Orbital</button>
-          <button class="btn btn-sm btn-ghost" id="btn-sandbox-random" type="button">Random Pair</button>
+        <div class="sb-top-actions">
+          <div class="format-toggle" data-format-toggle>
+            <button class="fmt-btn is-active" data-team-size="1" type="button">1v1 (600)</button>
+            <button class="fmt-btn" data-team-size="2" type="button">2v2 (740 Arena)</button>
+          </div>
+          <div class="preset-row">
+            <button class="btn btn-sm btn-gold" data-preset="duplicator,titan" type="button">Duplicator vs Titan</button>
+            <button class="btn btn-sm btn-ghost" data-preset="mach,gravity" type="button">Mach vs Gravity</button>
+            <button class="btn btn-sm btn-ghost" data-preset="verity,spider" type="button">Verity vs Spider</button>
+            <button class="btn btn-sm btn-ghost" data-preset="shackles,orbital" type="button">Shackles vs Orbital</button>
+            <button class="btn btn-sm btn-ghost" id="btn-sandbox-random" type="button">Random</button>
+          </div>
         </div>
       </div>
 
@@ -148,8 +165,12 @@
         <div class="sandbox-side side-blue">
           <div class="side-header">
             <span class="team-dot blue"></span>
-            <h3>Player 1 (Blue)</h3>
+            <h3>Team 1 (Blue)</h3>
             <span id="sb-p1-selected" class="selected-name">Verity Ball</span>
+          </div>
+          <div id="sb-p1-slots" class="slot-tabs hidden">
+            <button class="slot-tab is-active" data-side="1" data-slot="0" type="button">Ball 1</button>
+            <button class="slot-tab" data-side="1" data-slot="1" type="button">Ball 2</button>
           </div>
           <div id="sb-p1-grid" class="mini-ball-grid"></div>
         </div>
@@ -157,13 +178,19 @@
         <div class="sandbox-center">
           <div class="sb-preview-pair">
             <div class="sb-preview-card">
-              <canvas id="sb-canvas-1" width="84" height="84"></canvas>
+              <div class="sb-preview-balls" id="sb-canvases-1">
+                <canvas id="sb-canvas-1" width="84" height="84"></canvas>
+                <canvas id="sb-canvas-1b" class="hidden" width="64" height="64"></canvas>
+              </div>
               <strong id="sb-name-1">Verity Ball</strong>
               <small id="sb-desc-1"></small>
             </div>
             <div class="vs-circle">VS</div>
             <div class="sb-preview-card">
-              <canvas id="sb-canvas-2" width="84" height="84"></canvas>
+              <div class="sb-preview-balls" id="sb-canvases-2">
+                <canvas id="sb-canvas-2" width="84" height="84"></canvas>
+                <canvas id="sb-canvas-2b" class="hidden" width="64" height="64"></canvas>
+              </div>
               <strong id="sb-name-2">Spider Ball</strong>
               <small id="sb-desc-2"></small>
             </div>
@@ -199,8 +226,12 @@
         <div class="sandbox-side side-red">
           <div class="side-header">
             <span class="team-dot red"></span>
-            <h3>Player 2 (Red)</h3>
+            <h3>Team 2 (Red)</h3>
             <span id="sb-p2-selected" class="selected-name">Spider Ball</span>
+          </div>
+          <div id="sb-p2-slots" class="slot-tabs hidden">
+            <button class="slot-tab is-active" data-side="2" data-slot="0" type="button">Ball 1</button>
+            <button class="slot-tab" data-side="2" data-slot="1" type="button">Ball 2</button>
           </div>
           <div id="sb-p2-grid" class="mini-ball-grid"></div>
         </div>
@@ -224,6 +255,7 @@
             <div class="hp-bar-fill blue" id="hud-p1-hpbar" style="width:100%"></div>
             <span class="hp-bar-text" id="hud-p1-hptext">100 / 100</span>
           </div>
+          <div id="hud-p1-rows" class="hud-team-rows hidden"></div>
         </div>
 
         <div class="hud-center arena-side-card">
@@ -234,7 +266,7 @@
 
       <!-- Center Zoomed Canvas Stage + Overlays -->
       <div class="arena-stage-wrap">
-        <canvas id="arena-canvas" width="840" height="840"></canvas>
+        <canvas id="arena-canvas" width="900" height="900"></canvas>
 
         <!-- Round/Match Outcome Overlay -->
         <div id="arena-banner" class="arena-banner hidden">
@@ -275,11 +307,16 @@
             <div class="hp-bar-fill red" id="hud-p2-hpbar" style="width:100%"></div>
             <span class="hp-bar-text" id="hud-p2-hptext">100 / 100</span>
           </div>
+          <div id="hud-p2-rows" class="hud-team-rows hidden"></div>
         </div>
 
         <div class="arena-controls arena-side-card">
           <div id="controls-aim" class="controls-group hidden">
             <div class="aim-prompt" id="aim-prompt">Drag inside the arena (or A / D) to aim your ball</div>
+            <div id="aim-slot-tabs" class="slot-tabs hidden">
+              <button class="slot-tab is-active" id="btn-aim-slot-0" type="button">Ball 1</button>
+              <button class="slot-tab" id="btn-aim-slot-1" type="button">Ball 2</button>
+            </div>
             <div class="aim-buttons">
               <button class="btn btn-ghost btn-sm" id="btn-aim-ccw" type="button">↺ -10°</button>
               <button class="btn btn-ghost btn-sm" id="btn-aim-cw" type="button">↻ +10°</button>

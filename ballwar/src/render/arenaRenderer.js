@@ -766,7 +766,8 @@ function drawHelper(ctx, h, sim) {
 export function renderArena(ctx, sim, uiState = {}) {
   const w = ctx.canvas.width;
   const h = ctx.canvas.height;
-  const scale = w / ARENA_SIZE;
+  const arenaSz = sim.arenaSize || ARENA_SIZE;
+  const scale = w / arenaSz;
   const time = sim.roundTime || (performance.now() * 0.001);
 
   ctx.save();
@@ -781,7 +782,7 @@ export function renderArena(ctx, sim, uiState = {}) {
 
   // Outer danger background (visible when Sudden Death shrinks arena)
   ctx.fillStyle = sim.suddenDeathActive ? '#4c0519' : '#0f172a';
-  ctx.fillRect(0, 0, ARENA_SIZE, ARENA_SIZE);
+  ctx.fillRect(0, 0, arenaSz, arenaSz);
 
   // Playable arena court inside current bounds
   const b = sim.bounds;
@@ -794,7 +795,7 @@ export function renderArena(ctx, sim, uiState = {}) {
   ctx.clip();
 
   // Tactile Roblox-style bright court floor
-  const bgGrad = ctx.createLinearGradient(0, 0, ARENA_SIZE, ARENA_SIZE);
+  const bgGrad = ctx.createLinearGradient(0, 0, arenaSz, arenaSz);
   bgGrad.addColorStop(0, '#1e293b');
   bgGrad.addColorStop(1, '#111827');
   ctx.fillStyle = bgGrad;
@@ -804,16 +805,16 @@ export function renderArena(ctx, sim, uiState = {}) {
   ctx.strokeStyle = 'rgba(148, 163, 184, 0.12)';
   ctx.lineWidth = 1;
   const step = 40;
-  for (let gx = 0; gx <= ARENA_SIZE; gx += step) {
+  for (let gx = 0; gx <= arenaSz; gx += step) {
     ctx.beginPath();
     ctx.moveTo(gx, 0);
-    ctx.lineTo(gx, ARENA_SIZE);
+    ctx.lineTo(gx, arenaSz);
     ctx.stroke();
   }
-  for (let gy = 0; gy <= ARENA_SIZE; gy += step) {
+  for (let gy = 0; gy <= arenaSz; gy += step) {
     ctx.beginPath();
     ctx.moveTo(0, gy);
-    ctx.lineTo(ARENA_SIZE, gy);
+    ctx.lineTo(arenaSz, gy);
     ctx.stroke();
   }
 
@@ -821,7 +822,7 @@ export function renderArena(ctx, sim, uiState = {}) {
   ctx.strokeStyle = 'rgba(148, 163, 184, 0.16)';
   ctx.lineWidth = 3;
   ctx.beginPath();
-  ctx.arc(ARENA_SIZE * 0.5, ARENA_SIZE * 0.5, 84, 0, Math.PI * 2);
+  ctx.arc(arenaSz * 0.5, arenaSz * 0.5, 84, 0, Math.PI * 2);
   ctx.stroke();
 
   // Hazards inside arena
@@ -928,15 +929,35 @@ export function renderArena(ctx, sim, uiState = {}) {
   // Aiming arrows during Lock Aim phase
   if (sim.phase === PHASES.AIM) {
     const activePlayer = uiState.aimingPlayer || 1;
+    const activeSlot = uiState.aimSlot ?? 0;
+    const is2v2 = sim.teamSize === 2;
     for (const ball of sim.balls) {
       if (ball.owner === activePlayer) {
+        const slot = ball.slotIndex ?? 0;
+        const isSelected = !is2v2 || slot === activeSlot;
+        const angle =
+          ball.aimAngle ??
+          sim.teamAimAngles?.[ball.owner]?.[slot] ??
+          sim.aimAngles[ball.owner];
+        ctx.save();
+        if (!isSelected) ctx.globalAlpha = 0.55;
+        if (is2v2 && isSelected) {
+          ctx.strokeStyle = ball.owner === 1 ? '#7dd3fc' : '#fda4af';
+          ctx.lineWidth = 3;
+          ctx.setLineDash([6, 4]);
+          ctx.beginPath();
+          ctx.arc(ball.x, ball.y, ball.radius + 11, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.setLineDash([]);
+        }
         drawAimArrow(
           ctx,
           ball,
-          sim.aimAngles[ball.owner],
+          angle,
           b,
           ball.owner === 1 ? '#38bdf8' : '#f43f5e'
         );
+        ctx.restore();
       }
     }
   }

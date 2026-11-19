@@ -235,10 +235,57 @@ h1, h2, h3, .brand-title, .round-pill, .btn, .rarity-pill {
 }
 
 .hero-sub {
-  margin: 0 0 20px;
+  margin: 0 0 14px;
   color: #cbd5e1;
   line-height: 1.5;
   max-width: 56ch;
+}
+
+.format-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 0 0 16px;
+}
+
+.format-label {
+  font-size: 0.8rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+
+.format-toggle {
+  display: inline-flex;
+  padding: 4px;
+  gap: 4px;
+  background: rgba(9, 13, 22, 0.85);
+  border: 2px solid var(--border);
+  border-radius: 12px;
+}
+
+.fmt-btn {
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-weight: 800;
+  font-size: 0.82rem;
+  padding: 6px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.fmt-btn:hover {
+  color: var(--text);
+}
+
+.fmt-btn.is-active {
+  background: linear-gradient(135deg, #0284c7, #38bdf8);
+  color: #082f49;
+  box-shadow: 0 2px 8px rgba(56, 189, 248, 0.35);
 }
 
 .hero-cta-row {
@@ -438,6 +485,13 @@ h1, h2, h3, .brand-title, .round-pill, .btn, .rarity-pill {
   font-size: 0.92rem;
 }
 
+.sb-top-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+
 .preset-row {
   display: flex;
   gap: 8px;
@@ -474,7 +528,35 @@ h1, h2, h3, .brand-title, .round-pill, .btn, .rarity-pill {
   margin-left: auto;
   font-weight: 800;
   color: var(--gold);
-  font-size: 0.88rem;
+  font-size: 0.85rem;
+  text-align: right;
+}
+
+.slot-tabs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.slot-tab {
+  padding: 6px 8px;
+  border-radius: 9px;
+  border: 2px solid var(--border);
+  background: var(--bg-card);
+  color: var(--text-muted);
+  font-weight: 800;
+  font-size: 0.78rem;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.slot-tab.is-active {
+  border-color: var(--gold);
+  color: var(--gold);
+  background: rgba(251, 191, 36, 0.14);
 }
 
 .team-dot {
@@ -544,8 +626,15 @@ h1, h2, h3, .brand-title, .round-pill, .btn, .rarity-pill {
   gap: 4px;
 }
 
+.sb-preview-balls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+
 .sb-preview-card strong {
-  font-size: 0.88rem;
+  font-size: 0.85rem;
 }
 
 .sb-preview-card small {
@@ -606,7 +695,7 @@ h1, h2, h3, .brand-title, .round-pill, .btn, .rarity-pill {
 /* Arena View (3-column wide layout: side HUDs + zoomed center square arena) */
 .view-arena {
   display: grid;
-  grid-template-columns: minmax(210px, 245px) auto minmax(210px, 245px);
+  grid-template-columns: minmax(210px, 248px) auto minmax(210px, 248px);
   align-items: center;
   justify-content: center;
   gap: 16px;
@@ -676,7 +765,7 @@ h1, h2, h3, .brand-title, .round-pill, .btn, .rarity-pill {
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 6px;
-  font-size: 1rem;
+  font-size: 0.96rem;
 }
 
 .hp-bar-wrap {
@@ -705,6 +794,49 @@ h1, h2, h3, .brand-title, .round-pill, .btn, .rarity-pill {
   font-weight: 900;
   text-shadow: 0 1px 2px #000;
 }
+
+.hud-team-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+.hud-member-row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 0.75rem;
+}
+
+.hud-member-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: 800;
+  color: #cbd5e1;
+}
+
+.hud-member-row.is-ko .hud-member-top {
+  color: #64748b;
+  text-decoration: line-through;
+}
+
+.hud-member-bar {
+  width: 100%;
+  height: 7px;
+  border-radius: 999px;
+  background: #090d16;
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+
+.hud-member-fill {
+  height: 100%;
+  transition: width 0.1s linear;
+}
+.hud-member-fill.blue { background: var(--blue); }
+.hud-member-fill.red { background: var(--red); }
 
 .hud-center {
   display: flex;
@@ -740,16 +872,21 @@ h1, h2, h3, .brand-title, .round-pill, .btn, .rarity-pill {
   50% { transform: scale(1.08); }
 }
 
-/* Arena Canvas Container (zoomed to fill vertical + horizontal page space) */
+/* Arena Canvas Container (2v2 gets a visibly larger stage for 740x740 arena) */
 .arena-stage-wrap {
   position: relative;
-  width: clamp(320px, min(calc(100vh - 94px), calc(100vw - 548px)), 880px);
+  width: clamp(320px, min(calc(100vh - 120px), calc(100vw - 556px)), 700px);
   aspect-ratio: 1 / 1;
   border-radius: 18px;
   overflow: hidden;
   border: 3px solid var(--border);
   box-shadow: 0 12px 32px rgba(2, 6, 23, 0.75);
   background: #0f172a;
+  transition: width 0.2s ease;
+}
+
+.view-arena.is-2v2 .arena-stage-wrap {
+  width: clamp(340px, min(calc(100vh - 82px), calc(100vw - 524px)), 880px);
 }
 
 #arena-canvas {

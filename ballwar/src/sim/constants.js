@@ -1,4 +1,5 @@
 export const ARENA_SIZE = 600;
+export const ARENA_SIZE_2V2 = 740;
 export const FIXED_DT = 1 / 60;
 export const MAX_ACCUM_DT = 0.1;
 
@@ -9,6 +10,7 @@ export const FREE_REROLLS_PER_ROUND = 2;
 export const SUDDEN_DEATH_START_SEC = 22;
 export const SUDDEN_DEATH_SHRINK_RATE = 13; // px per second per side
 export const MIN_ARENA_SIZE = 280;
+export const MIN_ARENA_SIZE_2V2 = 360;
 
 export const BASE_BALL_RADIUS = 50;
 export const MAX_TEAM_BALLS = 16;
