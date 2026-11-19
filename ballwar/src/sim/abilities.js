@@ -12,9 +12,9 @@ function addOrbitHelper(sim, ball, opts) {
     owner: ball.owner,
     parentId: ball.id,
     orbitAngle: opts.orbitAngle || 0,
-    orbitRadius: opts.orbitRadius || 46,
+    orbitRadius: opts.orbitRadius || 80,
     angularSpeed: opts.angularSpeed || 3.4,
-    hitRadius: opts.hitRadius || 12,
+    hitRadius: opts.hitRadius || 18,
     dmg: opts.dmg || 4,
     knockback: opts.knockback || 140,
     x: ball.x,
@@ -42,11 +42,11 @@ function shatterGlass(sim, ball) {
     sim.addProjectile({
       kind: 'shard',
       owner: ball.owner,
-      x: ball.x + Math.cos(a) * (ball.radius + 6),
-      y: ball.y + Math.sin(a) * (ball.radius + 6),
+      x: ball.x + Math.cos(a) * (ball.radius + 8),
+      y: ball.y + Math.sin(a) * (ball.radius + 8),
       vx: Math.cos(a) * 440,
       vy: Math.sin(a) * 440,
-      radius: 7,
+      radius: 11,
       dmg: 4,
       bouncesLeft: 1,
       ttl: 2.1,
@@ -160,13 +160,13 @@ export const ABILITY_HANDLERS = {
         ball.state.timer = 3.5;
         const dir = Math.atan2(ball.vy, ball.vx) || 0;
         const b = sim.bounds;
-        const cx = Math.max(b.left + 80, Math.min(b.right - 80, ball.x + Math.cos(dir) * 85));
-        const cy = Math.max(b.top + 80, Math.min(b.bottom - 80, ball.y + Math.sin(dir) * 85));
+        const cx = Math.max(b.left + 100, Math.min(b.right - 100, ball.x + Math.cos(dir) * 110));
+        const cy = Math.max(b.top + 100, Math.min(b.bottom - 100, ball.y + Math.sin(dir) * 110));
         const clusterId = sim.nextEntityId++;
         const offsets = [
-          { dx: 0, dy: -26 },
-          { dx: -24, dy: 20 },
-          { dx: 24, dy: 20 },
+          { dx: 0, dy: -42 },
+          { dx: -38, dy: 32 },
+          { dx: 38, dy: 32 },
         ];
         for (const off of offsets) {
           sim.addHazard(
@@ -174,9 +174,9 @@ export const ABILITY_HANDLERS = {
               kind: 'shackle_cage',
               clusterId,
               owner: ball.owner,
-              x: Math.max(b.left + 60, Math.min(b.right - 60, cx + off.dx)),
-              y: Math.max(b.top + 60, Math.min(b.bottom - 60, cy + off.dy)),
-              radius: 56,
+              x: Math.max(b.left + 96, Math.min(b.right - 96, cx + off.dx)),
+              y: Math.max(b.top + 96, Math.min(b.bottom - 96, cy + off.dy)),
+              radius: 92,
               wallDmg: 3,
               armTimer: 0.25,
               ttl: 5.2,
@@ -284,9 +284,9 @@ export const ABILITY_HANDLERS = {
         addOrbitHelper(sim, ball, {
           kind: 'orbital',
           orbitAngle: (i * Math.PI * 2) / 3,
-          orbitRadius: 56,
+          orbitRadius: 92,
           angularSpeed: 3.3,
-          hitRadius: 11,
+          hitRadius: 17,
           dmg: 6,
           knockback: 210,
         });
@@ -353,7 +353,7 @@ export const ABILITY_HANDLERS = {
             owner: ball.owner,
             x: ball.x,
             y: ball.y,
-            radius: 20,
+            radius: 28,
             roll,
             dmgPerPip: 1,
             hitCooldown: 0,
@@ -379,7 +379,7 @@ export const ABILITY_HANDLERS = {
             owner: ball.owner,
             x: ball.x,
             y: ball.y,
-            radius: 74,
+            radius: 96,
             dmg: 3,
             tickRate: 0.36,
             ttl: 11,
@@ -419,7 +419,7 @@ export const ABILITY_HANDLERS = {
               y: ball.y + Math.sin(a) * (ball.radius + 8),
               vx: Math.cos(a) * 580,
               vy: Math.sin(a) * 580,
-              radius: 16,
+              radius: 22,
               dmg: 14,
               bouncesLeft: 0,
               ttl: 1.5,
@@ -544,7 +544,7 @@ export const ABILITY_HANDLERS = {
           y: ball.y + Math.sin(a) * (ball.radius + 8),
           vx: Math.cos(a) * 640,
           vy: Math.sin(a) * 640,
-          radius: 13,
+          radius: 18,
           dmg: 5,
           bouncesLeft: 2,
           dragTargetId: null,
@@ -579,13 +579,13 @@ export const ABILITY_HANDLERS = {
           sim.addProjectile({
             kind: 'bee',
             owner: ball.owner,
-            x: ball.x + Math.cos(a) * (ball.radius + 6),
-            y: ball.y + Math.sin(a) * (ball.radius + 6),
+            x: ball.x + Math.cos(a) * (ball.radius + 8),
+            y: ball.y + Math.sin(a) * (ball.radius + 8),
             vx: Math.cos(a) * 255,
             vy: Math.sin(a) * 255,
             speed: 265,
             turnRate: 4.5,
-            radius: 8,
+            radius: 12,
             dmg: 3,
             poisonTicks: 2,
             bouncesLeft: 1,
@@ -612,11 +612,11 @@ export const ABILITY_HANDLERS = {
         {
           kind: 'turret',
           owner: ball.owner,
-          x: hit.x + hit.nx * 14,
-          y: hit.y + hit.ny * 14,
+          x: hit.x + hit.nx * 18,
+          y: hit.y + hit.ny * 18,
           nx: hit.nx,
           ny: hit.ny,
-          radius: 15,
+          radius: 22,
           fireTimer: 0.75,
           fireRate: 1.55,
           ttl: 24,
@@ -658,7 +658,7 @@ export const ABILITY_HANDLERS = {
             owner: ball.owner,
             x: ball.x,
             y: ball.y,
-            radius: 18,
+            radius: 26,
             fuse: 0.85,
             ttl: 1.0,
           },
@@ -675,9 +675,9 @@ export const ABILITY_HANDLERS = {
         addOrbitHelper(sim, ball, {
           kind: 'blade',
           orbitAngle: i * Math.PI,
-          orbitRadius: 42,
+          orbitRadius: 78,
           angularSpeed: 4.5,
-          hitRadius: 12,
+          hitRadius: 18,
           dmg: 4,
           knockback: 140,
         });
@@ -692,9 +692,9 @@ export const ABILITY_HANDLERS = {
         addOrbitHelper(sim, ball, {
           kind: 'blade',
           orbitAngle: 0,
-          orbitRadius: 42,
+          orbitRadius: 78,
           angularSpeed: 4.5,
-          hitRadius: 12,
+          hitRadius: 18,
           dmg: 4,
           knockback: 140,
         });
@@ -716,11 +716,11 @@ export const ABILITY_HANDLERS = {
         sim.addProjectile({
           kind: 'bullet',
           owner: ball.owner,
-          x: ball.x + Math.cos(a) * (ball.radius + 5),
-          y: ball.y + Math.sin(a) * (ball.radius + 5),
+          x: ball.x + Math.cos(a) * (ball.radius + 6),
+          y: ball.y + Math.sin(a) * (ball.radius + 6),
           vx: Math.cos(a) * 560,
           vy: Math.sin(a) * 560,
-          radius: 5,
+          radius: 8,
           dmg: 2,
           bouncesLeft: 0,
           ttl: 1.5,
@@ -745,11 +745,11 @@ export const ABILITY_HANDLERS = {
         {
           kind: 'poison_spike',
           owner: ball.owner,
-          x: hit.x + hit.nx * 14,
-          y: hit.y + hit.ny * 14,
+          x: hit.x + hit.nx * 18,
+          y: hit.y + hit.ny * 18,
           nx: hit.nx,
           ny: hit.ny,
-          radius: 23,
+          radius: 30,
           dmg: 5,
           poisonTicks: 3,
           slowDuration: 0.85,
@@ -778,7 +778,7 @@ export const ABILITY_HANDLERS = {
       if (ball.state.mature) return;
       ball.state.age += dt;
       const frac = Math.min(1, ball.state.age / 3.0);
-      ball.radius = 17 + frac * 8;
+      ball.radius = 34 + frac * 16;
       if (ball.state.age >= 3.0) {
         ball.state.mature = true;
         sim.emitText(ball.x, ball.y - ball.radius - 6, 'MATURE!', '#34d399');
@@ -797,16 +797,16 @@ export const ABILITY_HANDLERS = {
           owner: ball.owner,
           ballId: 'cell',
           generation: ball.state.generation + 1,
-          x: Math.max(sim.bounds.left + 20, Math.min(sim.bounds.right - 20, ball.x + Math.cos(a) * 18)),
-          y: Math.max(sim.bounds.top + 20, Math.min(sim.bounds.bottom - 20, ball.y + Math.sin(a) * 18)),
+          x: Math.max(sim.bounds.left + 36, Math.min(sim.bounds.right - 36, ball.x + Math.cos(a) * 32)),
+          y: Math.max(sim.bounds.top + 36, Math.min(sim.bounds.bottom - 36, ball.y + Math.sin(a) * 32)),
           vx: Math.cos(a) * speed,
           vy: Math.sin(a) * speed,
-          radius: 17,
+          radius: 34,
           hp: 15,
           contactDmg: 5,
         });
       }
-      sim.emitText(ball.x, ball.y - 16, 'MITOSIS x3!', '#34d399');
+      sim.emitText(ball.x, ball.y - 24, 'MITOSIS x3!', '#34d399');
       sim.addParticleBurst(ball.x, ball.y, '#6ee7b7', 16);
       sim.emitEvent('ability', { kind: 'split', owner: ball.owner });
     },
@@ -818,10 +818,10 @@ export const ABILITY_HANDLERS = {
       addOrbitHelper(sim, ball, {
         kind: 'axe',
         orbitAngle: 0,
-        orbitRadius: 43,
-        angularSpeed: 4.0,
-        hitRadius: 17,
-        dmg: 8,
+        orbitRadius: 94,
+        angularSpeed: 4.4,
+        hitRadius: 30,
+        dmg: 12,
         knockback: 230,
       });
     },
@@ -850,11 +850,11 @@ export const ABILITY_HANDLERS = {
         sim.addProjectile({
           kind: 'knife',
           owner: ball.owner,
-          x: ball.x + Math.cos(a) * (ball.radius + 6),
-          y: ball.y + Math.sin(a) * (ball.radius + 6),
+          x: ball.x + Math.cos(a) * (ball.radius + 8),
+          y: ball.y + Math.sin(a) * (ball.radius + 8),
           vx: Math.cos(a) * 550,
           vy: Math.sin(a) * 550,
-          radius: 8,
+          radius: 12,
           dmg: 4,
           bouncesLeft: 0,
           ttl: 1.65,
@@ -873,12 +873,12 @@ export const ABILITY_HANDLERS = {
         kind: 'forge_orb',
         owner: ball.owner,
         parentId: ball.id,
-        x: ball.x + Math.cos(a) * 32,
-        y: ball.y + Math.sin(a) * 32,
+        x: ball.x + Math.cos(a) * 64,
+        y: ball.y + Math.sin(a) * 64,
         vx: Math.cos(a) * 290,
         vy: Math.sin(a) * 290,
         speed: 290,
-        radius: 13,
+        radius: 20,
         dmg: 3,
         forgeLevel: 1,
         hitCooldowns: {},
@@ -895,7 +895,7 @@ export const ABILITY_HANDLERS = {
       if (orb.forgeLevel < 8) {
         orb.forgeLevel += 1;
         orb.dmg = Math.min(16, orb.dmg + 2);
-        orb.radius = Math.min(23, orb.radius + 1.2);
+        orb.radius = Math.min(34, orb.radius + 1.8);
         orb.speed = Math.min(540, orb.speed + 24);
         const cur = Math.hypot(orb.vx, orb.vy) || 1;
         orb.vx = (orb.vx / cur) * orb.speed;

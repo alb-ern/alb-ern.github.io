@@ -2,9 +2,9 @@ import { ARENA_SIZE, PHASES } from '../sim/constants.js';
 import { drawBallBody } from './ballArt.js';
 
 function drawAimArrow(ctx, ball, angle, bounds, color) {
-  const len = 78;
-  const startX = ball.x + Math.cos(angle) * (ball.radius + 6);
-  const startY = ball.y + Math.sin(angle) * (ball.radius + 6);
+  const len = 88;
+  const startX = ball.x + Math.cos(angle) * (ball.radius + 8);
+  const startY = ball.y + Math.sin(angle) * (ball.radius + 8);
   const endX = ball.x + Math.cos(angle) * (ball.radius + len);
   const endY = ball.y + Math.sin(angle) * (ball.radius + len);
 
@@ -48,14 +48,14 @@ function drawAimArrow(ctx, ball, angle, bounds, color) {
 
   // Thick glowing direction arrow
   ctx.strokeStyle = color;
-  ctx.lineWidth = 6;
+  ctx.lineWidth = 7;
   ctx.lineCap = 'round';
   ctx.beginPath();
   ctx.moveTo(startX, startY);
   ctx.lineTo(endX, endY);
   ctx.stroke();
 
-  const headSize = 14;
+  const headSize = 17;
   ctx.fillStyle = color;
   ctx.beginPath();
   ctx.moveTo(endX + Math.cos(angle) * 6, endY + Math.sin(angle) * 6);
@@ -201,16 +201,17 @@ function drawHazard(ctx, h, bounds, time) {
     }
 
     case 'dice': {
-      const s = 26;
+      const s = Math.max(26, Math.round((h.radius || 20) * 1.35));
       ctx.fillStyle = '#f8fafc';
       ctx.strokeStyle = '#7c3aed';
       ctx.lineWidth = 3;
       ctx.beginPath();
-      ctx.roundRect(h.x - s * 0.5, h.y - s * 0.5, s, s, 6);
+      ctx.roundRect(h.x - s * 0.5, h.y - s * 0.5, s, s, 8);
       ctx.fill();
       ctx.stroke();
       // Real pip dots 1..6
-      const o = 6;
+      const o = s * 0.24;
+      const pipR = Math.max(2.3, s * 0.09);
       const pipMap = {
         1: [[0, 0]],
         2: [[-o, -o], [o, o]],
@@ -222,7 +223,7 @@ function drawHazard(ctx, h, bounds, time) {
       ctx.fillStyle = '#1e1b4b';
       for (const [px, py] of (pipMap[h.roll] || pipMap[1])) {
         ctx.beginPath();
-        ctx.arc(h.x + px, h.y + py, 2.3, 0, Math.PI * 2);
+        ctx.arc(h.x + px, h.y + py, pipR, 0, Math.PI * 2);
         ctx.fill();
       }
       break;
@@ -231,14 +232,14 @@ function drawHazard(ctx, h, bounds, time) {
     case 'turret': {
       ctx.fillStyle = '#334155';
       ctx.strokeStyle = '#fb923c';
-      ctx.lineWidth = 2.5;
+      ctx.lineWidth = 3;
       ctx.beginPath();
       ctx.arc(h.x, h.y, h.radius, 0, Math.PI * 2);
       ctx.fill();
       ctx.stroke();
       ctx.fillStyle = '#fb923c';
       ctx.beginPath();
-      ctx.arc(h.x, h.y, 5, 0, Math.PI * 2);
+      ctx.arc(h.x, h.y, Math.max(5, h.radius * 0.35), 0, Math.PI * 2);
       ctx.fill();
       break;
     }
@@ -256,15 +257,17 @@ function drawHazard(ctx, h, bounds, time) {
     }
 
     case 'poison_spike': {
+      const spikeLen = (h.radius || 23) * 0.9;
+      const spikeHalf = (h.radius || 23) * 0.28;
       ctx.fillStyle = '#84cc16';
       ctx.strokeStyle = '#14532d';
       ctx.lineWidth = 2;
       for (let k = -1; k <= 1; k++) {
         const angle = Math.atan2(h.ny, h.nx) + k * 0.48;
-        const tipX = h.x + Math.cos(angle) * 19;
-        const tipY = h.y + Math.sin(angle) * 19;
-        const perpX = -Math.sin(angle) * 6;
-        const perpY = Math.cos(angle) * 6;
+        const tipX = h.x + Math.cos(angle) * spikeLen;
+        const tipY = h.y + Math.sin(angle) * spikeLen;
+        const perpX = -Math.sin(angle) * spikeHalf;
+        const perpY = Math.cos(angle) * spikeHalf;
         ctx.beginPath();
         ctx.moveTo(tipX, tipY);
         ctx.lineTo(h.x + perpX, h.y + perpY);
@@ -294,22 +297,23 @@ function drawProjectile(ctx, p) {
     ctx.strokeStyle = '#fde047';
     ctx.lineWidth = 3;
     ctx.beginPath();
-    ctx.roundRect(-34, -17, 68, 34, 8);
+    ctx.roundRect(-42, -22, 84, 44, 10);
     ctx.fill();
     ctx.stroke();
     ctx.fillStyle = '#fef08a';
-    ctx.fillRect(22, -10, 10, 20);
+    ctx.fillRect(28, -13, 12, 26);
   } else if (p.kind === 'knife' || p.kind === 'shard' || p.kind === 'ice_spike' || p.kind === 'harpoon') {
     ctx.translate(p.x, p.y);
     ctx.rotate(angle);
     ctx.fillStyle = p.color || '#ffffff';
     ctx.strokeStyle = '#0f172a';
-    ctx.lineWidth = 1.6;
-    const len = p.kind === 'harpoon' ? 16 : 11;
+    ctx.lineWidth = 2;
+    const len = p.kind === 'harpoon' ? 22 : Math.max(12, (p.radius || 10) * 1.35);
+    const hw = Math.max(5.5, len * 0.48);
     ctx.beginPath();
     ctx.moveTo(len, 0);
-    ctx.lineTo(-len * 0.6, -5.5);
-    ctx.lineTo(-len * 0.6, 5.5);
+    ctx.lineTo(-len * 0.6, -hw);
+    ctx.lineTo(-len * 0.6, hw);
     ctx.closePath();
     ctx.fill();
     ctx.stroke();
@@ -320,23 +324,23 @@ function drawProjectile(ctx, p) {
     ctx.strokeStyle = '#451a03';
     ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.ellipse(0, 0, 8, 5.5, 0, 0, Math.PI * 2);
+    ctx.ellipse(0, 0, 11, 7.5, 0, 0, Math.PI * 2);
     ctx.fill();
     ctx.stroke();
     ctx.fillStyle = 'rgba(255,255,255,0.85)';
     ctx.beginPath();
-    ctx.ellipse(-1, -6, 4, 3, -0.3, 0, Math.PI * 2);
+    ctx.ellipse(-1.5, -8, 5.5, 4, -0.3, 0, Math.PI * 2);
     ctx.fill();
   } else if (p.kind === 'chess_piece') {
     ctx.fillStyle = '#f8fafc';
     ctx.strokeStyle = '#f59e0b';
-    ctx.lineWidth = 2.5;
+    ctx.lineWidth = 3;
     ctx.beginPath();
     ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
     ctx.fill();
     ctx.stroke();
     ctx.fillStyle = '#0f172a';
-    ctx.font = '900 14px system-ui, sans-serif';
+    ctx.font = `900 ${Math.max(14, Math.round(p.radius * 0.9))}px system-ui, sans-serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     const icon = p.piece === 'rook' ? '♖' : p.piece === 'bishop' ? '♗' : '♕';
@@ -359,24 +363,25 @@ function drawHelper(ctx, h) {
   if (h.kind === 'orbital') {
     ctx.fillStyle = '#38bdf8';
     ctx.strokeStyle = '#e0f2fe';
-    ctx.lineWidth = 2.5;
+    ctx.lineWidth = 3;
     ctx.shadowColor = '#38bdf8';
-    ctx.shadowBlur = 10;
+    ctx.shadowBlur = 12;
     ctx.beginPath();
     ctx.arc(h.x, h.y, h.hitRadius, 0, Math.PI * 2);
     ctx.fill();
     ctx.stroke();
   } else if (h.kind === 'blade') {
+    const r = h.hitRadius || 18;
     ctx.translate(h.x, h.y);
     ctx.rotate(h.orbitAngle * 2.5);
     ctx.fillStyle = '#e2e8f0';
     ctx.strokeStyle = '#a855f7';
-    ctx.lineWidth = 2;
+    ctx.lineWidth = 2.4;
     ctx.beginPath();
-    ctx.moveTo(0, -13);
-    ctx.lineTo(10, 0);
-    ctx.lineTo(0, 13);
-    ctx.lineTo(-10, 0);
+    ctx.moveTo(0, -r * 1.15);
+    ctx.lineTo(r * 0.85, 0);
+    ctx.lineTo(0, r * 1.15);
+    ctx.lineTo(-r * 0.85, 0);
     ctx.closePath();
     ctx.fill();
     ctx.stroke();
@@ -385,7 +390,7 @@ function drawHelper(ctx, h) {
     ctx.rotate(h.orbitAngle + Math.PI / 2);
     ctx.fillStyle = '#dc2626';
     ctx.strokeStyle = '#f8fafc';
-    ctx.lineWidth = 2;
+    ctx.lineWidth = 2.5;
     ctx.beginPath();
     ctx.arc(0, 0, h.hitRadius, -1.1, 1.1);
     ctx.lineTo(0, 0);
@@ -395,13 +400,13 @@ function drawHelper(ctx, h) {
   } else if (h.kind === 'forge_orb') {
     ctx.fillStyle = '#f97316';
     ctx.strokeStyle = '#fef08a';
-    ctx.lineWidth = 2.5;
+    ctx.lineWidth = 3;
     ctx.beginPath();
     ctx.arc(h.x, h.y, h.radius, 0, Math.PI * 2);
     ctx.fill();
     ctx.stroke();
     ctx.fillStyle = '#ffffff';
-    ctx.font = '900 11px system-ui, sans-serif';
+    ctx.font = `900 ${Math.max(12, Math.round(h.radius * 0.72))}px system-ui, sans-serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(String(h.dmg), h.x, h.y + 0.5);
@@ -605,7 +610,7 @@ export function renderArena(ctx, sim, uiState = {}) {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.lineJoin = 'round';
-    ctx.lineWidth = 4.5;
+    ctx.lineWidth = Math.max(4.5, Math.round(ball.radius * 0.14));
     ctx.strokeStyle = '#090d16';
     ctx.strokeText(String(Math.ceil(ball.hp)), ball.x, ball.y + 1);
     ctx.fillStyle = '#ffffff';
@@ -615,24 +620,24 @@ export function renderArena(ctx, sim, uiState = {}) {
     if (ball.ballId === 'verity') {
       const stage = ball.state?.stage || 1;
       const badge = stage === 3 ? 'DMG 40!' : stage === 2 ? 'DMG 10' : 'DMG 5';
-      ctx.font = '800 10px system-ui, sans-serif';
-      ctx.lineWidth = 3;
-      ctx.strokeText(badge, ball.x, ball.y + ball.radius + 11);
+      ctx.font = '800 12px system-ui, sans-serif';
+      ctx.lineWidth = 3.5;
+      ctx.strokeText(badge, ball.x, ball.y + ball.radius + 14);
       ctx.fillStyle = stage === 3 ? '#ef4444' : stage === 2 ? '#fbbf24' : '#fde047';
-      ctx.fillText(badge, ball.x, ball.y + ball.radius + 11);
+      ctx.fillText(badge, ball.x, ball.y + ball.radius + 14);
     } else if (ball.ballId === 'fibonacci') {
       const cur = ball.state?.cur || 1;
-      ctx.font = '800 10px system-ui, sans-serif';
-      ctx.lineWidth = 3;
-      ctx.strokeText(`DMG ${cur}`, ball.x, ball.y + ball.radius + 11);
+      ctx.font = '800 12px system-ui, sans-serif';
+      ctx.lineWidth = 3.5;
+      ctx.strokeText(`DMG ${cur}`, ball.x, ball.y + ball.radius + 14);
       ctx.fillStyle = '#34d399';
-      ctx.fillText(`DMG ${cur}`, ball.x, ball.y + ball.radius + 11);
+      ctx.fillText(`DMG ${cur}`, ball.x, ball.y + ball.radius + 14);
     } else if (ball.ballId === 'cell' && ball.state?.mature) {
-      ctx.font = '800 10px system-ui, sans-serif';
-      ctx.lineWidth = 3;
-      ctx.strokeText('SPLIT READY', ball.x, ball.y + ball.radius + 11);
+      ctx.font = '800 12px system-ui, sans-serif';
+      ctx.lineWidth = 3.5;
+      ctx.strokeText('SPLIT READY', ball.x, ball.y + ball.radius + 14);
       ctx.fillStyle = '#6ee7b7';
-      ctx.fillText('SPLIT READY', ball.x, ball.y + ball.radius + 11);
+      ctx.fillText('SPLIT READY', ball.x, ball.y + ball.radius + 14);
     }
     ctx.restore();
   }

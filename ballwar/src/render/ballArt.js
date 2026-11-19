@@ -385,9 +385,9 @@ export function drawBallBody(ctx, ballOrDef, x, y, radius, opts = {}) {
   // Team ring (Blue vs Red) so mirror matches remain crystal clear
   if (owner === 1 || owner === 2) {
     ctx.beginPath();
-    ctx.arc(x, y, radius + 3.5, 0, Math.PI * 2);
+    ctx.arc(x, y, radius + Math.max(3.5, radius * 0.08), 0, Math.PI * 2);
     ctx.strokeStyle = owner === 1 ? '#38bdf8' : '#f43f5e';
-    ctx.lineWidth = 3;
+    ctx.lineWidth = Math.max(3, Math.round(radius * 0.08));
     ctx.stroke();
   }
 

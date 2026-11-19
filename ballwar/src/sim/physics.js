@@ -687,7 +687,7 @@ export class ArenaSimulation {
             y: h.y - h.dirY * 30,
             vx: h.dirX * 920,
             vy: h.dirY * 920,
-            radius: 20,
+            radius: 28,
             dmg: 14,
             knockback: 380,
             bouncesLeft: 0,
@@ -714,7 +714,7 @@ export class ArenaSimulation {
               y: h.y,
               vx: Math.cos(a) * 400,
               vy: Math.sin(a) * 400,
-              radius: 9,
+              radius: 13,
               dmg: 5,
               slowDuration: 1.25,
               bouncesLeft: 0,
@@ -730,8 +730,8 @@ export class ArenaSimulation {
       }
 
       if (h.kind === 'turret') {
-        h.x = Math.max(b.left + 12, Math.min(b.right - 12, h.x));
-        h.y = Math.max(b.top + 12, Math.min(b.bottom - 12, h.y));
+        h.x = Math.max(b.left + 18, Math.min(b.right - 18, h.x));
+        h.y = Math.max(b.top + 18, Math.min(b.bottom - 18, h.y));
         h.fireTimer -= dt;
         if (h.fireTimer <= 0) {
           h.fireTimer = h.fireRate;
@@ -741,11 +741,11 @@ export class ArenaSimulation {
             this.addProjectile({
               kind: 'cannonball',
               owner: h.owner,
-              x: h.x + Math.cos(a) * 16,
-              y: h.y + Math.sin(a) * 16,
+              x: h.x + Math.cos(a) * 24,
+              y: h.y + Math.sin(a) * 24,
               vx: Math.cos(a) * 450,
               vy: Math.sin(a) * 450,
-              radius: 10,
+              radius: 14,
               dmg: 5,
               bouncesLeft: 0,
               ttl: 1.9,
@@ -764,7 +764,7 @@ export class ArenaSimulation {
         for (const enemy of this.getEnemyBalls(h.owner)) {
           if (enemy.trappedCageId) continue;
           const dist = Math.hypot(enemy.x - h.x, enemy.y - h.y);
-          if (dist <= h.radius - 6) {
+          if (dist <= h.radius - 10) {
             enemy.trappedCageId = h.id;
             this.emitText(enemy.x, enemy.y - enemy.radius - 10, 'SHACKLED!', '#fb7185');
             this.emitEvent('ability', { kind: 'shackleSnap', owner: h.owner });
@@ -777,7 +777,7 @@ export class ArenaSimulation {
         let broken = false;
         for (const enemy of this.getEnemyBalls(h.owner)) {
           const dSq = pointToSegmentDistSq(enemy.x, enemy.y, h.x1, h.y1, h.x2, h.y2);
-          if (dSq <= (enemy.radius + 4) ** 2) {
+          if (dSq <= (enemy.radius + 5) ** 2) {
             this.dealDamage(enemy, h.dmg, h.owner, 'web');
             if (h.slowDuration) {
               enemy.slowTimer = Math.max(enemy.slowTimer, h.slowDuration);
@@ -803,7 +803,7 @@ export class ArenaSimulation {
         for (const enemy of this.getEnemyBalls(h.owner)) {
           if (h.tickTimers[enemy.id]) continue;
           const dSq = pointToSegmentDistSq(enemy.x, enemy.y, h.x1, h.y1, h.x2, h.y2);
-          if (dSq <= (enemy.radius + 4) ** 2) {
+          if (dSq <= (enemy.radius + 5) ** 2) {
             h.tickTimers[enemy.id] = h.tickRate;
             this.dealDamage(enemy, h.dmg, h.owner, 'laser');
           }
@@ -815,7 +815,7 @@ export class ArenaSimulation {
         for (const enemy of this.getEnemyBalls(h.owner)) {
           if (h.hitIds[enemy.id]) continue;
           const dSq = pointToSegmentDistSq(enemy.x, enemy.y, h.x1, h.y1, h.x2, h.y2);
-          if (dSq <= (enemy.radius + 10) ** 2) {
+          if (dSq <= (enemy.radius + 14) ** 2) {
             h.hitIds[enemy.id] = true;
             this.dealDamage(enemy, h.dmg, h.owner, 'beam');
           }
@@ -859,8 +859,8 @@ export class ArenaSimulation {
       }
 
       if (h.kind === 'poison_spike') {
-        h.x = Math.max(b.left + 12, Math.min(b.right - 12, h.x));
-        h.y = Math.max(b.top + 12, Math.min(b.bottom - 12, h.y));
+        h.x = Math.max(b.left + 18, Math.min(b.right - 18, h.x));
+        h.y = Math.max(b.top + 18, Math.min(b.bottom - 18, h.y));
         if (h.hitCooldown > 0) h.hitCooldown = Math.max(0, h.hitCooldown - dt);
         if (h.hitCooldown <= 0) {
           for (const enemy of this.getEnemyBalls(h.owner)) {
