@@ -1,0 +1,358 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ball VS Ball — Web Arena Edition</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./styles/main.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <!-- Top Bar -->
+    <header class="topbar">
+      <div class="brand" id="btn-home" role="button" tabindex="0" aria-label="Return to Lobby">
+        <span class="brand-badge">VS</span>
+        <span class="brand-title">BALL VS BALL</span>
+        <span class="brand-tag">WEB ARENA</span>
+      </div>
+      <div class="topbar-actions">
+        <button class="btn btn-ghost" id="btn-open-dex" type="button">Ball Dex (24)</button>
+        <button class="btn btn-ghost" id="btn-toggle-timer" type="button" title="Toggle Draft Countdown">Timer: ON</button>
+        <button class="btn btn-ghost" id="btn-toggle-mute" type="button" aria-label="Toggle Sound">SFX: ON</button>
+        <button class="btn btn-secondary hidden" id="btn-back-lobby" type="button">Lobby</button>
+      </div>
+    </header>
+
+    <!-- LOBBY VIEW -->
+    <main id="view-lobby" class="view view-lobby">
+      <section class="hero-card">
+        <div class="hero-copy">
+          <p class="hero-kicker">1v1 Physics Auto-Battler • 24 Iconic Balls Unlocked</p>
+          <h1>Pick. Aim. <span class="accent-gold">Bounce to Win!</span></h1>
+          <p class="hero-sub">
+            Draft from 3 random balls or pick any matchup directly, lock your opening trajectory,
+            and watch automated wall-bounce abilities clash until all 3 hearts shatter.
+          </p>
+          <div class="hero-cta-row">
+            <button class="btn btn-primary btn-lg" id="btn-quick-bot" type="button">Play VS Bot</button>
+            <button class="btn btn-secondary btn-lg" id="btn-quick-online" type="button">Online 1v1 (P2P)</button>
+            <button class="btn btn-gold btn-lg" id="btn-verity-spider" type="button">Test: Verity vs Spider</button>
+          </div>
+        </div>
+        <div class="hero-showcase" aria-hidden="true">
+          <div class="showcase-vs">
+            <div class="showcase-ball-wrap">
+              <canvas id="showcase-verity" width="110" height="110"></canvas>
+              <span class="rarity-pill r-Legendary">Verity Ball</span>
+            </div>
+            <span class="vs-bolt">VS</span>
+            <div class="showcase-ball-wrap">
+              <canvas id="showcase-spider" width="110" height="110"></canvas>
+              <span class="rarity-pill r-Rare">Spider Ball</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="mode-grid" aria-label="Game Modes">
+        <article class="mode-card" data-mode="online">
+          <div class="mode-badge green">REAL MULTIPLAYER</div>
+          <h2>Online 1v1 (P2P)</h2>
+          <p>Play friends from anywhere via WebRTC room codes! Secret 3-ball drafts, simultaneous Lock Aim, and Best-of-3 Hearts.</p>
+          <button class="btn btn-secondary" id="btn-mode-online" type="button">Play Online 1v1</button>
+        </article>
+
+        <article class="mode-card" data-mode="bot">
+          <div class="mode-badge blue">1 PLAYER</div>
+          <h2>VS Bot (1v1)</h2>
+          <p>Best-of-3 Hearts arena match. Draft 3 random balls (2 free Rerolls + All Balls picker) and outsmart the AI Bot.</p>
+          <button class="btn btn-primary" id="btn-mode-bot" type="button">Start VS Bot</button>
+        </article>
+
+        <article class="mode-card" data-mode="local2p">
+          <div class="mode-badge purple">SAME DEVICE</div>
+          <h2>Local 2-Player</h2>
+          <p>Pass-and-play 1v1! Secret ball drafts and hidden Lock Aim angles before both balls launch simultaneously.</p>
+          <button class="btn btn-purple" id="btn-mode-2p" type="button">Start Local 2P</button>
+        </article>
+
+        <article class="mode-card" data-mode="sandbox">
+          <div class="mode-badge gold">ALL UNLOCKED</div>
+          <h2>Sandbox 1v1</h2>
+          <p>Pick any ball vs any ball directly, customize Sudden Death &amp; Hearts, or run 10 instant simulations to test metas.</p>
+          <button class="btn btn-gold" id="btn-mode-sandbox" type="button">Open Sandbox</button>
+        </article>
+      </section>
+    </main>
+
+    <!-- ONLINE P2P LOBBY VIEW -->
+    <section id="view-online" class="view view-online hidden">
+      <div class="panel-header">
+        <div>
+          <h2>Online 1v1 Multiplayer (WebRTC P2P)</h2>
+          <p class="muted">Serverless PeerJS room codes — works over LAN, Tailscale, or GitHub Pages. Best-of-3 Hearts Draft mode.</p>
+        </div>
+      </div>
+
+      <div class="online-grid">
+        <div class="online-panel">
+          <span class="mode-badge blue">PLAYER 1 (BLUE)</span>
+          <h3>Host a Room</h3>
+          <p class="muted">Create a 4-character room code and share the code or invite link with a friend.</p>
+          <button class="btn btn-primary btn-lg" id="btn-online-host" type="button">Create Room</button>
+
+          <div id="online-room-box" class="room-box hidden">
+            <div class="room-code-label">ROOM CODE</div>
+            <div id="online-room-code" class="room-code-display">----</div>
+            <div class="room-share-row">
+              <button class="btn btn-ghost btn-sm" id="btn-copy-code" type="button">Copy Code</button>
+              <button class="btn btn-secondary btn-sm" id="btn-copy-link" type="button">Copy Invite Link</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="online-panel">
+          <span class="mode-badge red" style="background: rgba(251,113,133,0.18); color: var(--red);">PLAYER 2 (RED)</span>
+          <h3>Join a Room</h3>
+          <p class="muted">Enter your friend's 4-character room code (or open their invite link) to connect.</p>
+          <div class="join-form">
+            <input type="text" id="online-join-code" class="room-input" maxlength="6" placeholder="CODE" aria-label="Room Code" />
+            <button class="btn btn-secondary btn-lg" id="btn-online-join" type="button">Join Duel</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="online-status" class="online-status-bar">Ready to host or join an Online 1v1 duel.</div>
+    </section>
+
+    <!-- SANDBOX SETUP VIEW -->
+    <section id="view-sandbox" class="view view-sandbox hidden">
+      <div class="panel-header">
+        <div>
+          <h2>Sandbox 1v1 Matchup Lab</h2>
+          <p class="muted">Select any Blue vs Red matchup, tweak arena rules, or simulate 10 instant duels.</p>
+        </div>
+        <div class="preset-row">
+          <button class="btn btn-sm btn-gold" data-preset="verity,spider" type="button">Verity vs Spider</button>
+          <button class="btn btn-sm btn-ghost" data-preset="shackles,orbital" type="button">Shackles vs Orbital</button>
+          <button class="btn btn-sm btn-ghost" data-preset="conductor,laser" type="button">Conductor vs Laser</button>
+          <button class="btn btn-sm btn-ghost" data-preset="vampire,cell" type="button">Vampire vs Cell</button>
+          <button class="btn btn-sm btn-ghost" id="btn-sandbox-random" type="button">Random Pair</button>
+        </div>
+      </div>
+
+      <div class="sandbox-columns">
+        <div class="sandbox-side side-blue">
+          <div class="side-header">
+            <span class="team-dot blue"></span>
+            <h3>Player 1 (Blue)</h3>
+            <span id="sb-p1-selected" class="selected-name">Verity Ball</span>
+          </div>
+          <div id="sb-p1-grid" class="mini-ball-grid"></div>
+        </div>
+
+        <div class="sandbox-center">
+          <div class="sb-preview-pair">
+            <div class="sb-preview-card">
+              <canvas id="sb-canvas-1" width="84" height="84"></canvas>
+              <strong id="sb-name-1">Verity Ball</strong>
+              <small id="sb-desc-1"></small>
+            </div>
+            <div class="vs-circle">VS</div>
+            <div class="sb-preview-card">
+              <canvas id="sb-canvas-2" width="84" height="84"></canvas>
+              <strong id="sb-name-2">Spider Ball</strong>
+              <small id="sb-desc-2"></small>
+            </div>
+          </div>
+
+          <div class="sb-rules">
+            <label>
+              <span>Hearts</span>
+              <select id="sb-hearts">
+                <option value="1">1 Heart (Sudden Match)</option>
+                <option value="3" selected>3 Hearts (Standard)</option>
+                <option value="5">5 Hearts (Long Set)</option>
+              </select>
+            </label>
+            <label>
+              <span>Sudden Death</span>
+              <select id="sb-sd">
+                <option value="15">15s (Fast)</option>
+                <option value="22" selected>22s (Standard)</option>
+                <option value="0">Off</option>
+              </select>
+            </label>
+          </div>
+
+          <div class="sb-actions">
+            <button class="btn btn-primary btn-lg" id="btn-sandbox-fight" type="button">Launch Duel</button>
+            <button class="btn btn-secondary" id="btn-sandbox-sim10" type="button">Simulate 10 Matches</button>
+          </div>
+
+          <div id="sb-sim-results" class="sim-results hidden"></div>
+        </div>
+
+        <div class="sandbox-side side-red">
+          <div class="side-header">
+            <span class="team-dot red"></span>
+            <h3>Player 2 (Red)</h3>
+            <span id="sb-p2-selected" class="selected-name">Spider Ball</span>
+          </div>
+          <div id="sb-p2-grid" class="mini-ball-grid"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ARENA VIEW -->
+    <main id="view-arena" class="view view-arena hidden">
+      <!-- Top VS HUD -->
+      <div class="arena-hud">
+        <div class="player-hud p1">
+          <div class="hud-top">
+            <span class="player-tag blue" id="hud-p1-label">YOU</span>
+            <div class="hearts-row" id="hud-p1-hearts" aria-label="Player 1 Hearts"></div>
+          </div>
+          <div class="hud-ball-info">
+            <strong id="hud-p1-ball">—</strong>
+            <span class="rarity-pill" id="hud-p1-rarity">Rare</span>
+          </div>
+          <div class="hp-bar-wrap">
+            <div class="hp-bar-fill blue" id="hud-p1-hpbar" style="width:100%"></div>
+            <span class="hp-bar-text" id="hud-p1-hptext">100 / 100</span>
+          </div>
+        </div>
+
+        <div class="hud-center">
+          <div class="round-pill" id="hud-round">ROUND 1</div>
+          <div class="timer-pill" id="hud-timer">00:00</div>
+        </div>
+
+        <div class="player-hud p2">
+          <div class="hud-top">
+            <div class="hearts-row" id="hud-p2-hearts" aria-label="Player 2 Hearts"></div>
+            <span class="player-tag red" id="hud-p2-label">BOT</span>
+          </div>
+          <div class="hud-ball-info">
+            <span class="rarity-pill" id="hud-p2-rarity">Rare</span>
+            <strong id="hud-p2-ball">—</strong>
+          </div>
+          <div class="hp-bar-wrap">
+            <div class="hp-bar-fill red" id="hud-p2-hpbar" style="width:100%"></div>
+            <span class="hp-bar-text" id="hud-p2-hptext">100 / 100</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Canvas Stage + Overlays -->
+      <div class="arena-stage-wrap">
+        <canvas id="arena-canvas" width="600" height="600"></canvas>
+
+        <!-- Round/Match Outcome Overlay -->
+        <div id="arena-banner" class="arena-banner hidden">
+          <div class="banner-card">
+            <p class="banner-kicker" id="banner-kicker">ROUND OVER</p>
+            <h2 id="banner-title">BLUE WINS THE ROUND!</h2>
+            <p id="banner-sub"></p>
+            <div class="banner-actions">
+              <button class="btn btn-primary btn-lg" id="btn-banner-next" type="button">Next Round</button>
+              <button class="btn btn-ghost hidden" id="btn-banner-lobby" type="button">Back to Lobby</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Local 2P Handover Shield -->
+        <div id="pass-shield" class="arena-banner hidden">
+          <div class="banner-card">
+            <p class="banner-kicker">LOCAL 2-PLAYER</p>
+            <h2 id="shield-title">Pass to Player 2 (Red)</h2>
+            <p id="shield-sub">Player 1 has locked in secretly. Ready to take your turn?</p>
+            <button class="btn btn-primary btn-lg" id="btn-shield-ready" type="button">I'm Ready</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Bottom Controls Bar -->
+      <div class="arena-controls">
+        <div id="controls-aim" class="controls-group hidden">
+          <div class="aim-prompt" id="aim-prompt">Drag inside the arena (or A / D) to aim your ball</div>
+          <div class="aim-buttons">
+            <button class="btn btn-ghost btn-sm" id="btn-aim-ccw" type="button">↺ -10°</button>
+            <button class="btn btn-ghost btn-sm" id="btn-aim-cw" type="button">↻ +10°</button>
+            <button class="btn btn-primary btn-lg" id="btn-lock-aim" type="button">LOCK AIM (Space)</button>
+          </div>
+        </div>
+
+        <div id="controls-fight" class="controls-group hidden">
+          <span class="ability-live-tip" id="fight-tip">Balls fight automatically — watch the clash!</span>
+          <div class="fight-buttons">
+            <button class="btn btn-ghost btn-sm" id="btn-speed" type="button">Speed: 1x</button>
+            <button class="btn btn-ghost btn-sm" id="btn-pause" type="button">Pause</button>
+            <button class="btn btn-secondary btn-sm" id="btn-restart-round" type="button">Restart</button>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- DRAFT MODAL (CHOOSE YOUR BALL) -->
+  <div id="modal-draft" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="draft-title">
+    <div class="modal-card draft-modal">
+      <div class="draft-header">
+        <div>
+          <p class="draft-kicker" id="draft-player-kicker">ROUND 1 • PLAYER 1 (BLUE)</p>
+          <h2 id="draft-title">Choose Your Ball</h2>
+        </div>
+        <div class="draft-timer-badge" id="draft-timer">25s</div>
+      </div>
+
+      <div id="draft-cards" class="draft-cards"></div>
+
+      <div id="draft-all-panel" class="draft-all-panel hidden">
+        <div class="all-panel-head">
+          <strong>All 24 Balls — Pick Any</strong>
+          <button class="btn btn-ghost btn-sm" id="btn-close-all-balls" type="button">Back to 3 Choices</button>
+        </div>
+        <div id="draft-all-grid" class="mini-ball-grid"></div>
+      </div>
+
+      <div class="draft-footer">
+        <button class="btn btn-secondary" id="btn-reroll" type="button">Reroll (2 left)</button>
+        <button class="btn btn-gold" id="btn-all-balls" type="button">All Balls</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- BALL DEX MODAL -->
+  <div id="modal-dex" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="dex-title">
+    <div class="modal-card dex-modal">
+      <div class="modal-head">
+        <div>
+          <h2 id="dex-title">Ball Dex — All 24 Balls</h2>
+          <p class="muted">Every ball is unlocked from the start. Click any ball to test it in Sandbox.</p>
+        </div>
+        <button class="btn btn-ghost" id="btn-close-dex" type="button">Close</button>
+      </div>
+
+      <div class="dex-filters">
+        <div class="chip-row" id="dex-rarity-chips">
+          <button class="chip is-active" data-rarity="ALL" type="button">All (24)</button>
+          <button class="chip" data-rarity="Mythic" type="button">Mythic</button>
+          <button class="chip" data-rarity="Legendary" type="button">Legendary</button>
+          <button class="chip" data-rarity="Epic" type="button">Epic</button>
+          <button class="chip" data-rarity="Rare" type="button">Rare</button>
+        </div>
+        <input type="search" id="dex-search" class="search-input" placeholder="Search balls or abilities..." />
+      </div>
+
+      <div id="dex-grid" class="dex-grid"></div>
+    </div>
+  </div>
+
+  <script src="./vendor/peerjs.min.js"></script>
+  <script type="module" src="./src/ui/app.js"></script>
+</body>
+</html>
