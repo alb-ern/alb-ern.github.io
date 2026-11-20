@@ -931,9 +931,11 @@ export function renderArena(ctx, sim, uiState = {}) {
     const activePlayer = uiState.aimingPlayer || 1;
     const activeSlot = uiState.aimSlot ?? 0;
     const is2v2 = sim.teamSize === 2;
+    const singleSlotOnly = Boolean(uiState.aimOnlySingleSlot);
     for (const ball of sim.balls) {
       if (ball.owner === activePlayer) {
         const slot = ball.slotIndex ?? 0;
+        if (singleSlotOnly && slot !== activeSlot) continue;
         const isSelected = !is2v2 || slot === activeSlot;
         const angle =
           ball.aimAngle ??

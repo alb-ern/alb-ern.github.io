@@ -4,10 +4,10 @@ A 1v1 & 2v2 physics arena auto-battler web version inspired by Roblox **Ball VS 
 
 ## Features
 
-- **1v1 Classic (`600×600`) & 2v2 Teams (`740×740` Bigger Arena)**: Direct 1-click launch buttons on Lobby for 1v1 or 2v2 across **VS Bot**, **Local 2-Player**, **Online P2P**, and **Sandbox**! Teammates bounce cleanly with zero friendly fire and per-ball tuning attribution.
+- **1v1 Classic (`600×600`) & 2v2 Teams (`740×740` Bigger Arena)**: Direct 1-click launch buttons on Lobby for 1v1 or 2v2 across **VS Bot**, **Local Pass & Play (`2P` / `4P`)**, **Online P2P (`2P` / `4P`)**, and **Sandbox**! Teammates bounce cleanly with zero friendly fire and per-ball tuning attribution.
 - **VS Bot (1v1 / 2v2)**: Best-of-3 Hearts matches with 3-card random Drafts (2 free Rerolls + All Balls picker), interactive Lock Aim trajectories, and tactical Bot opponents.
-- **Online Multiplayer (WebRTC P2P)**: Serverless PeerJS room codes and shareable `?room=CODE` invite links — Best-of-3 Hearts Draft mode supporting both 1v1 and 2v2 with host-authoritative 60Hz simulation and 30Hz state snapshots. Works over localhost, LAN, Tailscale, or GitHub Pages.
-- **Local 2-Player**: Same-device pass-and-play with secret Drafts and hidden Lock Aim shields.
+- **Online Multiplayer (WebRTC P2P — 2P 1v1 & 4P 2v2)**: Serverless PeerJS room codes and shareable `?room=CODE` invite links — supports both 2-player 1v1 and 4-player 2v2 rooms where each peer drafts and aims their assigned ball with host-authoritative 60Hz simulation. Works over localhost, LAN, Tailscale, or GitHub Pages.
+- **Local Pass & Play (2P 1v1 & 4P 2v2)**: Same-device pass-and-play with secret Drafts and hidden Lock Aim shields for 2 players (1v1) or 4 players (`P1 Blue #1` → `P2 Blue #2` → `P3 Red #1` → `P4 Red #2` in 2v2).
 - **Sandbox Lab (1v1 / 2v2)**: Live search input bars for Blue & Red teams to filter all 100 balls, presets, configurable Hearts & Sudden Death (`30s` default shrink), and 10-match instant simulator.
 - **Ball Dex**: Browse all 100 balls filtered by rarity (`Rare`, `Epic`, `Legendary`, `Mythic`, `Exclusive`) or keyword.
 - **Zero-Asset Web Audio SFX & Procedural 2D Canvas Art**: Instant play with zero build tools required.
@@ -25,8 +25,8 @@ python3 -m http.server 8080 --bind 0.0.0.0
 
 ## Controls
 
-- **Draft Phase**: Click one of the 3 random ball cards (or use **Reroll** / **All Balls**). In 2v2 mode, draft your 1st ball and 2nd teammate back-to-back.
-- **Lock Aim Phase**: Drag inside the arena, use `A` / `D` or `←` / `→` to adjust angle, and press **LOCK AIM** (`Space` / `Enter`) to launch. In 2v2, switch between Ball #1 and Ball #2 via the UI buttons, `1`/`2`/`Tab`, or by clicking directly near either friendly ball.
+- **Draft Phase**: Click one of the 3 random ball cards (or use **Reroll** / **All Balls**). In **VS Bot 2v2**, you draft both Blue teammates back-to-back; in **Local 2v2 (4P)** and **Online 2v2 (4P)**, each of the 4 players drafts their own ball individually.
+- **Lock Aim Phase**: Drag inside the arena, use `A` / `D` or `←` / `→` to adjust angle, and press **LOCK AIM** (`Space` / `Enter`) to launch. In **VS Bot / Sandbox 2v2**, switch between Ball #1 and Ball #2 via the UI buttons, `1`/`2`/`Tab`, or by clicking directly near either friendly ball; in **Local / Online 2v2 (4P)**, each player aims only their assigned seat's ball.
 - **Combat Phase**: Balls bounce and trigger abilities autonomously (walls begin shrinking at **30s Sudden Death**) until all opponents fall and one side loses all 3 Hearts!
 
 ## Verification & Auto-Balancing

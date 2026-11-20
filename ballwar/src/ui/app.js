@@ -25,17 +25,24 @@ const p2p = new P2PRoomClient();
 const online = {
   active: false,
   role: null, // 'host' | 'guest'
+  mySeat: 0,
   myOwner: 1,
+  mySlot: 0,
   teamSize: 1,
+  totalPlayers: 2,
   myDraftPick: null,
   oppDraftPick: null,
   myDraftTeam: [],
   oppDraftTeam: [],
+  seatPicks: {},
   myAimLocked: false,
   oppAimLocked: false,
   oppAimAngles: [],
+  seatAngles: {},
+  aimLockedCount: 0,
   myNextReady: false,
   oppNextReady: false,
+  readySeats: new Set(),
   fxWatermark: { lastId: 0 },
   snapTick: 0,
   pendingEvents: [],
@@ -47,6 +54,7 @@ const ui = {
   draftTimerEnabled: true,
   draftPlayer: 1,
   draftSlot: 0,
+  localTurn: 0,
   draftChoices: [],
   draftPicks: { 1: null, 2: null },
   draftTeams: { 1: [], 2: [] },
@@ -71,6 +79,49 @@ const ui = {
 
 let lastFrameMs = 0;
 let accumSec = 0;
+
+function getSeatMeta(seat, teamSize = sim.teamSize) {
+  if (teamSize !== 2) {
+    return seat === 0
+      ? { seat: 0, owner: 1, slot: 0, label: 'Player 1 (Blue)' }
+      : { seat: 1, owner: 2, slot: 0, label: 'Player 2 (Red)' };
+  }
+  const map = [
+    { seat: 0, owner: 1, slot: 0, label: 'Player 1 (Blue #1)' },
+    { seat: 1, owner: 1, slot: 1, label: 'Player 2 (Blue #2)' },
+    { seat: 2, owner: 2, slot: 0, label: 'Player 3 (Red #1)' },
+    { seat: 3, owner: 2, slot: 1, label: 'Player 4 (Red #2)' },
+  ];
+  return map[Math.max(0, Math.min(3, Number(seat) || 0))];
+}
+
+function isSingleSeatAim() {
+  return sim.teamSize === 2 && (sim.mode === MODES.LOCAL_2P || sim.mode === MODES.ONLINE);
+}
+
+function renderOnlineRoster(container, data) {
+  if (!container) return;
+  if (!data || (data.total || 2) <= 2) {
+    container.classList.add('hidden');
+    container.innerHTML = '';
+    return;
+  }
+  const connected = new Set(data.connectedSeats || []);
+  const teamSize = data.teamSize || 2;
+  const total = data.total || 4;
+  container.classList.remove('hidden');
+  container.innerHTML = '';
+  for (let s = 0; s < total; s++) {
+    const meta = getSeatMeta(s, teamSize);
+    const pill = document.createElement('span');
+    const isJoined = connected.has(s);
+    const isMe = data.mySeat === s;
+    const sideCls = meta.owner === 1 ? 'is-blue' : 'is-red';
+    pill.className = `roster-pill${isJoined ? ` is-ready ${sideCls}` : ''}`;
+    pill.textContent = `${meta.label}${isMe ? ' • YOU' : isJoined ? ' ✓' : ' …'}`;
+    container.appendChild(pill);
+  }
+}
 
 function formatTeamNames(teamIds) {
   const list = (Array.isArray(teamIds) ? teamIds : [teamIds]).filter(Boolean);
@@ -103,17 +154,24 @@ function setTeamFormat(size) {
 function resetOnlineState() {
   online.active = false;
   online.role = null;
+  online.mySeat = 0;
   online.myOwner = 1;
+  online.mySlot = 0;
   online.teamSize = 1;
+  online.totalPlayers = 2;
   online.myDraftPick = null;
   online.oppDraftPick = null;
   online.myDraftTeam = [];
   online.oppDraftTeam = [];
+  online.seatPicks = {};
   online.myAimLocked = false;
   online.oppAimLocked = false;
   online.oppAimAngles = [];
+  online.seatAngles = {};
+  online.aimLockedCount = 0;
   online.myNextReady = false;
   online.oppNextReady = false;
+  online.readySeats = new Set();
   online.fxWatermark = { lastId: 0 };
   online.snapTick = 0;
   online.pendingEvents = [];
@@ -156,6 +214,10 @@ function showView(name) {
     p2p.close();
     resetOnlineState();
     $('online-room-box').classList.add('hidden');
+    $('online-seat-roster')?.classList.add('hidden');
+    $('online-guest-roster')?.classList.add('hidden');
+    if ($('online-seat-roster')) $('online-seat-roster').innerHTML = '';
+    if ($('online-guest-roster')) $('online-guest-roster').innerHTML = '';
     $('online-status').textContent = 'Ready to host or join an Online duel.';
     $('modal-draft').classList.add('hidden');
     $('arena-banner').classList.add('hidden');
@@ -402,8 +464,7 @@ function startArenaMode(mode, teamSize = ui.teamSize) {
 function beginRoundDraft() {
   ui.draftPicks = { 1: null, 2: null };
   ui.draftTeams = { 1: [], 2: [] };
-  ui.draftPlayer = 1;
-  ui.draftSlot = 0;
+  ui.localTurn = 0;
   openDraftForPlayer(1, 0);
 }
 
@@ -415,20 +476,29 @@ function openDraftForPlayer(playerNum, slotIdx = 0) {
   $('draft-all-panel').classList.add('hidden');
   $('draft-cards').classList.remove('hidden');
 
-  const label = playerNum === 1 ? 'PLAYER 1 (BLUE)' : 'PLAYER 2 (RED)';
   const is2v2 = sim.teamSize === 2;
-  const firstNote =
-    is2v2 && slotIdx === 1 && ui.draftTeams[playerNum][0]
-      ? ` • PICKING WITH ${getBallDef(ui.draftTeams[playerNum][0]).name.replace(' Ball', '').toUpperCase()}`
-      : '';
-  $('draft-player-kicker').textContent = is2v2
-    ? `ROUND ${sim.roundNumber} • ${label} • BALL ${slotIdx + 1}/2${firstNote}`
-    : `ROUND ${sim.roundNumber} • ${label}`;
-  $('draft-title').textContent = is2v2
-    ? slotIdx === 0
-      ? 'Choose 1st Ball'
-      : 'Choose 2nd Teammate'
-    : 'Choose Your Ball';
+  const singlePeer2v2 = is2v2 && (sim.mode === MODES.LOCAL_2P || sim.mode === MODES.ONLINE);
+  if (singlePeer2v2) {
+    const seatIdx = sim.mode === MODES.ONLINE ? online.mySeat : ui.localTurn;
+    const meta = getSeatMeta(seatIdx, 2);
+    const modeTag = sim.mode === MODES.ONLINE ? 'ONLINE 2v2 (4P)' : '4P LOCAL';
+    $('draft-player-kicker').textContent = `ROUND ${sim.roundNumber} • ${modeTag} • ${meta.label.toUpperCase()}`;
+    $('draft-title').textContent = 'Choose Your Ball';
+  } else {
+    const label = playerNum === 1 ? 'PLAYER 1 (BLUE)' : 'PLAYER 2 (RED)';
+    const firstNote =
+      is2v2 && slotIdx === 1 && ui.draftTeams[playerNum][0]
+        ? ` • PICKING WITH ${getBallDef(ui.draftTeams[playerNum][0]).name.replace(' Ball', '').toUpperCase()}`
+        : '';
+    $('draft-player-kicker').textContent = is2v2
+      ? `ROUND ${sim.roundNumber} • ${label} • BALL ${slotIdx + 1}/2${firstNote}`
+      : `ROUND ${sim.roundNumber} • ${label}`;
+    $('draft-title').textContent = is2v2
+      ? slotIdx === 0
+        ? 'Choose 1st Ball'
+        : 'Choose 2nd Teammate'
+      : 'Choose Your Ball';
+  }
 
   renderDraftCards();
   updateRerollButton();
@@ -516,34 +586,39 @@ function selectDraftBall(ballId) {
   ui.draftTeams[ui.draftPlayer][ui.draftSlot] = ballId;
   if (ui.draftSlot === 0) ui.draftPicks[ui.draftPlayer] = ballId;
 
-  if (ui.draftTeams[ui.draftPlayer].length < sim.teamSize) {
+  if (sim.mode === MODES.BOT && ui.draftTeams[ui.draftPlayer].length < sim.teamSize) {
     openDraftForPlayer(ui.draftPlayer, ui.draftSlot + 1);
     return;
   }
 
   $('modal-draft').classList.add('hidden');
-  const myTeam = [...ui.draftTeams[ui.draftPlayer]];
+  const is2v2 = sim.teamSize === 2;
 
   if (sim.mode === MODES.ONLINE) {
-    online.myDraftPick = myTeam[0];
-    online.myDraftTeam = myTeam;
-    const modeTag = sim.teamSize === 2 ? 'ONLINE 2v2' : 'ONLINE 1v1';
+    online.myDraftPick = ballId;
+    online.seatPicks[online.mySeat] = ballId;
+    if (!is2v2) online.myDraftTeam = [ballId];
+    const modeTag = is2v2 ? 'ONLINE 2v2 (4P)' : 'ONLINE 1v1';
     if (online.role === 'host') {
-      if (online.oppDraftTeam.length >= sim.teamSize) {
+      const count = Object.keys(online.seatPicks).length;
+      if (count >= online.totalPlayers) {
         hostEnterOnlineAim();
       } else {
+        p2p.send({ type: 'draft_progress', count, total: online.totalPlayers });
         showWaitingShield(
           modeTag,
-          sim.teamSize === 2 ? 'Team Locked In!' : 'Ball Locked In!',
-          `Waiting for Player 2 (Red) to pick their ${sim.teamSize === 2 ? 'team' : 'ball'}...`
+          'Ball Locked In!',
+          is2v2
+            ? `Waiting for other players to draft (${count}/${online.totalPlayers} ready)...`
+            : 'Waiting for Player 2 (Red) to pick their ball...'
         );
       }
     } else {
-      p2p.send({ type: 'draft_pick', ballId: myTeam[0], team: myTeam });
+      p2p.send({ type: 'draft_pick', ballId, seat: online.mySeat, team: [ballId] });
       showWaitingShield(
         modeTag,
-        sim.teamSize === 2 ? 'Team Locked In!' : 'Ball Locked In!',
-        `Waiting for Player 1 (Blue) to pick their ${sim.teamSize === 2 ? 'team' : 'ball'}...`
+        'Ball Locked In!',
+        is2v2 ? 'Waiting for other players to draft...' : 'Waiting for Player 1 (Blue) to pick their ball...'
       );
     }
     return;
@@ -558,20 +633,49 @@ function selectDraftBall(ballId) {
     ui.draftTeams[2] = botTeam;
     ui.draftPicks[2] = botTeam[0];
     enterAimPhase(
-      sim.teamSize === 2 ? ui.draftTeams[1] : ui.draftTeams[1][0],
-      sim.teamSize === 2 ? ui.draftTeams[2] : ui.draftTeams[2][0]
+      is2v2 ? ui.draftTeams[1] : ui.draftTeams[1][0],
+      is2v2 ? ui.draftTeams[2] : ui.draftTeams[2][0]
     );
   } else if (sim.mode === MODES.LOCAL_2P) {
-    if (ui.draftPlayer === 1) {
+    if (!is2v2) {
+      if (ui.draftPlayer === 1) {
+        ui.localTurn = 1;
+        showPassShield(
+          'Pass to Player 2 (Red)',
+          'Player 1 picked secretly. Hand over the device so Player 2 can draft.',
+          () => openDraftForPlayer(2, 0)
+        );
+      } else {
+        enterAimPhase(ui.draftTeams[1][0], ui.draftTeams[2][0]);
+      }
+      return;
+    }
+
+    if (ui.localTurn < 3) {
+      const curMeta = getSeatMeta(ui.localTurn, 2);
+      ui.localTurn += 1;
+      const nextMeta = getSeatMeta(ui.localTurn, 2);
       showPassShield(
-        'Pass to Player 2 (Red)',
-        `Player 1 picked secretly. Hand over the device so Player 2 can draft${sim.teamSize === 2 ? ' 2 balls' : ''}.`,
-        () => openDraftForPlayer(2, 0)
+        `Pass to ${nextMeta.label}`,
+        `${curMeta.label} picked secretly. Hand over the device so ${nextMeta.label} can draft.`,
+        () => openDraftForPlayer(nextMeta.owner, nextMeta.slot),
+        "I'm Ready",
+        'LOCAL 4-PLAYER (2v2)'
       );
     } else {
-      enterAimPhase(
-        sim.teamSize === 2 ? ui.draftTeams[1] : ui.draftTeams[1][0],
-        sim.teamSize === 2 ? ui.draftTeams[2] : ui.draftTeams[2][0]
+      enterAimPhase([...ui.draftTeams[1]], [...ui.draftTeams[2]]);
+      showPassShield(
+        'Pass to Player 1 (Blue #1)',
+        'All 4 players drafted secretly! Hand over the device so Player 1 (Blue #1) can Lock Aim.',
+        () => {
+          ui.localTurn = 0;
+          ui.aimingPlayer = 1;
+          ui.aimSlot = 0;
+          syncAimSlotTabs();
+          updateAimPrompt();
+        },
+        "I'm Ready",
+        'LOCAL 4-PLAYER (2v2)'
       );
     }
   }
@@ -599,9 +703,9 @@ function showWaitingShield(kickerText, title, sub) {
 }
 
 function syncAimSlotTabs() {
-  const is2v2 = sim.teamSize === 2;
-  $('aim-slot-tabs').classList.toggle('hidden', !is2v2);
-  if (!is2v2) return;
+  const showTabs = sim.teamSize === 2 && !isSingleSeatAim();
+  $('aim-slot-tabs').classList.toggle('hidden', !showTabs);
+  if (!showTabs) return;
   const team = sim.selectedTeams?.[ui.aimingPlayer] || [sim.selectedBallIds[ui.aimingPlayer]];
   for (let idx = 0; idx < 2; idx++) {
     const btn = $(`btn-aim-slot-${idx}`);
@@ -615,11 +719,14 @@ function syncAimSlotTabs() {
 function enterAimPhase(teamOrId1, teamOrId2) {
   sim.setupAimPhase(teamOrId1, teamOrId2);
   $('view-arena').classList.toggle('is-2v2', sim.teamSize === 2);
+  ui.localTurn = 0;
   ui.aimingPlayer = online.active ? online.myOwner : 1;
-  ui.aimSlot = 0;
+  ui.aimSlot = online.active && sim.teamSize === 2 ? online.mySlot : 0;
   ui.aimLockedP1 = false;
   online.myAimLocked = false;
   online.oppAimLocked = false;
+  online.seatAngles = {};
+  online.aimLockedCount = 0;
   $('arena-banner').classList.add('hidden');
   $('pass-shield').classList.add('hidden');
   $('controls-aim').classList.remove('hidden');
@@ -632,8 +739,18 @@ function enterAimPhase(teamOrId1, teamOrId2) {
 
 function updateAimPrompt() {
   const prompt = $('aim-prompt');
-  const slotHint = sim.teamSize === 2 ? ` (Ball #${ui.aimSlot + 1} • click Ball 1/2 to switch)` : '';
+  const is2v2 = sim.teamSize === 2;
+  const slotHint = is2v2 && !isSingleSeatAim() ? ` (Ball #${ui.aimSlot + 1} • click Ball 1/2 to switch)` : '';
   if (sim.mode === MODES.ONLINE) {
+    if (is2v2) {
+      if (online.myAimLocked) {
+        prompt.textContent = `Aim locked! Waiting for players (${online.aimLockedCount || 1}/${online.totalPlayers})...`;
+      } else {
+        const meta = getSeatMeta(online.mySeat, 2);
+        prompt.textContent = `${meta.label.toUpperCase()}: Drag inside the arena to aim your ball -> LOCK AIM`;
+      }
+      return;
+    }
     if (online.myAimLocked) {
       const oppName = online.myOwner === 1 ? 'Player 2 (Red)' : 'Player 1 (Blue)';
       prompt.textContent = `Aim locked! Waiting for ${oppName}...`;
@@ -642,8 +759,13 @@ function updateAimPrompt() {
       prompt.textContent = `${team}: Drag inside the arena to aim${slotHint} -> LOCK AIM`;
     }
   } else if (sim.mode === MODES.LOCAL_2P) {
-    const team = ui.aimingPlayer === 1 ? 'P1 (BLUE)' : 'P2 (RED)';
-    prompt.textContent = `${team}: Drag inside arena (or A / D) to aim${slotHint}`;
+    if (is2v2) {
+      const meta = getSeatMeta(ui.localTurn, 2);
+      prompt.textContent = `${meta.label.toUpperCase()}: Drag inside arena (or A / D) to aim your ball`;
+    } else {
+      const team = ui.aimingPlayer === 1 ? 'P1 (BLUE)' : 'P2 (RED)';
+      prompt.textContent = `${team}: Drag inside arena (or A / D) to aim${slotHint}`;
+    }
   } else if (sim.mode === MODES.SANDBOX) {
     prompt.textContent = `Sandbox: Aim Blue${slotHint} then press LOCK AIM`;
   } else {
@@ -672,29 +794,58 @@ function lockCurrentAim() {
     if (online.myAimLocked) return;
     online.myAimLocked = true;
     $('btn-lock-aim').disabled = true;
-    updateAimPrompt();
-    const myAngles = [...(sim.teamAimAngles[online.myOwner] || [sim.aimAngles[online.myOwner]])];
-    if (online.role === 'guest') {
-      p2p.send({ type: 'aim_lock', angle: myAngles[0], angles: myAngles });
-    } else if (online.oppAimLocked) {
-      hostLaunchOnlineFight();
+    const mySlot = sim.teamSize === 2 ? online.mySlot : 0;
+    const myAngle = sim.teamAimAngles[online.myOwner]?.[mySlot] ?? sim.aimAngles[online.myOwner] ?? 0;
+    if (online.role === 'host') {
+      online.seatAngles[0] = myAngle;
+      online.aimLockedCount = Object.keys(online.seatAngles).length;
+      updateAimPrompt();
+      if (online.aimLockedCount >= online.totalPlayers) {
+        hostLaunchOnlineFight();
+      } else {
+        p2p.send({ type: 'aim_progress', count: online.aimLockedCount, total: online.totalPlayers });
+      }
+    } else {
+      updateAimPrompt();
+      p2p.send({ type: 'aim_lock', seat: online.mySeat, angle: myAngle, angles: [myAngle] });
     }
     return;
   }
 
-  if (sim.mode === MODES.LOCAL_2P && ui.aimingPlayer === 1) {
-    ui.aimLockedP1 = true;
-    showPassShield(
-      'Pass to Player 2 (Red)',
-      `Player 1 aimed secretly. Ready for Player 2 to Lock Aim${sim.teamSize === 2 ? ' (both balls)' : ''}?`,
-      () => {
-        ui.aimingPlayer = 2;
-        ui.aimSlot = 0;
-        syncAimSlotTabs();
-        updateAimPrompt();
+  if (sim.mode === MODES.LOCAL_2P) {
+    if (sim.teamSize === 2) {
+      if (ui.localTurn < 3) {
+        const prevMeta = getSeatMeta(ui.localTurn, 2);
+        ui.localTurn += 1;
+        const nextMeta = getSeatMeta(ui.localTurn, 2);
+        showPassShield(
+          `Pass to ${nextMeta.label}`,
+          `${prevMeta.label} aimed secretly. Ready for ${nextMeta.label} to Lock Aim?`,
+          () => {
+            ui.aimingPlayer = nextMeta.owner;
+            ui.aimSlot = nextMeta.slot;
+            syncAimSlotTabs();
+            updateAimPrompt();
+          },
+          "I'm Ready",
+          'LOCAL 4-PLAYER (2v2)'
+        );
+        return;
       }
-    );
-    return;
+    } else if (ui.aimingPlayer === 1) {
+      ui.aimLockedP1 = true;
+      showPassShield(
+        'Pass to Player 2 (Red)',
+        'Player 1 aimed secretly. Ready for Player 2 to Lock Aim?',
+        () => {
+          ui.aimingPlayer = 2;
+          ui.aimSlot = 0;
+          syncAimSlotTabs();
+          updateAimPrompt();
+        }
+      );
+      return;
+    }
   }
 
   const angles1 = [...(sim.teamAimAngles[1] || [sim.aimAngles[1]])];
@@ -759,13 +910,25 @@ function showRoundOrMatchBanner() {
     kicker.textContent = 'MATCH OVER';
     const winnerTeam =
       sim.mode === MODES.ONLINE
-        ? sim.roundWinner === online.myOwner
+        ? sim.teamSize === 2
+          ? sim.roundWinner === online.myOwner
+            ? online.myOwner === 1
+              ? 'YOUR TEAM (BLUE)'
+              : 'YOUR TEAM (RED)'
+            : sim.roundWinner === 1
+            ? 'BLUE TEAM'
+            : 'RED TEAM'
+          : sim.roundWinner === online.myOwner
           ? online.myOwner === 1
             ? 'YOU (BLUE)'
             : 'YOU (RED)'
           : sim.roundWinner === 1
           ? 'BLUE (OPPONENT)'
           : 'RED (OPPONENT)'
+        : sim.mode === MODES.LOCAL_2P && sim.teamSize === 2
+        ? sim.roundWinner === 1
+          ? 'BLUE TEAM (P1 & P2)'
+          : 'RED TEAM (P3 & P4)'
         : sim.roundWinner === 1
         ? 'BLUE (PLAYER 1)'
         : sim.mode === MODES.BOT
@@ -787,10 +950,21 @@ function handleBannerNext() {
     if (online.myNextReady) return;
     online.myNextReady = true;
     $('btn-banner-next').disabled = true;
-    $('btn-banner-next').textContent = 'Waiting for opponent...';
-    p2p.send({ type: 'next_ready' });
-    if (online.role === 'host' && online.oppNextReady) {
-      hostAdvanceOnlineRound();
+    if (online.role === 'host') {
+      online.readySeats.add(0);
+      const count = online.readySeats.size;
+      $('btn-banner-next').textContent =
+        online.totalPlayers > 2
+          ? `Waiting for players (${count}/${online.totalPlayers})...`
+          : 'Waiting for opponent...';
+      p2p.send({ type: 'ready_progress', count, total: online.totalPlayers });
+      if (count >= online.totalPlayers) {
+        hostAdvanceOnlineRound();
+      }
+    } else {
+      $('btn-banner-next').textContent =
+        online.totalPlayers > 2 ? 'Waiting for players...' : 'Waiting for opponent...';
+      p2p.send({ type: 'next_ready', seat: online.mySeat });
     }
     return;
   }
@@ -824,11 +998,21 @@ function bindP2PHandlers() {
     onStatus(text) {
       $('online-status').textContent = text;
     },
+    onRoster(data) {
+      if (p2p.isHost) {
+        renderOnlineRoster($('online-seat-roster'), data);
+      } else {
+        renderOnlineRoster($('online-guest-roster'), data);
+      }
+    },
     onError(msg) {
       $('online-status').textContent = `Error: ${msg}`;
     },
     onDisconnected(msg) {
-      if (!online.active) return;
+      if (!online.active) {
+        if (msg) $('online-status').textContent = msg;
+        return;
+      }
       stopDraftTimer();
       $('modal-draft').classList.add('hidden');
       $('controls-aim').classList.add('hidden');
@@ -836,31 +1020,43 @@ function bindP2PHandlers() {
       showPassShield('Connection Lost', msg, () => showView('lobby'), 'Back to Lobby', 'ONLINE P2P');
       resetOnlineState();
     },
-    onConnected({ role }) {
+    onConnected({ role, seat = 0, teamSize, totalPlayers }) {
+      const sz = teamSize === 2 || (!teamSize && role === 'host' && ui.teamSize === 2) ? 2 : 1;
+      const seatIdx = Number.isInteger(seat) ? seat : role === 'host' ? 0 : 1;
+      const meta = getSeatMeta(seatIdx, sz);
       online.active = true;
       online.role = role;
-      online.myOwner = role === 'host' ? 1 : 2;
+      online.mySeat = seatIdx;
+      online.myOwner = meta.owner;
+      online.mySlot = meta.slot;
+      online.teamSize = sz;
+      online.totalPlayers = totalPlayers || (sz === 2 ? 4 : 2);
       online.fxWatermark = { lastId: 0 };
       online.snapTick = 0;
       online.pendingEvents = [];
 
       if (role === 'host') {
-        online.teamSize = ui.teamSize;
-        sim.startMatch({ mode: MODES.ONLINE, teamSize: ui.teamSize, hearts: 3, suddenDeathStart: SUDDEN_DEATH_START_SEC });
+        setTeamFormat(sz);
+        sim.startMatch({ mode: MODES.ONLINE, teamSize: sz, hearts: 3, suddenDeathStart: SUDDEN_DEATH_START_SEC });
         ui.paused = false;
         ui.simSpeed = 1;
         online.myDraftPick = null;
         online.oppDraftPick = null;
         online.myDraftTeam = [];
         online.oppDraftTeam = [];
+        online.seatPicks = {};
         online.oppAimAngles = [];
+        online.seatAngles = {};
+        online.aimLockedCount = 0;
         online.myNextReady = false;
         online.oppNextReady = false;
+        online.readySeats = new Set();
         ui.draftTeams = { 1: [], 2: [] };
-        $('view-arena').classList.toggle('is-2v2', sim.teamSize === 2);
+        $('view-arena').classList.toggle('is-2v2', sz === 2);
         p2p.send({
           type: 'start_round',
-          teamSize: sim.teamSize,
+          teamSize: sz,
+          totalPlayers: online.totalPlayers,
           roundNumber: sim.roundNumber,
           hearts: { ...sim.hearts },
           heartsToWin: sim.heartsToWin,
@@ -869,30 +1065,60 @@ function bindP2PHandlers() {
         openDraftForPlayer(1, 0);
       }
     },
-    onMessage(msg) {
+    onMessage(msg, { seat } = {}) {
       if (!msg || !msg.type) return;
 
       if (online.role === 'host') {
+        const senderSeat = Number.isInteger(seat) ? seat : Number.isInteger(msg.seat) ? msg.seat : 1;
         if (msg.type === 'draft_pick') {
-          const team = Array.isArray(msg.team) && msg.team.length ? msg.team : [msg.ballId];
-          online.oppDraftTeam = team;
-          online.oppDraftPick = team[0];
-          if (online.myDraftTeam.length >= sim.teamSize) hostEnterOnlineAim();
-        } else if (msg.type === 'aim_lock') {
-          const angles = Array.isArray(msg.angles) && msg.angles.length ? msg.angles : [msg.angle];
-          online.oppAimAngles = angles;
-          sim.aimAngles[2] = angles[0];
-          sim.teamAimAngles[2] = [...angles];
-          for (const b of sim.balls) {
-            if (b.owner === 2 && angles[b.slotIndex ?? 0] != null) {
-              b.aimAngle = angles[b.slotIndex ?? 0];
+          const pickId = msg.ballId || (Array.isArray(msg.team) ? msg.team[0] : null);
+          if (!pickId) return;
+          online.seatPicks[senderSeat] = pickId;
+          if (sim.teamSize === 1) {
+            online.oppDraftPick = pickId;
+            online.oppDraftTeam = [pickId];
+          }
+          const count = Object.keys(online.seatPicks).length;
+          if (count >= online.totalPlayers) {
+            hostEnterOnlineAim();
+          } else {
+            p2p.send({ type: 'draft_progress', count, total: online.totalPlayers });
+            if (online.seatPicks[0] && !$('pass-shield').classList.contains('hidden')) {
+              $('shield-sub').textContent =
+                sim.teamSize === 2
+                  ? `Waiting for other players to draft (${count}/${online.totalPlayers} ready)...`
+                  : 'Waiting for Player 2 (Red) to pick their ball...';
             }
           }
-          online.oppAimLocked = true;
-          if (online.myAimLocked) hostLaunchOnlineFight();
+        } else if (msg.type === 'aim_lock') {
+          const meta = getSeatMeta(senderSeat, sim.teamSize);
+          const angle = typeof msg.angle === 'number' ? msg.angle : Array.isArray(msg.angles) ? msg.angles[0] : 0;
+          online.seatAngles[senderSeat] = angle;
+          if (!sim.teamAimAngles[meta.owner]) sim.teamAimAngles[meta.owner] = [];
+          sim.teamAimAngles[meta.owner][meta.slot] = angle;
+          if (meta.slot === 0) sim.aimAngles[meta.owner] = angle;
+          const ball =
+            sim.balls.find((b) => b.owner === meta.owner && (b.slotIndex ?? 0) === meta.slot) ||
+            sim.balls.find((b) => b.owner === meta.owner);
+          if (ball) ball.aimAngle = angle;
+          online.aimLockedCount = Object.keys(online.seatAngles).length;
+          if (online.aimLockedCount >= online.totalPlayers) {
+            hostLaunchOnlineFight();
+          } else {
+            p2p.send({ type: 'aim_progress', count: online.aimLockedCount, total: online.totalPlayers });
+            if (online.myAimLocked) updateAimPrompt();
+          }
         } else if (msg.type === 'next_ready') {
-          online.oppNextReady = true;
-          if (online.myNextReady) hostAdvanceOnlineRound();
+          online.readySeats.add(senderSeat);
+          const count = online.readySeats.size;
+          if (count >= online.totalPlayers) {
+            hostAdvanceOnlineRound();
+          } else {
+            p2p.send({ type: 'ready_progress', count, total: online.totalPlayers });
+            if (online.myNextReady && online.totalPlayers > 2) {
+              $('btn-banner-next').textContent = `Waiting for players (${count}/${online.totalPlayers})...`;
+            }
+          }
         }
         return;
       }
@@ -901,6 +1127,10 @@ function bindP2PHandlers() {
       if (msg.type === 'start_round') {
         const sz = msg.teamSize === 2 ? 2 : 1;
         online.teamSize = sz;
+        online.totalPlayers = msg.totalPlayers || (sz === 2 ? 4 : 2);
+        const meta = getSeatMeta(online.mySeat, sz);
+        online.myOwner = meta.owner;
+        online.mySlot = meta.slot;
         sim.mode = MODES.ONLINE;
         sim.setTeamSize(sz);
         sim.roundNumber = msg.roundNumber;
@@ -911,6 +1141,7 @@ function bindP2PHandlers() {
         online.myDraftPick = null;
         online.myDraftTeam = [];
         online.myAimLocked = false;
+        online.aimLockedCount = 0;
         online.myNextReady = false;
         ui.draftTeams = { 1: [], 2: [] };
         ui.paused = false;
@@ -920,7 +1151,18 @@ function bindP2PHandlers() {
         $('pass-shield').classList.add('hidden');
         showView('arena');
         updateHud();
-        openDraftForPlayer(2, 0);
+        openDraftForPlayer(online.myOwner, sz === 2 ? online.mySlot : 0);
+      } else if (msg.type === 'draft_progress') {
+        if (online.myDraftPick && !$('pass-shield').classList.contains('hidden')) {
+          $('shield-sub').textContent = `Waiting for other players to draft (${msg.count}/${msg.total} ready)...`;
+        }
+      } else if (msg.type === 'aim_progress') {
+        online.aimLockedCount = msg.count || 0;
+        if (online.myAimLocked) updateAimPrompt();
+      } else if (msg.type === 'ready_progress') {
+        if (online.myNextReady && (msg.total || 2) > 2) {
+          $('btn-banner-next').textContent = `Waiting for players (${msg.count}/${msg.total})...`;
+        }
       } else if (msg.type === 'snap') {
         const prevPhase = sim.phase;
         applySnapshot(sim, msg);
@@ -929,9 +1171,10 @@ function bindP2PHandlers() {
           soundEngine.handleSimEvents(msg.events);
         }
         if (prevPhase !== sim.phase && sim.phase === PHASES.AIM) {
-          ui.aimingPlayer = 2;
-          ui.aimSlot = 0;
+          ui.aimingPlayer = online.myOwner;
+          ui.aimSlot = sim.teamSize === 2 ? online.mySlot : 0;
           online.myAimLocked = false;
+          online.aimLockedCount = 0;
           $('arena-banner').classList.add('hidden');
           $('pass-shield').classList.add('hidden');
           $('controls-aim').classList.remove('hidden');
@@ -959,10 +1202,9 @@ function hostEnterOnlineAim() {
   online.fxWatermark = { lastId: 0 };
   online.snapTick = 0;
   online.pendingEvents = [];
-  enterAimPhase(
-    sim.teamSize === 2 ? online.myDraftTeam : online.myDraftTeam[0] || online.myDraftPick,
-    sim.teamSize === 2 ? online.oppDraftTeam : online.oppDraftTeam[0] || online.oppDraftPick
-  );
+  const team1 = sim.teamSize === 2 ? [online.seatPicks[0], online.seatPicks[1]] : online.seatPicks[0] || online.myDraftPick;
+  const team2 = sim.teamSize === 2 ? [online.seatPicks[2], online.seatPicks[3]] : online.seatPicks[1] || online.oppDraftPick;
+  enterAimPhase(team1, team2);
   p2p.send(encodeSnapshot(sim, [], online.fxWatermark));
 }
 
@@ -993,13 +1235,18 @@ function hostAdvanceOnlineRound() {
   online.oppDraftPick = null;
   online.myDraftTeam = [];
   online.oppDraftTeam = [];
+  online.seatPicks = {};
   online.oppAimAngles = [];
+  online.seatAngles = {};
+  online.aimLockedCount = 0;
   online.myNextReady = false;
   online.oppNextReady = false;
+  online.readySeats = new Set();
   ui.draftTeams = { 1: [], 2: [] };
   p2p.send({
     type: 'start_round',
     teamSize: sim.teamSize,
+    totalPlayers: online.totalPlayers,
     roundNumber: sim.roundNumber,
     hearts: { ...sim.hearts },
     heartsToWin: sim.heartsToWin,
@@ -1053,8 +1300,16 @@ function renderTeamRows(container, owner, teamIds, colorClass) {
 
 function updateHud() {
   if (sim.mode === MODES.ONLINE) {
-    $('hud-p1-label').textContent = online.myOwner === 1 ? 'YOU (BLUE)' : 'P1 (BLUE)';
-    $('hud-p2-label').textContent = online.myOwner === 2 ? 'YOU (RED)' : 'P2 (RED)';
+    if (sim.teamSize === 2) {
+      $('hud-p1-label').textContent = online.myOwner === 1 ? `BLUE (YOU: #${online.mySlot + 1})` : 'BLUE TEAM';
+      $('hud-p2-label').textContent = online.myOwner === 2 ? `RED (YOU: #${online.mySlot + 1})` : 'RED TEAM';
+    } else {
+      $('hud-p1-label').textContent = online.myOwner === 1 ? 'YOU (BLUE)' : 'P1 (BLUE)';
+      $('hud-p2-label').textContent = online.myOwner === 2 ? 'YOU (RED)' : 'P2 (RED)';
+    }
+  } else if (sim.mode === MODES.LOCAL_2P && sim.teamSize === 2) {
+    $('hud-p1-label').textContent = 'BLUE (P1 & P2)';
+    $('hud-p2-label').textContent = 'RED (P3 & P4)';
   } else {
     const p2Name = sim.mode === MODES.BOT ? 'BOT' : 'P2 RED';
     $('hud-p1-label').textContent = sim.mode === MODES.LOCAL_2P ? 'P1 BLUE' : 'YOU (BLUE)';
@@ -1124,7 +1379,11 @@ function loop(nowMs) {
     updateHud();
     const canvas = $('arena-canvas');
     const ctx = canvas.getContext('2d');
-    renderArena(ctx, sim, { aimingPlayer: online.myAimLocked ? 0 : 2, aimSlot: ui.aimSlot });
+    renderArena(ctx, sim, {
+      aimingPlayer: online.myAimLocked ? 0 : online.myOwner,
+      aimSlot: sim.teamSize === 2 ? online.mySlot : ui.aimSlot,
+      aimOnlySingleSlot: isSingleSeatAim(),
+    });
     return;
   }
 
@@ -1159,7 +1418,11 @@ function loop(nowMs) {
 
   const canvas = $('arena-canvas');
   const ctx = canvas.getContext('2d');
-  renderArena(ctx, sim, { aimingPlayer: online.active && online.myAimLocked ? 0 : ui.aimingPlayer, aimSlot: ui.aimSlot });
+  renderArena(ctx, sim, {
+    aimingPlayer: online.active && online.myAimLocked ? 0 : ui.aimingPlayer,
+    aimSlot: ui.aimSlot,
+    aimOnlySingleSlot: isSingleSeatAim(),
+  });
 }
 
 /* ==================== BALL DEX ==================== */
@@ -1231,7 +1494,7 @@ function aimFromPointerEvent(e, allowSwitch = false) {
   const py = (e.clientY - rect.top) * scaleY;
 
   const owner = ui.aimingPlayer;
-  if (allowSwitch && sim.teamSize === 2) {
+  if (allowSwitch && sim.teamSize === 2 && !isSingleSeatAim()) {
     const clickedBall = sim.balls.find(
       (b) => b.owner === owner && Math.hypot(px - b.x, py - b.y) <= b.radius * 1.65
     );
@@ -1327,9 +1590,16 @@ function bindEvents() {
   // Online lobby buttons
   $('btn-online-host').addEventListener('click', () => {
     soundEngine.unlock();
-    const code = p2p.hostRoom();
+    const maxGuests = ui.teamSize === 2 ? 3 : 1;
+    const code = p2p.hostRoom(null, { maxGuests, teamSize: ui.teamSize });
     $('online-room-code').textContent = code;
     $('online-room-box').classList.remove('hidden');
+    renderOnlineRoster($('online-seat-roster'), {
+      connectedSeats: [0],
+      total: maxGuests + 1,
+      teamSize: ui.teamSize,
+      mySeat: 0,
+    });
   });
   $('btn-copy-code').addEventListener('click', async () => {
     const code = $('online-room-code').textContent;
@@ -1350,11 +1620,13 @@ function bindEvents() {
   });
   $('btn-online-join').addEventListener('click', () => {
     soundEngine.unlock();
+    renderOnlineRoster($('online-guest-roster'), null);
     p2p.joinRoom($('online-join-code').value);
   });
   $('online-join-code').addEventListener('keydown', (e) => {
     if (e.key === 'Enter') {
       soundEngine.unlock();
+      renderOnlineRoster($('online-guest-roster'), null);
       p2p.joinRoom($('online-join-code').value);
     }
   });
@@ -1529,7 +1801,7 @@ function bindEvents() {
       adjustActiveAimAngle(-0.14);
     } else if (e.key === 'd' || e.key === 'D' || e.key === 'ArrowRight') {
       adjustActiveAimAngle(0.14);
-    } else if (sim.teamSize === 2 && (e.key === '1' || e.key === '2' || e.key === 'Tab')) {
+    } else if (sim.teamSize === 2 && !isSingleSeatAim() && (e.key === '1' || e.key === '2' || e.key === 'Tab')) {
       e.preventDefault();
       ui.aimSlot = e.key === '1' ? 0 : e.key === '2' ? 1 : (ui.aimSlot === 0 ? 1 : 0);
       syncAimSlotTabs();

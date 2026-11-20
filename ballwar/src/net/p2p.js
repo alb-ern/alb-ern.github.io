@@ -27,11 +27,17 @@ export function sanitizeRoomCode(raw) {
 export class P2PRoomClient {
   constructor() {
     this.peer = null;
-    this.conn = null;
+    this.conn = null; // guest -> host connection
+    this.guestConns = new Map(); // host: seat (1..maxGuests) -> DataConnection
     this.role = null; // 'host' | 'guest'
     this.roomCode = null;
+    this.maxGuests = 1;
+    this.teamSize = 1;
+    this.seat = 0;
+    this._matchStarted = false;
     this.handlers = {
       onStatus: () => {},
+      onRoster: () => {},
       onConnected: () => {},
       onMessage: () => {},
       onDisconnected: () => {},
@@ -49,10 +55,14 @@ export class P2PRoomClient {
     }
   }
 
-  hostRoom(requestedCode = null) {
+  hostRoom(requestedCode = null, options = {}) {
     this.close();
     this.ensurePeerJS();
     this.role = 'host';
+    this.maxGuests = options.maxGuests ?? 1;
+    this.teamSize = options.teamSize ?? (this.maxGuests >= 3 ? 2 : 1);
+    this.seat = 0;
+    this._matchStarted = false;
     this.roomCode = sanitizeRoomCode(requestedCode) || generateRoomCode(4);
     const peerId = `${PEER_PREFIX}${this.roomCode}`;
 
@@ -61,21 +71,34 @@ export class P2PRoomClient {
     this.peer = peer;
 
     peer.on('open', () => {
-      this.handlers.onStatus(`Room ${this.roomCode} ready — waiting for opponent...`);
+      const total = this.maxGuests + 1;
+      const waitMsg =
+        total > 2
+          ? `Room ${this.roomCode} ready (1/${total} players) — waiting for teammates & opponents...`
+          : `Room ${this.roomCode} ready — waiting for opponent...`;
+      this.handlers.onStatus(waitMsg);
+      this.handlers.onRoster({ connectedSeats: [0], total, teamSize: this.teamSize });
     });
 
     peer.on('connection', (conn) => {
-      if (this.conn && this.conn.open) {
-        conn.close();
+      let assignedSeat = null;
+      for (let s = 1; s <= this.maxGuests; s++) {
+        if (!this.guestConns.has(s)) {
+          assignedSeat = s;
+          break;
+        }
+      }
+      if (assignedSeat == null) {
+        try { conn.close(); } catch (_) {}
         return;
       }
-      this.attachConnection(conn);
+      this.attachHostGuestConnection(conn, assignedSeat);
     });
 
     peer.on('error', (err) => {
       if (err && err.type === 'unavailable-id' && !requestedCode) {
         // Retry automatically with a fresh code if collision occurred
-        this.hostRoom();
+        this.hostRoom(null, { maxGuests: this.maxGuests, teamSize: this.teamSize });
         return;
       }
       this.handlers.onError(err?.message || String(err));
@@ -102,7 +125,7 @@ export class P2PRoomClient {
 
     peer.on('open', () => {
       const conn = peer.connect(hostPeerId, { reliable: true, serialization: 'json' });
-      this.attachConnection(conn);
+      this.attachGuestConnection(conn);
     });
 
     peer.on('error', (err) => {
@@ -114,17 +137,117 @@ export class P2PRoomClient {
     });
   }
 
-  attachConnection(conn) {
+  attachHostGuestConnection(conn, seat) {
+    this.guestConns.set(seat, conn);
+
+    conn.on('open', () => {
+      const connectedSeats = [0, ...Array.from(this.guestConns.keys()).sort((a, b) => a - b)];
+      const total = this.maxGuests + 1;
+      conn.send({
+        type: 'seat_assign',
+        seat,
+        teamSize: this.teamSize,
+        totalPlayers: total,
+        connectedSeats,
+      });
+      this.send({ type: 'room_roster', connectedSeats, totalPlayers: total, teamSize: this.teamSize });
+      this.handlers.onRoster({ connectedSeats, total, teamSize: this.teamSize });
+
+      if (this.guestConns.size < this.maxGuests) {
+        this.handlers.onStatus(
+          `Room ${this.roomCode}: ${connectedSeats.length}/${total} players joined — waiting for ${total - connectedSeats.length} more...`
+        );
+      } else if (!this._matchStarted) {
+        this._matchStarted = true;
+        this.handlers.onStatus('All players connected! Starting match...');
+        this.handlers.onConnected({
+          role: 'host',
+          roomCode: this.roomCode,
+          seat: 0,
+          teamSize: this.teamSize,
+          totalPlayers: total,
+        });
+      }
+    });
+
+    conn.on('data', (data) => {
+      this.handlers.onMessage(data, { seat });
+    });
+
+    conn.on('close', () => {
+      this.guestConns.delete(seat);
+      const total = this.maxGuests + 1;
+      if (this._matchStarted) {
+        this.handlers.onDisconnected(`Player ${seat + 1} disconnected.`, { seat });
+      } else {
+        const connectedSeats = [0, ...Array.from(this.guestConns.keys()).sort((a, b) => a - b)];
+        this.handlers.onRoster({ connectedSeats, total, teamSize: this.teamSize });
+        this.handlers.onStatus(
+          `Room ${this.roomCode}: ${connectedSeats.length}/${total} players connected — waiting for ${total - connectedSeats.length} more...`
+        );
+        this.send({ type: 'room_roster', connectedSeats, totalPlayers: total, teamSize: this.teamSize });
+      }
+    });
+
+    conn.on('error', (err) => {
+      this.handlers.onError(err?.message || String(err));
+    });
+  }
+
+  attachGuestConnection(conn) {
     this.conn = conn;
     conn.on('open', () => {
-      this.handlers.onStatus('Connected!');
-      this.handlers.onConnected({ role: this.role, roomCode: this.roomCode });
+      this.handlers.onStatus('Connected to host! Waiting for seat assignment...');
     });
     conn.on('data', (data) => {
-      this.handlers.onMessage(data);
+      if (data && data.type === 'seat_assign') {
+        this.seat = data.seat;
+        this.teamSize = data.teamSize || 1;
+        this.maxGuests = (data.totalPlayers || 2) - 1;
+        this.handlers.onRoster({
+          connectedSeats: data.connectedSeats || [0, data.seat],
+          total: data.totalPlayers || 2,
+          teamSize: this.teamSize,
+          mySeat: data.seat,
+        });
+        const count = (data.connectedSeats || []).length;
+        const total = data.totalPlayers || 2;
+        if (total > 2 && count < total) {
+          this.handlers.onStatus(
+            `Joined as Player ${data.seat + 1} (${count}/${total}) — waiting for ${total - count} more player(s)...`
+          );
+        } else {
+          this.handlers.onStatus('Connected!');
+        }
+        this.handlers.onConnected({
+          role: 'guest',
+          roomCode: this.roomCode,
+          seat: data.seat,
+          teamSize: this.teamSize,
+          totalPlayers: total,
+        });
+        return;
+      }
+      if (data && data.type === 'room_roster') {
+        const count = (data.connectedSeats || []).length;
+        const total = data.totalPlayers || 2;
+        this.handlers.onRoster({
+          connectedSeats: data.connectedSeats || [],
+          total,
+          teamSize: data.teamSize || 1,
+          mySeat: this.seat,
+        });
+        if (count < total) {
+          this.handlers.onStatus(
+            `Joined as Player ${this.seat + 1} (${count}/${total}) — waiting for ${total - count} more player(s)...`
+          );
+        }
+        return;
+      }
+      this.handlers.onMessage(data, { seat: 0 });
     });
     conn.on('close', () => {
-      this.handlers.onDisconnected('Opponent disconnected.');
+      this.handlers.onDisconnected('Host or peer disconnected.');
     });
     conn.on('error', (err) => {
       this.handlers.onError(err?.message || String(err));
@@ -132,6 +255,16 @@ export class P2PRoomClient {
   }
 
   send(payload) {
+    if (this.role === 'host') {
+      let sentAny = false;
+      for (const conn of this.guestConns.values()) {
+        if (conn && conn.open) {
+          conn.send(payload);
+          sentAny = true;
+        }
+      }
+      return sentAny;
+    }
     if (this.conn && this.conn.open) {
       this.conn.send(payload);
       return true;
@@ -140,6 +273,10 @@ export class P2PRoomClient {
   }
 
   close() {
+    for (const conn of this.guestConns.values()) {
+      try { conn.close(); } catch (_) {}
+    }
+    this.guestConns.clear();
     if (this.conn) {
       try { this.conn.close(); } catch (_) {}
       this.conn = null;
@@ -149,5 +286,7 @@ export class P2PRoomClient {
       this.peer = null;
     }
     this.role = null;
+    this.seat = 0;
+    this._matchStarted = false;
   }
 }

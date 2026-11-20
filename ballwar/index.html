@@ -10,19 +10,19 @@
   <script type="importmap">
     {
       "imports": {
-        "./src/sim/constants.js": "./src/sim/constants.js?v=20261120c",
-        "./src/sim/balls.js": "./src/sim/balls.js?v=20261120c",
-        "./src/sim/physics.js": "./src/sim/physics.js?v=20261120c",
-        "./src/sim/ai.js": "./src/sim/ai.js?v=20261120c",
-        "./src/sim/abilities.js": "./src/sim/abilities.js?v=20261120c",
-        "./src/sim/abilitiesExtra.js": "./src/sim/abilitiesExtra.js?v=20261120c",
-        "./src/sim/balanceTuning.js": "./src/sim/balanceTuning.js?v=20261120c",
-        "./src/net/protocol.js": "./src/net/protocol.js?v=20261120c",
-        "./src/render/arenaRenderer.js": "./src/render/arenaRenderer.js?v=20261120c"
+        "./src/sim/constants.js": "./src/sim/constants.js?v=20261120d",
+        "./src/sim/balls.js": "./src/sim/balls.js?v=20261120d",
+        "./src/sim/physics.js": "./src/sim/physics.js?v=20261120d",
+        "./src/sim/ai.js": "./src/sim/ai.js?v=20261120d",
+        "./src/sim/abilities.js": "./src/sim/abilities.js?v=20261120d",
+        "./src/sim/abilitiesExtra.js": "./src/sim/abilitiesExtra.js?v=20261120d",
+        "./src/sim/balanceTuning.js": "./src/sim/balanceTuning.js?v=20261120d",
+        "./src/net/protocol.js": "./src/net/protocol.js?v=20261120d",
+        "./src/render/arenaRenderer.js": "./src/render/arenaRenderer.js?v=20261120d"
       }
     }
   </script>
-  <link rel="stylesheet" href="./styles/main.css?v=20261120c" />
+  <link rel="stylesheet" href="./styles/main.css?v=20261120d" />
 </head>
 <body>
   <div class="app-shell">
@@ -78,10 +78,10 @@
         <article class="mode-card" data-mode="online">
           <div class="mode-badge green">REAL MULTIPLAYER</div>
           <h2>Online P2P</h2>
-          <p>Play friends from anywhere via WebRTC room codes! Secret drafts, simultaneous Lock Aim, and Best-of-3 Hearts.</p>
+          <p>Play friends from anywhere via WebRTC! 1v1 (2 players) or 2v2 Teams (4 players) with Best-of-3 Hearts.</p>
           <div class="mode-card-actions">
-            <button class="btn btn-secondary" id="btn-mode-online" type="button">1v1 P2P</button>
-            <button class="btn btn-primary" id="btn-mode-online-2v2" type="button">2v2 P2P</button>
+            <button class="btn btn-secondary" id="btn-mode-online" type="button">1v1 (2P)</button>
+            <button class="btn btn-primary" id="btn-mode-online-2v2" type="button">2v2 (4P)</button>
           </div>
         </article>
 
@@ -97,11 +97,11 @@
 
         <article class="mode-card" data-mode="local2p">
           <div class="mode-badge purple">SAME DEVICE</div>
-          <h2>Local 2-Player</h2>
-          <p>Pass-and-play! Secret ball drafts and hidden Lock Aim angles before all balls launch together.</p>
+          <h2>Local Multiplayer</h2>
+          <p>Pass-and-play! 2 players in 1v1 or 4 players in 2v2 Teams — secret drafts and hidden Lock Aim per player.</p>
           <div class="mode-card-actions">
-            <button class="btn btn-purple" id="btn-mode-2p" type="button">Local 1v1</button>
-            <button class="btn btn-secondary" id="btn-mode-2p-2v2" type="button">Local 2v2</button>
+            <button class="btn btn-purple" id="btn-mode-2p" type="button">Local 1v1 (2P)</button>
+            <button class="btn btn-secondary" id="btn-mode-2p-2v2" type="button">Local 2v2 (4P)</button>
           </div>
         </article>
 
@@ -122,19 +122,19 @@
       <div class="panel-header">
         <div>
           <h2>Online <span data-mode-format-tag>1v1</span> Multiplayer (WebRTC P2P)</h2>
-          <p class="muted">Serverless PeerJS room codes — works over LAN, Tailscale, or GitHub Pages. Host sets 1v1 or 2v2 format.</p>
+          <p class="muted">Serverless PeerJS room codes — Host creates a 2-player (1v1) or 4-player (2v2 Teams) room.</p>
         </div>
         <div class="format-btn-row" data-format-toggle>
-          <button class="btn btn-sm fmt-btn is-active" data-team-size="1" type="button">1v1 (600 Arena)</button>
-          <button class="btn btn-sm fmt-btn" data-team-size="2" type="button">2v2 Teams (740 Arena)</button>
+          <button class="btn btn-sm fmt-btn is-active" data-team-size="1" type="button">1v1 (2P • 600)</button>
+          <button class="btn btn-sm fmt-btn" data-team-size="2" type="button">2v2 (4P • 740 Arena)</button>
         </div>
       </div>
 
       <div class="online-grid">
         <div class="online-panel">
-          <span class="mode-badge blue">PLAYER 1 (BLUE)</span>
+          <span class="mode-badge blue">HOST SEAT (PLAYER 1 • BLUE)</span>
           <h3>Host a Room</h3>
-          <p class="muted">Create a 4-character room code and share the code or invite link with a friend.</p>
+          <p class="muted">Create a 4-character room code and share it with your friend (1v1) or 3 other players (2v2).</p>
           <button class="btn btn-primary btn-lg" id="btn-online-host" type="button">Create Room</button>
 
           <div id="online-room-box" class="room-box hidden">
@@ -144,17 +144,19 @@
               <button class="btn btn-ghost btn-sm" id="btn-copy-code" type="button">Copy Code</button>
               <button class="btn btn-secondary btn-sm" id="btn-copy-link" type="button">Copy Invite Link</button>
             </div>
+            <div id="online-seat-roster" class="online-roster hidden"></div>
           </div>
         </div>
 
         <div class="online-panel">
-          <span class="mode-badge red" style="background: rgba(251,113,133,0.18); color: var(--red);">PLAYER 2 (RED)</span>
+          <span class="mode-badge red" style="background: rgba(251,113,133,0.18); color: var(--red);">GUEST SEAT (AUTO-ASSIGNED)</span>
           <h3>Join a Room</h3>
-          <p class="muted">Enter your friend's 4-character room code (or open their invite link) to connect.</p>
+          <p class="muted">Enter the 4-character room code (or open an invite link) to take the next open seat.</p>
           <div class="join-form">
             <input type="text" id="online-join-code" class="room-input" maxlength="6" placeholder="CODE" aria-label="Room Code" />
-            <button class="btn btn-secondary btn-lg" id="btn-online-join" type="button">Join Duel</button>
+            <button class="btn btn-secondary btn-lg" id="btn-online-join" type="button">Join Room</button>
           </div>
+          <div id="online-guest-roster" class="online-roster hidden"></div>
         </div>
       </div>
 
@@ -418,6 +420,6 @@
   </div>
 
   <script src="./vendor/peerjs.min.js"></script>
-  <script type="module" src="./src/ui/app.js?v=20261120c"></script>
+  <script type="module" src="./src/ui/app.js?v=20261120d"></script>
 </body>
 </html>
