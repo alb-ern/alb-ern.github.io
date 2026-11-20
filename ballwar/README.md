@@ -6,7 +6,7 @@ A 1v1 & 2v2 physics arena auto-battler web version inspired by Roblox **Ball VS 
 
 - **1v1 Classic (`600×600`) & 2v2 Teams (`740×740` Bigger Arena)**: Direct 1-click launch buttons on Lobby for 1v1 or 2v2 across **VS Bot**, **Local Pass & Play (`2P` / `4P`)**, **Online P2P (`2P` / `4P`)**, and **Sandbox**! Teammates bounce cleanly with zero friendly fire and per-ball tuning attribution.
 - **VS Bot (1v1 / 2v2)**: Best-of-3 Hearts matches with 3-card random Drafts (2 free Rerolls + All Balls picker), interactive Lock Aim trajectories, and tactical Bot opponents.
-- **Online Multiplayer (WebRTC P2P — 2P 1v1 & 4P 2v2)**: Serverless PeerJS room codes and shareable `?room=CODE` invite links — supports both 2-player 1v1 and 4-player 2v2 rooms where each peer drafts and aims their assigned ball with host-authoritative 60Hz simulation. Works over localhost, LAN, Tailscale, or GitHub Pages.
+- **Online Multiplayer (WebRTC P2P — Quickmatch 1v1 + Private 2P/4P Rooms)**: Tap **Quickmatch (1v1)** to match automatically with the next searching player (client-hosted via PeerJS queues), or create shareable `?room=CODE` links for 2-player 1v1 and 4-player 2v2 matches. Works over localhost, LAN, Tailscale, or GitHub Pages.
 - **Local Pass & Play (2P 1v1 & 4P 2v2)**: Same-device pass-and-play with secret Drafts and hidden Lock Aim shields for 2 players (1v1) or 4 players (`P1 Blue #1` → `P2 Blue #2` → `P3 Red #1` → `P4 Red #2` in 2v2).
 - **Sandbox Lab (1v1 / 2v2)**: Live search input bars for Blue & Red teams to filter all 100 balls, presets, configurable Hearts & Sudden Death (`30s` default shrink), and 10-match instant simulator.
 - **Ball Dex**: Browse all 100 balls filtered by rarity (`Rare`, `Epic`, `Legendary`, `Mythic`, `Exclusive`) or keyword.

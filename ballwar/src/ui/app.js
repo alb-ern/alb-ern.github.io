@@ -213,6 +213,7 @@ function showView(name) {
     stopDraftTimer();
     p2p.close();
     resetOnlineState();
+    setQuickmatchSearching(false);
     $('online-room-box').classList.add('hidden');
     $('online-seat-roster')?.classList.add('hidden');
     $('online-guest-roster')?.classList.add('hidden');
@@ -229,6 +230,31 @@ function showView(name) {
     sim.setTeamSize(ui.teamSize);
     $('view-arena').classList.toggle('is-2v2', ui.teamSize === 2);
   }
+}
+
+function setQuickmatchSearching(searching) {
+  const btn = $('btn-online-quickmatch');
+  if (!btn) return;
+  btn.textContent = searching ? 'Cancel Search' : 'Find 1v1 Match';
+  btn.classList.toggle('btn-gold', !searching);
+  btn.classList.toggle('btn-ghost', searching);
+}
+
+function startQuickmatch() {
+  if (p2p.isSearchingQuickmatch()) {
+    p2p.close();
+    resetOnlineState();
+    setQuickmatchSearching(false);
+    $('online-status').textContent = 'Quickmatch cancelled.';
+    return;
+  }
+  setTeamFormat(1);
+  showView('online');
+  $('online-room-box').classList.add('hidden');
+  $('online-seat-roster')?.classList.add('hidden');
+  $('online-guest-roster')?.classList.add('hidden');
+  setQuickmatchSearching(true);
+  p2p.quickmatch();
 }
 
 /* ==================== SANDBOX ==================== */
@@ -1006,13 +1032,16 @@ function bindP2PHandlers() {
       }
     },
     onError(msg) {
+      if (!p2p.isSearchingQuickmatch()) setQuickmatchSearching(false);
       $('online-status').textContent = `Error: ${msg}`;
     },
     onDisconnected(msg) {
       if (!online.active) {
+        setQuickmatchSearching(false);
         if (msg) $('online-status').textContent = msg;
         return;
       }
+      setQuickmatchSearching(false);
       stopDraftTimer();
       $('modal-draft').classList.add('hidden');
       $('controls-aim').classList.add('hidden');
@@ -1021,6 +1050,7 @@ function bindP2PHandlers() {
       resetOnlineState();
     },
     onConnected({ role, seat = 0, teamSize, totalPlayers }) {
+      setQuickmatchSearching(false);
       const sz = teamSize === 2 || (!teamSize && role === 'host' && ui.teamSize === 2) ? 2 : 1;
       const seatIdx = Number.isInteger(seat) ? seat : role === 'host' ? 0 : 1;
       const meta = getSeatMeta(seatIdx, sz);
@@ -1545,6 +1575,10 @@ function bindEvents() {
     soundEngine.unlock();
     showView('online');
   });
+  $('btn-mode-quickmatch').addEventListener('click', () => {
+    soundEngine.unlock();
+    startQuickmatch();
+  });
   $('btn-mode-online').addEventListener('click', () => {
     soundEngine.unlock();
     setTeamFormat(1);
@@ -1588,8 +1622,13 @@ function bindEvents() {
   });
 
   // Online lobby buttons
+  $('btn-online-quickmatch').addEventListener('click', () => {
+    soundEngine.unlock();
+    startQuickmatch();
+  });
   $('btn-online-host').addEventListener('click', () => {
     soundEngine.unlock();
+    setQuickmatchSearching(false);
     const maxGuests = ui.teamSize === 2 ? 3 : 1;
     const code = p2p.hostRoom(null, { maxGuests, teamSize: ui.teamSize });
     $('online-room-code').textContent = code;
@@ -1620,12 +1659,14 @@ function bindEvents() {
   });
   $('btn-online-join').addEventListener('click', () => {
     soundEngine.unlock();
+    setQuickmatchSearching(false);
     renderOnlineRoster($('online-guest-roster'), null);
     p2p.joinRoom($('online-join-code').value);
   });
   $('online-join-code').addEventListener('keydown', (e) => {
     if (e.key === 'Enter') {
       soundEngine.unlock();
+      setQuickmatchSearching(false);
       renderOnlineRoster($('online-guest-roster'), null);
       p2p.joinRoom($('online-join-code').value);
     }

@@ -14,7 +14,7 @@ import {
 import { ArenaSimulation, createSeededRng } from '../src/sim/physics.js';
 import { chooseBotAimAngle, chooseBotBall, drawRandomBallChoices } from '../src/sim/ai.js';
 import { encodeSnapshot, applySnapshot, stepMirrorVisuals } from '../src/net/protocol.js';
-import { generateRoomCode, sanitizeRoomCode } from '../src/net/p2p.js';
+import { generateRoomCode, quickmatchRoomCode, QUICKMATCH_SLOTS, sanitizeRoomCode } from '../src/net/p2p.js';
 
 function assert(cond, msg) {
   if (!cond) throw new Error(`ASSERTION FAILED: ${msg}`);
@@ -413,6 +413,15 @@ test('P2P 2v2 snapshot protocol preserves teamSize, arenaSize=740, selectedTeams
   assert(guest.teamSize === 2 && guest.arenaSize === ARENA_SIZE_2V2, 'Guest mirror must resize to 2v2 740 arena');
   assert(guest.balls.length === 4, `Expected 4 mirrored balls, got ${guest.balls.length}`);
   assert(guest.balls.some((b) => b.owner === 1 && b.slotIndex === 1 && b.ballId === 'gravity'), 'Guest mirror must preserve slotIndex and teammate ballId');
+});
+
+test('Quickmatch queue slot codes are valid and never collide with private room codes', () => {
+  assert(QUICKMATCH_SLOTS === 12, `Expected 12 quickmatch slots, got ${QUICKMATCH_SLOTS}`);
+  assert(quickmatchRoomCode(0) === 'QM01' && quickmatchRoomCode(11) === 'QM12', 'Unexpected QM slot codes');
+  for (let i = 0; i < 200; i++) {
+    const code = generateRoomCode(4);
+    assert(!code.includes('0') && !code.includes('1'), `Private code should never overlap QM01-QM12: ${code}`);
+  }
 });
 
 let spiderWins = 0;

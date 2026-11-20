@@ -10,19 +10,19 @@
   <script type="importmap">
     {
       "imports": {
-        "./src/sim/constants.js": "./src/sim/constants.js?v=20261120d",
-        "./src/sim/balls.js": "./src/sim/balls.js?v=20261120d",
-        "./src/sim/physics.js": "./src/sim/physics.js?v=20261120d",
-        "./src/sim/ai.js": "./src/sim/ai.js?v=20261120d",
-        "./src/sim/abilities.js": "./src/sim/abilities.js?v=20261120d",
-        "./src/sim/abilitiesExtra.js": "./src/sim/abilitiesExtra.js?v=20261120d",
-        "./src/sim/balanceTuning.js": "./src/sim/balanceTuning.js?v=20261120d",
-        "./src/net/protocol.js": "./src/net/protocol.js?v=20261120d",
-        "./src/render/arenaRenderer.js": "./src/render/arenaRenderer.js?v=20261120d"
+        "./src/sim/constants.js": "./src/sim/constants.js?v=20261120e",
+        "./src/sim/balls.js": "./src/sim/balls.js?v=20261120e",
+        "./src/sim/physics.js": "./src/sim/physics.js?v=20261120e",
+        "./src/sim/ai.js": "./src/sim/ai.js?v=20261120e",
+        "./src/sim/abilities.js": "./src/sim/abilities.js?v=20261120e",
+        "./src/sim/abilitiesExtra.js": "./src/sim/abilitiesExtra.js?v=20261120e",
+        "./src/sim/balanceTuning.js": "./src/sim/balanceTuning.js?v=20261120e",
+        "./src/net/protocol.js": "./src/net/protocol.js?v=20261120e",
+        "./src/render/arenaRenderer.js": "./src/render/arenaRenderer.js?v=20261120e"
       }
     }
   </script>
-  <link rel="stylesheet" href="./styles/main.css?v=20261120d" />
+  <link rel="stylesheet" href="./styles/main.css?v=20261120e" />
 </head>
 <body>
   <div class="app-shell">
@@ -78,8 +78,9 @@
         <article class="mode-card" data-mode="online">
           <div class="mode-badge green">REAL MULTIPLAYER</div>
           <h2>Online P2P</h2>
-          <p>Play friends from anywhere via WebRTC! 1v1 (2 players) or 2v2 Teams (4 players) with Best-of-3 Hearts.</p>
+          <p>Auto-match with random 1v1 players in Quickmatch, or share a 1v1 (2P) / 2v2 (4P) room code.</p>
           <div class="mode-card-actions">
+            <button class="btn btn-gold btn-span2" id="btn-mode-quickmatch" type="button">Quickmatch (1v1)</button>
             <button class="btn btn-secondary" id="btn-mode-online" type="button">1v1 (2P)</button>
             <button class="btn btn-primary" id="btn-mode-online-2v2" type="button">2v2 (4P)</button>
           </div>
@@ -122,12 +123,21 @@
       <div class="panel-header">
         <div>
           <h2>Online <span data-mode-format-tag>1v1</span> Multiplayer (WebRTC P2P)</h2>
-          <p class="muted">Serverless PeerJS room codes — Host creates a 2-player (1v1) or 4-player (2v2 Teams) room.</p>
+          <p class="muted">Play random 1v1 Quickmatch or host a private 1v1 (2P) / 2v2 (4P) PeerJS room.</p>
         </div>
         <div class="format-btn-row" data-format-toggle>
           <button class="btn btn-sm fmt-btn is-active" data-team-size="1" type="button">1v1 (2P • 600)</button>
           <button class="btn btn-sm fmt-btn" data-team-size="2" type="button">2v2 (4P • 740 Arena)</button>
         </div>
+      </div>
+
+      <div class="quickmatch-banner">
+        <div>
+          <span class="mode-badge gold">AUTO MATCHMAKING • 1V1</span>
+          <h3>Quickmatch 1v1</h3>
+          <p class="muted">Instantly matches the next two players who tap Find Match — one client hosts automatically.</p>
+        </div>
+        <button class="btn btn-gold btn-lg" id="btn-online-quickmatch" type="button">Find 1v1 Match</button>
       </div>
 
       <div class="online-grid">
@@ -420,6 +430,6 @@
   </div>
 
   <script src="./vendor/peerjs.min.js"></script>
-  <script type="module" src="./src/ui/app.js?v=20261120d"></script>
+  <script type="module" src="./src/ui/app.js?v=20261120e"></script>
 </body>
 </html>
