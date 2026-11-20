@@ -10,23 +10,25 @@
   <script type="importmap">
     {
       "imports": {
-        "./src/sim/constants.js": "./src/sim/constants.js?v=20261120f",
-        "./src/sim/balls.js": "./src/sim/balls.js?v=20261120f",
-        "./src/sim/physics.js": "./src/sim/physics.js?v=20261120f",
-        "./src/sim/ai.js": "./src/sim/ai.js?v=20261120f",
-        "./src/sim/abilities.js": "./src/sim/abilities.js?v=20261120f",
-        "./src/sim/abilitiesExtra.js": "./src/sim/abilitiesExtra.js?v=20261120f",
-        "./src/sim/balanceTuning.js": "./src/sim/balanceTuning.js?v=20261120f",
-        "./src/net/p2p.js": "./src/net/p2p.js?v=20261120f",
-        "./src/net/protocol.js": "./src/net/protocol.js?v=20261120f",
-        "./src/audio/soundEngine.js": "./src/audio/soundEngine.js?v=20261120f",
-        "./src/render/ballArt.js": "./src/render/ballArt.js?v=20261120f",
-        "./src/render/ballArtExtra.js": "./src/render/ballArtExtra.js?v=20261120f",
-        "./src/render/arenaRenderer.js": "./src/render/arenaRenderer.js?v=20261120f"
+        "./src/sim/constants.js": "./src/sim/constants.js?v=20261120g",
+        "./src/sim/balls.js": "./src/sim/balls.js?v=20261120g",
+        "./src/sim/physics.js": "./src/sim/physics.js?v=20261120g",
+        "./src/sim/ai.js": "./src/sim/ai.js?v=20261120g",
+        "./src/sim/abilities.js": "./src/sim/abilities.js?v=20261120g",
+        "./src/sim/abilitiesExtra.js": "./src/sim/abilitiesExtra.js?v=20261120g",
+        "./src/sim/abilitiesMeme.js": "./src/sim/abilitiesMeme.js?v=20261120g",
+        "./src/sim/balanceTuning.js": "./src/sim/balanceTuning.js?v=20261120g",
+        "./src/net/p2p.js": "./src/net/p2p.js?v=20261120g",
+        "./src/net/protocol.js": "./src/net/protocol.js?v=20261120g",
+        "./src/audio/soundEngine.js": "./src/audio/soundEngine.js?v=20261120g",
+        "./src/render/ballArt.js": "./src/render/ballArt.js?v=20261120g",
+        "./src/render/ballArtExtra.js": "./src/render/ballArtExtra.js?v=20261120g",
+        "./src/render/ballArtMeme.js": "./src/render/ballArtMeme.js?v=20261120g",
+        "./src/render/arenaRenderer.js": "./src/render/arenaRenderer.js?v=20261120g"
       }
     }
   </script>
-  <link rel="stylesheet" href="./styles/main.css?v=20261120f" />
+  <link rel="stylesheet" href="./styles/main.css?v=20261120g" />
 </head>
 <body>
   <div class="app-shell">
@@ -38,7 +40,7 @@
         <span class="brand-tag">WEB ARENA</span>
       </div>
       <div class="topbar-actions">
-        <button class="btn btn-ghost" id="btn-open-dex" type="button">Ball Dex (100)</button>
+        <button class="btn btn-ghost" id="btn-open-dex" type="button">Ball Dex (120)</button>
         <button class="btn btn-ghost" id="btn-toggle-timer" type="button" title="Toggle Draft Countdown">Timer: ON</button>
         <button class="btn btn-ghost" id="btn-toggle-mute" type="button" aria-label="Toggle Sound">SFX: ON</button>
         <button class="btn btn-secondary hidden" id="btn-back-lobby" type="button">Lobby</button>
@@ -49,7 +51,7 @@
     <main id="view-lobby" class="view view-lobby">
       <section class="hero-card">
         <div class="hero-copy">
-          <p class="hero-kicker" id="lobby-kicker">1v1 &amp; 2v2 Physics Auto-Battler • 100 Iconic Balls Unlocked</p>
+          <p class="hero-kicker" id="lobby-kicker">1v1 &amp; 2v2 Physics Auto-Battler • 120 Iconic Balls Unlocked</p>
           <h1>Pick. Aim. <span class="accent-gold">Bounce to Win!</span></h1>
           <p class="hero-sub">
             Draft from 3 random balls or pick any matchup directly, lock your opening trajectory,
@@ -113,7 +115,7 @@
         <article class="mode-card" data-mode="sandbox">
           <div class="mode-badge gold">ALL UNLOCKED</div>
           <h2>Sandbox Lab</h2>
-          <p>Pick any balls vs any balls directly, search all 100 balls, customize Sudden Death &amp; Hearts, or simulate 10 matches.</p>
+          <p>Pick any balls vs any balls directly, search all 120 balls, customize Sudden Death &amp; Hearts, or simulate 10 matches.</p>
           <div class="mode-card-actions">
             <button class="btn btn-gold" id="btn-mode-sandbox" type="button">Sandbox 1v1</button>
             <button class="btn btn-primary" id="btn-mode-sandbox-2v2" type="button">Sandbox 2v2</button>
@@ -182,7 +184,7 @@
       <div class="panel-header">
         <div>
           <h2>Sandbox <span data-mode-format-tag>1v1</span> Matchup Lab</h2>
-          <p class="muted">Type to search any of the 100 balls, switch between 1v1 &amp; 2v2 (740 Arena), or run 10 simulations.</p>
+          <p class="muted">Type to search any of the 120 balls, switch between 1v1 &amp; 2v2 (740 Arena), or run 10 simulations.</p>
         </div>
         <div class="sb-top-actions">
           <div class="format-btn-row" data-format-toggle>
@@ -190,10 +192,10 @@
             <button class="btn btn-sm fmt-btn" data-team-size="2" type="button">2v2 Teams (740 Arena)</button>
           </div>
           <div class="preset-row">
-            <button class="btn btn-sm btn-gold" data-preset="duplicator,titan" type="button">Duplicator vs Titan</button>
+            <button class="btn btn-sm btn-gold" data-preset="hydrogenbomb,coughingbaby" type="button">H-Bomb vs Baby</button>
+            <button class="btn btn-sm btn-ghost" data-preset="duplicator,titan" type="button">Duplicator vs Titan</button>
             <button class="btn btn-sm btn-ghost" data-preset="mach,gravity" type="button">Mach vs Gravity</button>
             <button class="btn btn-sm btn-ghost" data-preset="verity,spider" type="button">Verity vs Spider</button>
-            <button class="btn btn-sm btn-ghost" data-preset="shackles,orbital" type="button">Shackles vs Orbital</button>
             <button class="btn btn-sm btn-ghost" id="btn-sandbox-random" type="button">Random</button>
           </div>
         </div>
@@ -393,7 +395,7 @@
 
       <div id="draft-all-panel" class="draft-all-panel hidden">
         <div class="all-panel-head">
-          <strong>All 100 Balls — Pick Any</strong>
+          <strong>All 120 Balls — Pick Any</strong>
           <button class="btn btn-ghost btn-sm" id="btn-close-all-balls" type="button">Back to 3 Choices</button>
         </div>
         <div id="draft-all-grid" class="mini-ball-grid"></div>
@@ -411,7 +413,7 @@
     <div class="modal-card dex-modal">
       <div class="modal-head">
         <div>
-          <h2 id="dex-title">Ball Dex — All 100 Balls</h2>
+          <h2 id="dex-title">Ball Dex — All 120 Balls</h2>
           <p class="muted">Every ball is unlocked from the start. Click any ball to test it in Sandbox.</p>
         </div>
         <button class="btn btn-ghost" id="btn-close-dex" type="button">Close</button>
@@ -419,7 +421,7 @@
 
       <div class="dex-filters">
         <div class="chip-row" id="dex-rarity-chips">
-          <button class="chip is-active" data-rarity="ALL" type="button">All (100)</button>
+          <button class="chip is-active" data-rarity="ALL" type="button">All (120)</button>
           <button class="chip" data-rarity="Exclusive" type="button">Exclusive</button>
           <button class="chip" data-rarity="Mythic" type="button">Mythic</button>
           <button class="chip" data-rarity="Legendary" type="button">Legendary</button>
@@ -434,6 +436,6 @@
   </div>
 
   <script src="./vendor/peerjs.min.js"></script>
-  <script type="module" src="./src/ui/app.js?v=20261120f"></script>
+  <script type="module" src="./src/ui/app.js?v=20261120g"></script>
 </body>
 </html>

@@ -1297,6 +1297,17 @@ export class ArenaSimulation {
               consumedTrap = true;
               break;
             }
+            if (h.slipSpin) {
+              this.dealDamage(enemy, h.dmg, h.owner, 'banana_slip');
+              enemy.hookSpinTimer = Math.max(enemy.hookSpinTimer, h.slipSpin);
+              enemy.wallSlamBonusTimer = 1.1;
+              enemy.wallSlamOwner = h.owner;
+              enemy.wallSlamBallId = h.sourceBallId || null;
+              this.emitText(enemy.x, enemy.y - enemy.radius - 10, 'SLIP!', '#facc15');
+              this.addParticleBurst(h.x, h.y, '#fef08a', 10);
+              consumedTrap = true;
+              break;
+            }
             if (!h.tickTimers[enemy.id]) {
               h.tickTimers[enemy.id] = h.tickRate;
               const dmg = h.speedDmgScale

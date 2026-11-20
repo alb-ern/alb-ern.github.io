@@ -1,3 +1,5 @@
+import { drawMemeBallPattern } from './ballArtMeme.js';
+
 export function drawExtraBallPattern(ctx, def, x, y, r, opts) {
   switch (def.id) {
     case 'duplicator': {
@@ -509,6 +511,7 @@ export function drawExtraBallPattern(ctx, def, x, y, r, opts) {
       break;
     }
     default:
+      drawMemeBallPattern(ctx, def, x, y, r, opts);
       break;
   }
 }

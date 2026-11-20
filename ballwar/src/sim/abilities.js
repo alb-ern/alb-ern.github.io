@@ -1,4 +1,5 @@
 import { EXTRA_ABILITY_HANDLERS } from './abilitiesExtra.js';
+import { MEME_ABILITY_HANDLERS } from './abilitiesMeme.js';
 
 function aimAngleToEnemy(sim, ball, spread = 0) {
   const enemy = sim.getClosestEnemy(ball);
@@ -1724,5 +1725,5 @@ export const ABILITY_HANDLERS = {
   },
 };
 
-Object.assign(ABILITY_HANDLERS, EXTRA_ABILITY_HANDLERS);
+Object.assign(ABILITY_HANDLERS, EXTRA_ABILITY_HANDLERS, MEME_ABILITY_HANDLERS);
 

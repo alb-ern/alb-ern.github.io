@@ -123,6 +123,11 @@ function drawHazard(ctx, h, bounds, time) {
         sandstorm: ['rgba(217, 119, 6, 0.24)', 'rgba(253, 230, 138, 0.8)'],
         mimic_lure: ['rgba(251, 191, 36, 0.35)', 'rgba(254, 240, 138, 0.95)'],
         ufo_beam: ['rgba(74, 222, 128, 0.18)', 'rgba(168, 85, 247, 0.88)'],
+        fallout: ['rgba(234, 179, 8, 0.28)', 'rgba(239, 68, 68, 0.92)'],
+        cough_cloud: ['rgba(132, 204, 22, 0.28)', 'rgba(190, 242, 100, 0.9)'],
+        banana_peel: ['rgba(250, 204, 21, 0.42)', 'rgba(254, 249, 195, 0.95)'],
+        flush: ['rgba(14, 165, 233, 0.24)', 'rgba(56, 189, 248, 0.92)'],
+        mod_zone: ['rgba(88, 101, 242, 0.26)', 'rgba(165, 180, 252, 0.9)'],
       };
       const [fill, stroke] = palettes[h.variant] || ['rgba(239, 68, 68, 0.22)', 'rgba(248, 113, 113, 0.85)'];
       const pulse = h.variant === 'range' ? 0.96 + Math.sin(time * 9) * 0.04 : 0.92 + Math.sin(time * 6) * 0.08;
@@ -450,9 +455,19 @@ function drawHazard(ctx, h, bounds, time) {
         ctx.fill();
         ctx.stroke();
       } else {
-        const waveCol = h.variant === 'solar' ? '#fbbf24' : h.variant === 'blood' ? '#ef4444' : h.variant === 'ghost' ? '#c084fc' : '#f472b6';
+        const waveCol = h.variant === 'nuke'
+          ? '#f97316'
+          : h.variant === 'dome'
+          ? '#38bdf8'
+          : h.variant === 'solar'
+          ? '#fbbf24'
+          : h.variant === 'blood'
+          ? '#ef4444'
+          : h.variant === 'ghost'
+          ? '#c084fc'
+          : '#f472b6';
         ctx.strokeStyle = waveCol;
-        ctx.lineWidth = 5;
+        ctx.lineWidth = h.variant === 'nuke' ? 8 : 5;
         ctx.beginPath();
         ctx.arc(h.x, h.y, h.currentRadius || h.radius || 40, 0, Math.PI * 2);
         ctx.stroke();

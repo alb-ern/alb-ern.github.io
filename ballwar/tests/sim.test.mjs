@@ -29,14 +29,14 @@ function test(name, fn) {
 
 const log = typeof print === 'function' ? print : console.log;
 
-test('Roster contains 100 unique balls with valid rarities, handlers, and 100-HP standard', () => {
+test('Roster contains 120 unique balls with valid rarities, handlers, and 100-HP standard', () => {
   assert(SUDDEN_DEATH_START_SEC === 30, `Expected SUDDEN_DEATH_START_SEC === 30, got ${SUDDEN_DEATH_START_SEC}`);
-  assert(BALL_DEFS.length === 100, `Expected 100 balls, got ${BALL_DEFS.length}`);
+  assert(BALL_DEFS.length === 120, `Expected 120 balls, got ${BALL_DEFS.length}`);
   const seen = new Set();
-  const expectedHp = { cell: 15, berserker: 135, micro: 70 };
+  const expectedHp = { cell: 15, berserker: 135, micro: 70, coughingbaby: 55 };
   const contactIds = new Set([
     'verity', 'cell', 'fibonacci', 'duplicator', 'doubler', 'mach',
-    'titan', 'hydra', 'berserker', 'rocket', 'pacman',
+    'titan', 'hydra', 'berserker', 'rocket', 'pacman', 'nokia', 'sigma',
   ]);
   for (const def of BALL_DEFS) {
     assert(!seen.has(def.id), `Duplicate ball id: ${def.id}`);
@@ -184,7 +184,7 @@ test('Sudden Death shrinks arena bounds cleanly down to MIN_ARENA_SIZE', () => {
   assert(width < ARENA_SIZE && width >= MIN_ARENA_SIZE - 0.1, `Unexpected shrunk width: ${width}`);
 });
 
-test('All 100 balls simulate 25s duels without NaN or exceptions', () => {
+test('All 120 balls simulate 25s duels without NaN or exceptions', () => {
   for (let i = 0; i < BALL_DEFS.length; i++) {
     const a = BALL_DEFS[i];
     const b = BALL_DEFS[(i + 7) % BALL_DEFS.length];
@@ -422,6 +422,66 @@ test('Quickmatch queue slot codes are valid and never collide with private room 
     const code = generateRoomCode(4);
     assert(!code.includes('0') && !code.includes('1'), `Private code should never overlap QM01-QM12: ${code}`);
   }
+});
+
+test('Hydrogen Bomb detonates nuke shockwave + fallout while Coughing Baby spreads cough clouds', () => {
+  const sim = new ArenaSimulation({ mode: MODES.SANDBOX, hearts: 1, seed: 2026 });
+  sim.startMatch({ skipDraft: true });
+  sim.setupAimPhase('hydrogenbomb', 'coughingbaby');
+  const baby = sim.balls.find((b) => b.ballId === 'coughingbaby');
+  assert(baby && baby.hp === 55, 'Coughing Baby must start at 55 HP');
+  sim.launchRound(0.25, Math.PI - 0.25);
+
+  let sawNuke = false;
+  let sawFallout = false;
+  let sawCough = false;
+  for (let i = 0; i < 60 * 6 && sim.phase === PHASES.FIGHT; i++) {
+    sim.step(FIXED_DT);
+    if (sim.hazards.some((h) => h.kind === 'ring_wave' && h.variant === 'nuke')) sawNuke = true;
+    if (sim.hazards.some((h) => h.kind === 'red_zone' && h.variant === 'fallout')) sawFallout = true;
+    if (sim.hazards.some((h) => h.kind === 'red_zone' && h.variant === 'cough_cloud')) sawCough = true;
+  }
+  assert(sawNuke && sawFallout, 'Hydrogen Bomb should detonate nuke wave and leave fallout');
+  assert(sawCough, 'Coughing Baby should emit toxic cough_cloud hazards');
+});
+
+test('Claude refusal shield blocks hits and Iron Dome intercepts incoming enemy projectiles', () => {
+  const sim = new ArenaSimulation({ mode: MODES.SANDBOX, hearts: 1, seed: 2027 });
+  sim.startMatch({ skipDraft: true });
+  sim.setupAimPhase('claude', 'irondome');
+  sim.launchRound(0, Math.PI);
+  const claude = sim.balls.find((b) => b.ballId === 'claude');
+  const dome = sim.balls.find((b) => b.ballId === 'irondome');
+
+  // Claude's initial Refusal Shield should block a direct hit cleanly
+  const hpBefore = claude.hp;
+  const blocked = sim.dealDamage(claude, 12, 2, 'test_hit');
+  assert(blocked === 0 && claude.hp === hpBefore, 'Claude Refusal Shield must block first hit');
+  assert(!claude.state.shieldReady, 'Claude Refusal Shield should enter cooldown after blocking');
+
+  // Place an enemy projectile inside Iron Dome radar radius and step once
+  sim.addProjectile({
+    kind: 'orb',
+    owner: 1,
+    x: dome.x - 60,
+    y: dome.y,
+    vx: 300,
+    vy: 0,
+    radius: 10,
+    dmg: 8,
+    bouncesLeft: 0,
+    ttl: 2,
+  });
+  const projCountBefore = sim.projectiles.length;
+  sim.step(FIXED_DT);
+  assert(
+    sim.projectiles.some((p) => p.owner === 2 && p.kind === 'sniper_round'),
+    'Iron Dome should intercept projectile and fire counter sniper_round'
+  );
+  assert(
+    !sim.projectiles.some((p) => p.owner === 1 && p.kind === 'orb'),
+    `Iron Dome should destroy incoming enemy orb (before=${projCountBefore})`
+  );
 });
 
 let spiderWins = 0;

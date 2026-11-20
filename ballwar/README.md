@@ -1,6 +1,6 @@
 # Ball VS Ball — Web Arena Edition
 
-A 1v1 & 2v2 physics arena auto-battler web version inspired by Roblox **Ball VS Ball** (ATYS 3) and viral physics reels, featuring **100 unlocked iconic contenders** (including **Verity Ball**, **Duplicator Ball**, **Doubler Ball**, **Mach Ball**, **Titan Ball**, **Hydra Ball**, **Mirror Ball**, **Portal Ball**, **Omega Ball**, and more).
+A 1v1 & 2v2 physics arena auto-battler web version inspired by Roblox **Ball VS Ball** (ATYS 3) and viral physics reels, featuring **120 unlocked iconic & meme contenders** (including **Hydrogen Bomb Ball**, **Coughing Baby Ball**, **Piñata Ball**, **Claude Ball**, **Hypergamy Ball**, **Iron Dome Ball**, **Nokia 3310 Ball**, **Impostor Ball**, **Florida Man Ball**, **Brainrot Ball**, **Verity Ball**, **Duplicator Ball**, **Omega Ball**, and more).
 
 ## Features
 
@@ -8,8 +8,8 @@ A 1v1 & 2v2 physics arena auto-battler web version inspired by Roblox **Ball VS 
 - **VS Bot (1v1 / 2v2)**: Best-of-3 Hearts matches with 3-card random Drafts (2 free Rerolls + All Balls picker), interactive Lock Aim trajectories, and tactical Bot opponents.
 - **Online Multiplayer (WebRTC P2P — Quickmatch 1v1 + Private 2P/4P Rooms)**: Tap **Quickmatch (1v1)** to match automatically with the next searching player (client-hosted via PeerJS queues), or create shareable `?room=CODE` links for 2-player 1v1 and 4-player 2v2 matches. Works over localhost, LAN, Tailscale, or GitHub Pages.
 - **Local Pass & Play (2P 1v1 & 4P 2v2)**: Same-device pass-and-play with secret Drafts and hidden Lock Aim shields for 2 players (1v1) or 4 players (`P1 Blue #1` → `P2 Blue #2` → `P3 Red #1` → `P4 Red #2` in 2v2).
-- **Sandbox Lab (1v1 / 2v2)**: Live search input bars for Blue & Red teams to filter all 100 balls, presets, configurable Hearts & Sudden Death (`30s` default shrink), and 10-match instant simulator.
-- **Ball Dex**: Browse all 100 balls filtered by rarity (`Rare`, `Epic`, `Legendary`, `Mythic`, `Exclusive`) or keyword.
+- **Sandbox Lab (1v1 / 2v2)**: Live search input bars for Blue & Red teams to filter all 120 balls, presets (including **H-Bomb vs Baby**), configurable Hearts & Sudden Death (`30s` default shrink), and 10-match instant simulator.
+- **Ball Dex**: Browse all 120 balls filtered by rarity (`Rare`, `Epic`, `Legendary`, `Mythic`, `Exclusive`) or keyword.
 - **Zero-Asset Web Audio SFX & Procedural 2D Canvas Art**: Instant play with zero build tools required.
 
 ## Running Locally & Network Play
@@ -37,10 +37,10 @@ Run the headless physics, ability, and P2P protocol test suite with GNOME JavaSc
 gjs -m tests/sim.test.mjs
 ```
 
-Run the re-runnable all-pairs 10-match auto-balancer (keeps 100 HP standard with `Cell` at 15 HP, `Berserker` self-burn at 135 HP, and `Micro` at 70 HP; nerfs balls beating `>70%` of opponents, buffs weak balls via `dmgMult`, and saves multipliers to `src/sim/balanceTuning.js`):
+Run the re-runnable all-pairs 10-match auto-balancer (keeps 100 HP standard with `Cell` at 15 HP, `Coughing Baby` at 55 HP, `Micro` at 70 HP, and `Berserker` self-burn at 135 HP; nerfs balls beating `>70%` of opponents, buffs weak balls via `dmgMult`, and saves multipliers to `src/sim/balanceTuning.js`):
 
 ```bash
-gjs -m scripts/balance.mjs          # Run 1 pass (all 4,950 pairs x 10 matches) & tune
+gjs -m scripts/balance.mjs          # Run 1 pass (all 7,140 pairs x 10 matches) & tune
 gjs -m scripts/balance.mjs --auto   # Iterate automatically up to 15 passes until balanced
 gjs -m scripts/balance.mjs --dry-run # Inspect win rates without writing balanceTuning.js
 gjs -m scripts/balance.mjs --reset  # Reset all ball multipliers to 1.0
