@@ -1,6 +1,6 @@
 # Ball VS Ball — Web Arena Edition
 
-A 1v1 & 2v2 physics arena auto-battler web version inspired by Roblox **Ball VS Ball** (ATYS 3) and viral physics reels, featuring **120 unlocked iconic & meme contenders** (including **Hydrogen Bomb Ball**, **Coughing Baby Ball**, **Piñata Ball**, **Claude Ball**, **ChatGPT Ball**, **Hypergamy Ball**, **Israel Ball**, **Dondurma Ball**, **Doner Kebab Ball**, **Aura Ball**, **Blue Screen Ball**, **Nokia 3310 Ball**, **Impostor Ball**, **Brainrot Ball**, **Verity Ball**, **Duplicator Ball**, **Omega Ball**, and more).
+A 1v1 & 2v2 physics arena auto-battler web version inspired by Roblox **Ball VS Ball** (ATYS 3) and viral physics reels, featuring **120 unlocked iconic & meme contenders** (including **Hydrogen Bomb Ball**, **Coughing Baby Ball**, **Piñata Ball**, **Claude Ball**, **ChatGPT Ball**, **Gemini Ball**, **Hypergamy Ball**, **Israel Ball**, **Dondurma Ball**, **Doner Kebab Ball**, **Aura Ball**, **Nokia 3310 Ball**, **Impostor Ball**, **Brainrot Ball**, **Verity Ball**, **Duplicator Ball**, **Omega Ball**, and more).
 
 ## Features
 
@@ -37,11 +37,11 @@ Run the headless physics, ability, and P2P protocol test suite with GNOME JavaSc
 gjs -m tests/sim.test.mjs
 ```
 
-Run the re-runnable all-pairs 10-match auto-balancer (keeps 100 HP standard with `Cell` at 15 HP, `Coughing Baby` at 55 HP, `Micro` at 70 HP, and `Berserker` self-burn at 135 HP; nerfs balls beating `>70%` of opponents, buffs weak balls via `dmgMult`, and saves multipliers to `src/sim/balanceTuning.js`):
+Run the fast symmetric ring-tournament auto-balancer across all 120 balls (keeps 100 HP standard with `Cell` at 15 HP, `Coughing Baby` at 55 HP, `Micro` at 70 HP, and `Berserker` self-burn at 135 HP; saves multipliers to `src/sim/balanceTuning.js`):
 
 ```bash
-gjs -m scripts/balance.mjs          # Run 1 pass (all 7,140 pairs x 10 matches) & tune
-gjs -m scripts/balance.mjs --auto   # Iterate automatically up to 15 passes until balanced
+gjs -m scripts/balance.mjs          # Run 1 fast pass (24 sampled opponents/ball x 4 matches) & tune
+gjs -m scripts/balance.mjs --auto   # Run up to 6 fast passes (~90s total)
 gjs -m scripts/balance.mjs --dry-run # Inspect win rates without writing balanceTuning.js
 gjs -m scripts/balance.mjs --reset  # Reset all ball multipliers to 1.0
 ```

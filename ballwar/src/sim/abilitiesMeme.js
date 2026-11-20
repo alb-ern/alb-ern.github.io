@@ -1157,59 +1157,77 @@ export const MEME_ABILITY_HANDLERS = {
     },
   },
 
-  /** 119. Blue Screen Ball (BSOD): Ticks 25% -> 50% -> 100% CRASH! system-freeze stun wave + pixel shards. */
-  bsod: {
+  /** 119. Gemini Ball: Orbits twin Castor & Pollux stars, fires star shards & DEEP THINK twin beams! */
+  gemini: {
     onInit(sim, ball) {
-      ball.state = { timer: 0.95, step: 0 };
+      ball.state = { timer: 0.9, cycle: 0 };
+      for (let i = 0; i < 2; i++) {
+        sim.addHelper({
+          kind: 'orbital',
+          owner: ball.owner,
+          parentId: ball.id,
+          orbitAngle: i * Math.PI,
+          orbitRadius: ball.radius + 26,
+          angularSpeed: 4.3,
+          hitRadius: 15,
+          hitCd: 0.44,
+          dmg: 5.5,
+          knockback: 150,
+          x: ball.x,
+          y: ball.y,
+          hitCooldowns: {},
+        });
+      }
     },
     onUpdate(sim, ball, dt) {
       ball.state.timer -= dt;
       if (ball.state.timer <= 0) {
-        ball.state.timer = 1.15;
-        ball.state.step += 1;
-        const pct = (ball.state.step % 3) === 0 ? 100 : (ball.state.step % 3) * 35;
-        const a = aimAngleToEnemy(sim, ball, 0.1);
+        ball.state.timer = 1.25;
+        ball.state.cycle += 1;
+        const a = aimAngleToEnemy(sim, ball, 0.08);
 
-        for (const off of [-0.16, 0.16]) {
+        for (const off of [-0.15, 0.15]) {
           sim.addProjectile({
             kind: 'shard',
             owner: ball.owner,
             x: ball.x + Math.cos(a + off) * (ball.radius + 8),
             y: ball.y + Math.sin(a + off) * (ball.radius + 8),
-            vx: Math.cos(a + off) * 485,
-            vy: Math.sin(a + off) * 485,
+            vx: Math.cos(a + off) * 510,
+            vy: Math.sin(a + off) * 510,
             radius: 10,
             dmg: 4.5,
             bouncesLeft: 1,
             ttl: 1.65,
-            color: '#e0f2fe',
+            color: off < 0 ? '#60a5fa' : '#c084fc',
           });
         }
 
-        if (pct === 100) {
-          sim.addHazard(
-            {
-              kind: 'ring_wave',
-              variant: 'dome',
-              owner: ball.owner,
-              x: ball.x,
-              y: ball.y,
-              currentRadius: ball.radius,
-              expandSpeed: 345,
-              dmg: 8.5,
-              knockback: 210,
-              ttl: 0.65,
-            },
-            3
-          );
-          for (const enemy of sim.getEnemyBalls(ball.owner)) {
-            if (Math.hypot(enemy.x - ball.x, enemy.y - ball.y) <= 210) {
-              enemy.stunTimer = Math.max(enemy.stunTimer, 0.68);
-            }
+        if (ball.state.cycle % 3 === 0) {
+          sim.healBall(ball, 3);
+          for (const off of [-0.08, 0.08]) {
+            const dx = Math.cos(a + off);
+            const dy = Math.sin(a + off);
+            sim.addHazard(
+              {
+                kind: 'plasma_blast',
+                variant: 'ray',
+                owner: ball.owner,
+                x1: ball.x,
+                y1: ball.y,
+                x2: ball.x + dx * 860,
+                y2: ball.y + dy * 860,
+                dx,
+                dy,
+                dmg: 6.5,
+                hitIds: {},
+                ttl: 0.22,
+              },
+              3
+            );
           }
-          sim.emitText(ball.x, ball.y - ball.radius - 12, 'FATAL ERROR! :(', '#ffffff');
+          sim.emitText(ball.x, ball.y - ball.radius - 12, 'DEEP THINK! ✦', '#93c5fd');
         } else {
-          sim.emitText(ball.x, ball.y - ball.radius - 10, `CRASH ${pct}%`, '#93c5fd');
+          sim.emitText(ball.x, ball.y - ball.radius - 10, '1M CONTEXT!', '#c084fc');
         }
       }
     },

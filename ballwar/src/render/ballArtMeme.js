@@ -1,11 +1,87 @@
 /**
- * Procedural emblem art for the 20 Meme & Pop-Culture Balls (#101 - #120).
+ * Procedural & PNG emblem art for the 20 Meme & Pop-Culture Balls (#101 - #120).
  */
 
-export function drawMemeBallPattern(ctx, def, x, y, r, opts = {}) {
+const hypergamyPng = typeof Image !== 'undefined' ? new Image() : null;
+if (hypergamyPng) {
+  hypergamyPng.src = './assets/hypergamy.png';
+}
+
+/**
+ * Draws the 10-Women (left) -> Top-3-Men (right) Hypergamy Chart using ./assets/hypergamy.png
+ * with an instant vector fallback of the same bipartite graph before the image finishes loading.
+ */
+export function drawHypergamyChart(ctx, x, y, size) {
+  const half = size * 0.5;
+  if (hypergamyPng && hypergamyPng.complete && hypergamyPng.naturalWidth > 0) {
+    ctx.drawImage(hypergamyPng, x - half, y - half, size, size);
+    return;
+  }
+
+  // Vector fallback: 10 pink women on left column -> all 10 connected to top 3 men on right column
+  ctx.save();
+  ctx.fillStyle = 'rgba(15, 23, 42, 0.92)';
+  ctx.strokeStyle = '#facc15';
+  ctx.lineWidth = Math.max(1.5, size * 0.045);
+  ctx.beginPath();
+  ctx.roundRect(x - half * 0.86, y - half * 0.86, size * 0.86, size * 0.86, size * 0.14);
+  ctx.fill();
+  ctx.stroke();
+
+  const lx = x - half * 0.52;
+  const rx = x + half * 0.52;
+  const topY = y - half * 0.64;
+  const stepY = (size * 0.64) / 9;
+  const targets = [0, 0, 0, 0, 1, 1, 1, 2, 2, 2];
+
+  ctx.strokeStyle = '#fef08a';
+  ctx.lineWidth = Math.max(1, size * 0.025);
+  for (let i = 0; i < 10; i++) {
+    const wy = topY + i * stepY;
+    const my = topY + targets[i] * stepY;
+    ctx.beginPath();
+    ctx.moveTo(lx, wy);
+    ctx.lineTo(rx, my);
+    ctx.stroke();
+  }
+
+  for (let i = 0; i < 10; i++) {
+    const wy = topY + i * stepY;
+    ctx.fillStyle = '#ec4899';
+    ctx.beginPath();
+    ctx.arc(lx, wy, Math.max(1.6, size * 0.036), 0, Math.PI * 2);
+    ctx.fill();
+
+    const my = topY + i * stepY;
+    ctx.fillStyle = i < 3 ? '#38bdf8' : '#475569';
+    ctx.beginPath();
+    ctx.arc(rx, my, Math.max(1.6, size * (i < 3 ? 0.044 : 0.032)), 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
+function drawFourPointStar(ctx, cx, cy, outerR, innerR) {
+  ctx.beginPath();
+  for (let i = 0; i < 4; i++) {
+    const a = (i * Math.PI) / 2 - Math.PI / 2;
+    const nextA = a + Math.PI / 2;
+    const midA = a + Math.PI / 4;
+    const px = cx + Math.cos(a) * outerR;
+    const py = cy + Math.sin(a) * outerR;
+    const mx = cx + Math.cos(midA) * innerR;
+    const my = cy + Math.sin(midA) * innerR;
+    const nx = cx + Math.cos(nextA) * outerR;
+    const ny = cy + Math.sin(nextA) * outerR;
+    if (i === 0) ctx.moveTo(px, py);
+    ctx.quadraticCurveTo(mx, my, nx, ny);
+  }
+  ctx.closePath();
+}
+
+export function drawMemeBallPattern(ctx, def, x, y, r) {
   switch (def.id) {
     case 'hydrogenbomb': {
-      // Classic yellow/black radioactive trefoil hazard emblem
       ctx.fillStyle = '#0f172a';
       for (let i = 0; i < 3; i++) {
         const a = -Math.PI / 2 + (i * Math.PI * 2) / 3;
@@ -27,7 +103,6 @@ export function drawMemeBallPattern(ctx, def, x, y, r, opts = {}) {
     }
 
     case 'coughingbaby': {
-      // Wide watery baby eyes + green cough cloud + pacifier ring
       ctx.fillStyle = '#0f172a';
       ctx.beginPath();
       ctx.arc(x - r * 0.24, y - r * 0.14, r * 0.11, 0, Math.PI * 2);
@@ -51,7 +126,6 @@ export function drawMemeBallPattern(ctx, def, x, y, r, opts = {}) {
     }
 
     case 'pinata': {
-      // Colorful zig-zag fiesta stripes + golden star center
       const cols = ['#ec4899', '#facc15', '#38bdf8', '#4ade80'];
       ctx.lineWidth = Math.max(3, r * 0.14);
       for (let i = 0; i < 4; i++) {
@@ -72,7 +146,6 @@ export function drawMemeBallPattern(ctx, def, x, y, r, opts = {}) {
     }
 
     case 'claude': {
-      // Warm cream starburst AI sparkle
       ctx.strokeStyle = '#fef3c7';
       ctx.lineWidth = Math.max(2.5, r * 0.11);
       ctx.lineCap = 'round';
@@ -92,28 +165,12 @@ export function drawMemeBallPattern(ctx, def, x, y, r, opts = {}) {
     }
 
     case 'hypergamy': {
-      // Crisp Venus + Upward Arrow Hypergamy Symbol (♀↑)
-      ctx.strokeStyle = '#fef08a';
-      ctx.lineWidth = Math.max(2.6, r * 0.1);
-      ctx.lineCap = 'round';
-      ctx.beginPath();
-      ctx.arc(x - r * 0.08, y - r * 0.12, r * 0.26, 0, Math.PI * 2);
-      ctx.moveTo(x - r * 0.08, y + r * 0.14);
-      ctx.lineTo(x - r * 0.08, y + r * 0.52);
-      ctx.moveTo(x - r * 0.26, y + r * 0.34);
-      ctx.lineTo(x + r * 0.1, y + r * 0.34);
-      // Upward arrow on top-right
-      ctx.moveTo(x + r * 0.12, y - r * 0.28);
-      ctx.lineTo(x + r * 0.42, y - r * 0.52);
-      ctx.moveTo(x + r * 0.22, y - r * 0.52);
-      ctx.lineTo(x + r * 0.42, y - r * 0.52);
-      ctx.lineTo(x + r * 0.42, y - r * 0.32);
-      ctx.stroke();
+      // 10 Women (left) -> Top 3 Men (right) Hypergamy Chart PNG
+      drawHypergamyChart(ctx, x, y, r * 1.24);
       break;
     }
 
     case 'israel': {
-      // Crisp blue/white Star of David + flag stripes
       ctx.strokeStyle = '#1d4ed8';
       ctx.lineWidth = Math.max(2.2, r * 0.08);
       ctx.beginPath();
@@ -143,7 +200,6 @@ export function drawMemeBallPattern(ctx, def, x, y, r, opts = {}) {
     }
 
     case 'nokia': {
-      // Classic Nokia 3310 monochrome green LCD + keypad dots
       ctx.fillStyle = '#94a3b8';
       ctx.fillRect(x - r * 0.34, y - r * 0.54, r * 0.68, r * 1.08);
       ctx.fillStyle = '#84cc16';
@@ -163,7 +219,6 @@ export function drawMemeBallPattern(ctx, def, x, y, r, opts = {}) {
     }
 
     case 'lagswitch': {
-      // Red Wi-Fi signal arcs + "999ms" ping badge
       ctx.strokeStyle = '#ef4444';
       ctx.lineWidth = Math.max(2.2, r * 0.08);
       for (const rr of [0.24, 0.44, 0.62]) {
@@ -180,7 +235,6 @@ export function drawMemeBallPattern(ctx, def, x, y, r, opts = {}) {
     }
 
     case 'impostor': {
-      // Iconic glossy cyan Crewmate/Impostor visor
       ctx.fillStyle = '#7dd3fc';
       ctx.strokeStyle = '#0f172a';
       ctx.lineWidth = Math.max(2, r * 0.08);
@@ -196,7 +250,6 @@ export function drawMemeBallPattern(ctx, def, x, y, r, opts = {}) {
     }
 
     case 'banana': {
-      // Curved cartoon yellow banana crescent
       ctx.strokeStyle = '#fef9c3';
       ctx.lineWidth = Math.max(4, r * 0.2);
       ctx.lineCap = 'round';
@@ -211,7 +264,6 @@ export function drawMemeBallPattern(ctx, def, x, y, r, opts = {}) {
     }
 
     case 'chatgpt': {
-      // 6-petal OpenAI / ChatGPT hexagonal knot emblem
       ctx.strokeStyle = '#ffffff';
       ctx.lineWidth = Math.max(2.2, r * 0.085);
       for (let i = 0; i < 6; i++) {
@@ -230,7 +282,6 @@ export function drawMemeBallPattern(ctx, def, x, y, r, opts = {}) {
     }
 
     case 'dondurma': {
-      // Turkish ice cream cone + vendor fez/vest gold trim
       ctx.fillStyle = '#fde68a';
       ctx.beginPath();
       ctx.moveTo(x, y + r * 0.52);
@@ -250,7 +301,6 @@ export function drawMemeBallPattern(ctx, def, x, y, r, opts = {}) {
     }
 
     case 'kebab': {
-      // Vertical Doner Kebab spit + sizzling meat layers
       ctx.strokeStyle = '#e2e8f0';
       ctx.lineWidth = Math.max(2.5, r * 0.1);
       ctx.beginPath();
@@ -269,7 +319,6 @@ export function drawMemeBallPattern(ctx, def, x, y, r, opts = {}) {
     }
 
     case 'discordmod': {
-      // Blurple headset band + white @ symbol
       ctx.strokeStyle = '#e0e7ff';
       ctx.lineWidth = Math.max(2.5, r * 0.1);
       ctx.beginPath();
@@ -284,7 +333,6 @@ export function drawMemeBallPattern(ctx, def, x, y, r, opts = {}) {
     }
 
     case 'sigma': {
-      // Crisp white Greek Sigma Σ
       ctx.fillStyle = '#f8fafc';
       ctx.font = `900 ${Math.max(11, Math.round(r * 0.64))}px Georgia, serif`;
       ctx.textAlign = 'center';
@@ -294,7 +342,6 @@ export function drawMemeBallPattern(ctx, def, x, y, r, opts = {}) {
     }
 
     case 'skibidi': {
-      // Swirling blue toilet flush spiral
       ctx.strokeStyle = '#0284c7';
       ctx.lineWidth = Math.max(2.4, r * 0.09);
       ctx.beginPath();
@@ -312,7 +359,6 @@ export function drawMemeBallPattern(ctx, def, x, y, r, opts = {}) {
     }
 
     case 'rizz': {
-      // Glowing heart emblem
       ctx.fillStyle = '#fdf2f8';
       ctx.beginPath();
       ctx.moveTo(x, y + r * 0.42);
@@ -323,7 +369,6 @@ export function drawMemeBallPattern(ctx, def, x, y, r, opts = {}) {
     }
 
     case 'aura': {
-      // Radiant golden Aura flame star + "+∞" badge
       ctx.strokeStyle = '#fef08a';
       ctx.lineWidth = Math.max(2.2, r * 0.08);
       ctx.beginPath();
@@ -345,18 +390,18 @@ export function drawMemeBallPattern(ctx, def, x, y, r, opts = {}) {
       break;
     }
 
-    case 'bsod': {
-      // Classic Windows Blue Screen ":(" sad face
+    case 'gemini': {
+      // Iconic Google Gemini 4-point curved sparkle star + companion twin star
       ctx.fillStyle = '#ffffff';
-      ctx.font = `900 ${Math.max(12, Math.round(r * 0.62))}px monospace`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(':(', x, y + 1);
+      drawFourPointStar(ctx, x - r * 0.06, y + r * 0.04, r * 0.58, r * 0.13);
+      ctx.fill();
+      ctx.fillStyle = '#fbcfe8';
+      drawFourPointStar(ctx, x + r * 0.34, y - r * 0.34, r * 0.24, r * 0.06);
+      ctx.fill();
       break;
     }
 
     case 'brainrot': {
-      // Chaotic neon "67"
       ctx.fillStyle = '#22d3ee';
       ctx.font = `900 ${Math.max(11, Math.round(r * 0.52))}px system-ui, sans-serif`;
       ctx.textAlign = 'center';

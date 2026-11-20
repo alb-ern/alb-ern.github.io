@@ -1,5 +1,6 @@
 import { ARENA_SIZE, PHASES } from '../sim/constants.js';
 import { drawBallBody } from './ballArt.js';
+import { drawHypergamyChart } from './ballArtMeme.js';
 
 function drawAimArrow(ctx, ball, angle, bounds, color) {
   const len = 88;
@@ -669,7 +670,7 @@ function drawHelper(ctx, h, sim) {
   } else if (h.kind === 'hypergamy_symbol') {
     const parent = sim && sim.balls.find((b) => b.id === h.parentId);
     if (parent) {
-      // Long Venus cross-stem shaft from Hypergamy Ball to the outer symbol head
+      // Long gold-and-pink pole from Hypergamy Ball to the outer Hypergamy Chart board
       ctx.strokeStyle = '#db2777';
       ctx.lineWidth = 9;
       ctx.lineCap = 'round';
@@ -680,44 +681,11 @@ function drawHelper(ctx, h, sim) {
       ctx.strokeStyle = '#fef08a';
       ctx.lineWidth = 4;
       ctx.stroke();
-      // Crossbar on the Venus stem
-      const mx = parent.x + (h.x - parent.x) * 0.56;
-      const my = parent.y + (h.y - parent.y) * 0.56;
-      const perpX = -Math.sin(h.orbitAngle) * 18;
-      const perpY = Math.cos(h.orbitAngle) * 18;
-      ctx.strokeStyle = '#db2777';
-      ctx.lineWidth = 8;
-      ctx.beginPath();
-      ctx.moveTo(mx - perpX, my - perpY);
-      ctx.lineTo(mx + perpX, my + perpY);
-      ctx.stroke();
-      ctx.strokeStyle = '#fef08a';
-      ctx.lineWidth = 3.5;
-      ctx.stroke();
     }
     ctx.translate(h.x, h.y);
-    ctx.rotate(h.orbitAngle);
-    const hr = h.hitRadius || 30;
-    // Glowing Venus ring + upward upgrade arrow
-    ctx.strokeStyle = '#f472b6';
-    ctx.lineWidth = 8;
-    ctx.beginPath();
-    ctx.arc(0, 0, hr * 0.66, 0, Math.PI * 2);
-    ctx.stroke();
-    ctx.strokeStyle = '#fef08a';
-    ctx.lineWidth = 3.5;
-    ctx.stroke();
-    // Upward upgrade arrow tip pointing outward
-    ctx.fillStyle = '#fef08a';
-    ctx.strokeStyle = '#db2777';
-    ctx.lineWidth = 2.5;
-    ctx.beginPath();
-    ctx.moveTo(hr * 1.18, 0);
-    ctx.lineTo(hr * 0.62, -hr * 0.42);
-    ctx.lineTo(hr * 0.62, hr * 0.42);
-    ctx.closePath();
-    ctx.fill();
-    ctx.stroke();
+    ctx.rotate(h.orbitAngle + Math.PI / 2);
+    const hr = h.hitRadius || 32;
+    drawHypergamyChart(ctx, 0, 0, hr * 2.15);
   } else if (h.kind === 'dondurma_paddle') {
     const parent = sim && sim.balls.find((b) => b.id === h.parentId);
     if (parent) {

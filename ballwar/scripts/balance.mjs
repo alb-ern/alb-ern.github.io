@@ -21,7 +21,8 @@ function resolveTuningFilePath() {
 
 function parseArgs(args) {
   const opts = {
-    matches: 10,
+    matches: 4,
+    sampleOpps: 24,
     iters: 1,
     nerfThreshold: 0.70,
     buffThreshold: 0.35,
@@ -32,15 +33,20 @@ function parseArgs(args) {
   for (let i = 0; i < args.length; i++) {
     const a = args[i];
     if (a === '--matches' && args[i + 1]) {
-      opts.matches = Math.max(2, parseInt(args[++i], 10) || 10);
+      opts.matches = Math.max(2, parseInt(args[++i], 10) || 4);
     } else if (a.startsWith('--matches=')) {
-      opts.matches = Math.max(2, parseInt(a.split('=')[1], 10) || 10);
+      opts.matches = Math.max(2, parseInt(a.split('=')[1], 10) || 4);
+    } else if (a === '--sample-opps' && args[i + 1]) {
+      opts.sampleOpps = Math.max(4, parseInt(args[++i], 10) || 24);
+    } else if (a === '--all-pairs') {
+      opts.sampleOpps = 0;
+      opts.matches = 10;
     } else if (a === '--iters' && args[i + 1]) {
       opts.iters = Math.max(1, parseInt(args[++i], 10) || 1);
     } else if (a.startsWith('--iters=')) {
       opts.iters = Math.max(1, parseInt(a.split('=')[1], 10) || 1);
     } else if (a === '--auto') {
-      opts.iters = 15;
+      opts.iters = 6;
     } else if (a === '--nerf-threshold' && args[i + 1]) {
       opts.nerfThreshold = parseFloat(args[++i]) || 0.70;
     } else if (a === '--buff-threshold' && args[i + 1]) {
@@ -52,9 +58,11 @@ function parseArgs(args) {
     } else if (a === '--help' || a === '-h') {
       print(
         'Usage: gjs -m scripts/balance.mjs [options]\n' +
-          '  --matches N          Matches simulated per pair (default: 10)\n' +
+          '  --sample-opps N      Sampled opponents per ball (default: 24; 0 = all pairs)\n' +
+          '  --all-pairs          Full round-robin all pairs (7,140 pairs x 10 matches)\n' +
+          '  --matches N          Matches simulated per pair (default: 4)\n' +
           '  --iters N            Max balance iterations in this run (default: 1)\n' +
-          '  --auto               Run up to 15 iterations until all balls balance\n' +
+          '  --auto               Run up to 6 fast iterations (~90s total)\n' +
           '  --nerf-threshold F   Nerf balls winning > F share of opponents (default: 0.70)\n' +
           '  --buff-threshold F   Buff balls beating < F share of opponents (default: 0.35)\n' +
           '  --dry-run            Simulate and print report without writing balanceTuning.js\n' +
@@ -98,92 +106,125 @@ function resetTuningInMemory() {
   }
 }
 
-function simulateAllPairs(matchesPerPair, iterIndex) {
+function buildPairs(n, sampleOpps, iterIndex) {
+  if (!sampleOpps || sampleOpps >= n - 1) {
+    const pairs = [];
+    for (let i = 0; i < n; i++) {
+      for (let j = i + 1; j < n; j++) pairs.push([i, j]);
+    }
+    return pairs;
+  }
+  // Symmetric ring graph: each ball i connects to k = sampleOpps/2 forward chords
+  // spaced across the full 120-ball roster, giving every ball ~sampleOpps distinct opponents.
+  const halfK = Math.max(2, Math.floor(sampleOpps / 2));
+  const seen = new Set();
+  const pairs = [];
+  const stride = Math.max(1, Math.floor(n / (halfK + 1)));
+  const rot = iterIndex % Math.max(1, stride);
+  for (let i = 0; i < n; i++) {
+    for (let s = 1; s <= halfK; s++) {
+      const offset = ((s * stride + rot + s) % (n - 1)) + 1;
+      const j = (i + offset) % n;
+      const a = Math.min(i, j);
+      const b = Math.max(i, j);
+      const key = a * n + b;
+      if (a !== b && !seen.has(key)) {
+        seen.add(key);
+        pairs.push([a, b]);
+      }
+    }
+  }
+  return pairs;
+}
+
+function simulateAllPairs(matchesPerPair, iterIndex, sampleOpps = 0) {
   const n = BALL_DEFS.length;
   const pairWins = Array.from({ length: n }, () => new Float64Array(n));
+  const playedMask = Array.from({ length: n }, () => new Uint8Array(n));
   const totalWins = new Float64Array(n);
   const totalLosses = new Float64Array(n);
   const totalDraws = new Float64Array(n);
   const totalTime = new Float64Array(n);
 
-  const maxTicks = 60 * 50;
+  const maxTicks = 60 * 45;
+  const pairs = buildPairs(n, sampleOpps, iterIndex);
   let pairNum = 0;
 
-  for (let i = 0; i < n; i++) {
-    for (let j = i + 1; j < n; j++) {
-      pairNum++;
-      const a = BALL_DEFS[i];
-      const b = BALL_DEFS[j];
+  for (const [i, j] of pairs) {
+    pairNum++;
+    playedMask[i][j] = 1;
+    playedMask[j][i] = 1;
 
-      for (let m = 0; m < matchesPerPair; m++) {
-        // Alternate P1 (Blue) vs P2 (Red) halves so side bias cancels out cleanly
-        const swap = m >= Math.floor(matchesPerPair / 2);
-        const p1Idx = swap ? j : i;
-        const p2Idx = swap ? i : j;
-        const seed = ((iterIndex + 1) * 100003 + pairNum * 997 + m * 131) >>> 0;
+    for (let m = 0; m < matchesPerPair; m++) {
+      // Alternate P1 (Blue) vs P2 (Red) halves so side bias cancels out cleanly
+      const swap = m >= Math.floor(matchesPerPair / 2);
+      const p1Idx = swap ? j : i;
+      const p2Idx = swap ? i : j;
+      const seed = ((iterIndex + 1) * 100003 + pairNum * 997 + m * 131) >>> 0;
 
-        const sim = new ArenaSimulation({
-          hearts: 1,
-          suddenDeathStart: SUDDEN_DEATH_START_SEC,
-          seed,
-          headless: true,
-        });
-        sim.startMatch({ skipDraft: true });
-        sim.setupAimPhase(BALL_DEFS[p1Idx].id, BALL_DEFS[p2Idx].id);
-        sim.launchRound(
-          chooseBotAimAngle(sim.balls[0], sim.balls[1], sim.rng),
-          chooseBotAimAngle(sim.balls[1], sim.balls[0], sim.rng)
-        );
+      const sim = new ArenaSimulation({
+        hearts: 1,
+        suddenDeathStart: SUDDEN_DEATH_START_SEC,
+        seed,
+        headless: true,
+      });
+      sim.startMatch({ skipDraft: true });
+      sim.setupAimPhase(BALL_DEFS[p1Idx].id, BALL_DEFS[p2Idx].id);
+      sim.launchRound(
+        chooseBotAimAngle(sim.balls[0], sim.balls[1], sim.rng),
+        chooseBotAimAngle(sim.balls[1], sim.balls[0], sim.rng)
+      );
 
-        for (let tick = 0; tick < maxTicks && sim.phase === PHASES.FIGHT; tick++) {
-          sim.step(FIXED_DT);
-        }
+      for (let tick = 0; tick < maxTicks && sim.phase === PHASES.FIGHT; tick++) {
+        sim.step(FIXED_DT);
+      }
 
-        totalTime[p1Idx] += sim.roundTime;
-        totalTime[p2Idx] += sim.roundTime;
+      totalTime[p1Idx] += sim.roundTime;
+      totalTime[p2Idx] += sim.roundTime;
 
-        if (sim.roundWinner === 1) {
-          totalWins[p1Idx]++;
-          totalLosses[p2Idx]++;
-          pairWins[p1Idx][p2Idx]++;
-        } else if (sim.roundWinner === 2) {
-          totalWins[p2Idx]++;
-          totalLosses[p1Idx]++;
-          pairWins[p2Idx][p1Idx]++;
-        } else {
-          totalDraws[p1Idx]++;
-          totalDraws[p2Idx]++;
-        }
+      if (sim.roundWinner === 1) {
+        totalWins[p1Idx]++;
+        totalLosses[p2Idx]++;
+        pairWins[p1Idx][p2Idx]++;
+      } else if (sim.roundWinner === 2) {
+        totalWins[p2Idx]++;
+        totalLosses[p1Idx]++;
+        pairWins[p2Idx][p1Idx]++;
+      } else {
+        totalDraws[p1Idx]++;
+        totalDraws[p2Idx]++;
       }
     }
   }
 
-  const totalMatchesPerBall = (n - 1) * matchesPerPair;
   const rows = [];
   for (let i = 0; i < n; i++) {
     let beaten = 0;
+    let oppCount = 0;
     for (let j = 0; j < n; j++) {
-      if (i === j) continue;
+      if (i === j || !playedMask[i][j]) continue;
+      oppCount++;
       if (pairWins[i][j] > pairWins[j][i]) beaten += 1;
       else if (pairWins[i][j] === pairWins[j][i]) beaten += 0.5;
     }
-    const oppBeatShare = beaten / (n - 1);
-    const matchWinRate = (totalWins[i] + 0.5 * totalDraws[i]) / totalMatchesPerBall;
+    const totalMatchesForBall = Math.max(1, oppCount * matchesPerPair);
+    const oppBeatShare = beaten / Math.max(1, oppCount);
+    const matchWinRate = (totalWins[i] + 0.5 * totalDraws[i]) / totalMatchesForBall;
     rows.push({
       id: BALL_DEFS[i].id,
       beaten,
-      opponents: n - 1,
+      opponents: oppCount,
       oppBeatShare,
       matchWinRate,
       wins: totalWins[i],
       losses: totalLosses[i],
       draws: totalDraws[i],
-      avgTime: totalTime[i] / totalMatchesPerBall,
+      avgTime: totalTime[i] / totalMatchesForBall,
     });
   }
 
   rows.sort((x, y) => y.oppBeatShare - x.oppBeatShare || y.matchWinRate - x.matchWinRate);
-  return rows;
+  return { rows, pairCount: pairs.length };
 }
 
 function applyAdjustments(rows, opts, prevActionMap) {
@@ -253,7 +294,7 @@ function main() {
   let prevActionMap = new Map();
 
   for (let iter = 0; iter < opts.iters; iter++) {
-    const rows = simulateAllPairs(opts.matches, iter);
+    const { rows, pairCount } = simulateAllPairs(opts.matches, iter, opts.sampleOpps);
     const { nerfed, buffed, actions } = opts.dryRun
       ? {
           nerfed: rows.filter((r) => r.oppBeatShare > opts.nerfThreshold).length,
@@ -266,8 +307,8 @@ function main() {
     prevActionMap = actions;
 
     print(
-      `\n=== Balance Iteration ${iter + 1} (${totalPairs} pairs x ${opts.matches} matches = ${
-        totalPairs * opts.matches
+      `\n=== Balance Iteration ${iter + 1} (${pairCount} pairs x ${opts.matches} matches = ${
+        pairCount * opts.matches
       } fights) ===`
     );
     print(
