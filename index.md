@@ -30,6 +30,11 @@ Bachelor of Science in Computer Engineering
 * Engineered a multi-threaded architecture to handle streams, ensuring real-time message delivery.
 * Handled network exceptions and client disconnections to ensure stability and resource cleanup.
 
+## Hobby Projects
+**[Ball VS Ball — Web Arena Edition](https://alb-ern.github.io/ballwar/)**
+* **Stack:** JavaScript, HTML5 Canvas, WebRTC (PeerJS), Web Audio API
+* 1v1 & 2v2 physics arena auto-battler with 100 unique balls, Sandbox Lab, Local pass-and-play (2P/4P), and Online P2P multiplayer (2P/4P).
+
 ## Leadership & Activities
 **Board Member @ ITU AI Club** *(Sept. 2025 - Present)*
 * Directed a technical team of 10+ members to manage logistics and stage technicals for the AI Summit (500+ attendees).
