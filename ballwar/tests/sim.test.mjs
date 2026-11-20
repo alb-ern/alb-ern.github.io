@@ -445,13 +445,13 @@ test('Hydrogen Bomb detonates nuke shockwave + fallout while Coughing Baby sprea
   assert(sawCough, 'Coughing Baby should emit toxic cough_cloud hazards');
 });
 
-test('Claude refusal shield blocks hits and Iron Dome intercepts incoming enemy projectiles', () => {
+test('Claude refusal shield blocks hits, Israel Ball intercepts projectiles, and Hypergamy swings symbol', () => {
   const sim = new ArenaSimulation({ mode: MODES.SANDBOX, hearts: 1, seed: 2027 });
   sim.startMatch({ skipDraft: true });
-  sim.setupAimPhase('claude', 'irondome');
+  sim.setupAimPhase('claude', 'israel');
   sim.launchRound(0, Math.PI);
   const claude = sim.balls.find((b) => b.ballId === 'claude');
-  const dome = sim.balls.find((b) => b.ballId === 'irondome');
+  const israel = sim.balls.find((b) => b.ballId === 'israel');
 
   // Claude's initial Refusal Shield should block a direct hit cleanly
   const hpBefore = claude.hp;
@@ -459,12 +459,12 @@ test('Claude refusal shield blocks hits and Iron Dome intercepts incoming enemy 
   assert(blocked === 0 && claude.hp === hpBefore, 'Claude Refusal Shield must block first hit');
   assert(!claude.state.shieldReady, 'Claude Refusal Shield should enter cooldown after blocking');
 
-  // Place an enemy projectile inside Iron Dome radar radius and step once
+  // Place an enemy projectile inside Israel Ball radar radius and step once
   sim.addProjectile({
     kind: 'orb',
     owner: 1,
-    x: dome.x - 60,
-    y: dome.y,
+    x: israel.x - 60,
+    y: israel.y,
     vx: 300,
     vy: 0,
     radius: 10,
@@ -476,12 +476,22 @@ test('Claude refusal shield blocks hits and Iron Dome intercepts incoming enemy 
   sim.step(FIXED_DT);
   assert(
     sim.projectiles.some((p) => p.owner === 2 && p.kind === 'sniper_round'),
-    'Iron Dome should intercept projectile and fire counter sniper_round'
+    'Israel Ball should intercept projectile and fire counter sniper_round'
   );
   assert(
     !sim.projectiles.some((p) => p.owner === 1 && p.kind === 'orb'),
-    `Iron Dome should destroy incoming enemy orb (before=${projCountBefore})`
+    `Israel Ball should destroy incoming enemy orb (before=${projCountBefore})`
   );
+
+  // Verify Hypergamy spawns its long-reach swinging hypergamy_symbol weapon
+  const sim2 = new ArenaSimulation({ mode: MODES.SANDBOX, hearts: 1, seed: 2028 });
+  sim2.startMatch({ skipDraft: true });
+  sim2.setupAimPhase('hypergamy', 'dondurma');
+  sim2.launchRound(0, Math.PI);
+  const sym = sim2.helpers.find((h) => h.kind === 'hypergamy_symbol');
+  const pad = sim2.helpers.find((h) => h.kind === 'dondurma_paddle');
+  assert(sym && sym.orbitRadius >= 160, 'Hypergamy must spawn 162px-reach hypergamy_symbol helper');
+  assert(pad && pad.orbitRadius >= 145, 'Dondurma must spawn 148px-reach dondurma_paddle helper');
 });
 
 let spiderWins = 0;

@@ -26,14 +26,6 @@ function countHelpersOfKind(sim, owner, kind) {
   return c;
 }
 
-function getHighestHpEnemy(sim, owner) {
-  let best = null;
-  for (const e of sim.getEnemyBalls(owner)) {
-    if (!best || e.hp > best.hp) best = e;
-  }
-  return best;
-}
-
 function detonateHydrogenNuke(sim, ball, dmg, expandSpeed, label) {
   sim.addHazard(
     {
@@ -143,7 +135,6 @@ function spawnPinataBurst(sim, ball, projCount, dropCount) {
 function fireClaudeBeam(sim, ball, enemy, dmg = 8.5, label = null) {
   let a = aimAngleToEnemy(sim, ball, 0);
   if (enemy) {
-    // Predict enemy position ~0.22s ahead
     const leadX = enemy.x + enemy.vx * 0.22;
     const leadY = enemy.y + enemy.vy * 0.22;
     a = Math.atan2(leadY - ball.y, leadX - ball.x);
@@ -296,7 +287,6 @@ export const MEME_ABILITY_HANDLERS = {
         }
       }
 
-      // Predictive sidestep away from incoming enemy projectiles
       if (ball.state.dodgeCd <= 0) {
         for (const p of sim.projectiles) {
           if (p.owner === ball.owner) continue;
@@ -339,77 +329,41 @@ export const MEME_ABILITY_HANDLERS = {
     },
   },
 
-  /** 105. Hypergamy Ball: Locks onto the highest-HP enemy to UPGRADE, rejects weaker foes with ICK! */
+  /** 105. Hypergamy Ball: Swings a giant 2-ball-long Hypergamy Symbol (♀↑) like Axe Ball that upgrades on every hit! */
   hypergamy: {
     onInit(sim, ball) {
-      ball.state = { timer: 1.15 };
-      ball.steerRate = 2.4;
+      ball.state = { baseSpeed0: ball.baseSpeed };
+      sim.addHelper({
+        kind: 'hypergamy_symbol',
+        owner: ball.owner,
+        parentId: ball.id,
+        orbitAngle: 0,
+        orbitRadius: 162,
+        angularSpeed: 4.2,
+        hitRadius: 32,
+        hitCd: 0.4,
+        dmg: 9,
+        upgrades: 0,
+        knockback: 235,
+        x: ball.x,
+        y: ball.y,
+        hitCooldowns: {},
+      });
     },
-    onUpdate(sim, ball, dt) {
-      const target = getHighestHpEnemy(sim, ball.owner);
-      if (target) {
-        const dx = target.x - ball.x;
-        const dy = target.y - ball.y;
-        const d = Math.hypot(dx, dy) || 1;
-        ball.vx += (dx / d) * 160 * dt;
-        ball.vy += (dy / d) * 160 * dt;
-      }
-
-      ball.state.timer -= dt;
-      if (ball.state.timer <= 0 && target) {
-        ball.state.timer = 1.55;
-        const a = Math.atan2(target.y - ball.y, target.x - ball.x);
-        if (target.hp > ball.hp) {
-          sim.dealDamage(target, 8, ball.owner, 'hypergamy');
-          sim.healBall(ball, 4);
-          sim.scaleBallSpeed(ball, 1.03);
-          sim.emitText(ball.x, ball.y - ball.radius - 12, 'UPGRADE!', '#f472b6');
-        } else {
-          sim.addHazard(
-            {
-              kind: 'ring_wave',
-              variant: 'bass',
-              owner: ball.owner,
-              x: ball.x,
-              y: ball.y,
-              currentRadius: ball.radius,
-              expandSpeed: 320,
-              dmg: 6.5,
-              knockback: 260,
-              ttl: 0.55,
-            },
-            3
-          );
-          sim.emitText(ball.x, ball.y - ball.radius - 12, 'ICK!', '#fbbf24');
-        }
-        for (const off of [-0.14, 0.14]) {
-          sim.addProjectile({
-            kind: 'dart',
-            owner: ball.owner,
-            x: ball.x + Math.cos(a + off) * (ball.radius + 8),
-            y: ball.y + Math.sin(a + off) * (ball.radius + 8),
-            vx: Math.cos(a + off) * 510,
-            vy: Math.sin(a + off) * 510,
-            radius: 10,
-            dmg: 4.5,
-            bouncesLeft: 0,
-            ttl: 1.6,
-            color: '#ec4899',
-          });
-        }
-      }
+    onUpdate(sim, ball) {
+      const missingRatio = Math.max(0, 1 - ball.hp / ball.maxHp);
+      ball.baseSpeed = Math.min(540, ball.state.baseSpeed0 * (1 + missingRatio * 0.75));
     },
   },
 
-  /** 106. Iron Dome Ball: Active missile defense intercepting enemy projectiles & launching guided Tamirs. */
-  irondome: {
+  /** 106. Israel Ball: Active Iron Dome missile defense intercepting enemy projectiles & launching guided Tamirs. */
+  israel: {
     onInit(sim, ball) {
       ball.state = { interceptCd: 0, salvoTimer: 1.2 };
     },
     onUpdate(sim, ball, dt) {
       ball.state.interceptCd = Math.max(0, ball.state.interceptCd - dt);
 
-      // Shoot down incoming non-piercing enemy projectiles in radar dome
       if (ball.state.interceptCd <= 0) {
         for (let i = sim.projectiles.length - 1; i >= 0; i--) {
           const p = sim.projectiles[i];
@@ -439,7 +393,6 @@ export const MEME_ABILITY_HANDLERS = {
         }
       }
 
-      // Periodic radar-guided interceptor salvo
       ball.state.salvoTimer -= dt;
       if (ball.state.salvoTimer <= 0) {
         ball.state.salvoTimer = 1.6;
@@ -490,7 +443,6 @@ export const MEME_ABILITY_HANDLERS = {
       ball.state.armorTextCd = Math.max(0, ball.state.armorTextCd - dt);
     },
     onDamagePrevent(sim, ball, amount) {
-      // Shave off 2 flat damage while letting tiny DoT ticks still deal 55%
       const reduced = Math.max(amount * 0.55, amount - 2);
       if (amount - reduced >= 0.8 && ball.state.armorTextCd <= 0) {
         ball.state.armorTextCd = 0.85;
@@ -724,194 +676,199 @@ export const MEME_ABILITY_HANDLERS = {
     },
   },
 
-  /** 111. Rickroll Ball: Fires dancing chorus notes; every 3rd volley triggers a RICKROLLED stun wave. */
-  rickroll: {
+  /** 111. ChatGPT Ball: Hallucinates exploding Decoy Clones, fires prompt bursts & GPT Overdrive waves. */
+  chatgpt: {
     onInit(sim, ball) {
-      ball.state = { timer: 0.9, verse: 0 };
+      ball.state = { timer: 1.05, cycle: 0 };
     },
     onUpdate(sim, ball, dt) {
       ball.state.timer -= dt;
       if (ball.state.timer <= 0) {
-        ball.state.timer = 1.15;
-        ball.state.verse += 1;
-        const lyrics = ['NEVER GONNA', 'GIVE YOU UP!', 'RICKROLLED!!'];
-        const idx = (ball.state.verse - 1) % 3;
-        const a = aimAngleToEnemy(sim, ball, 0.12);
-        for (const off of [-0.18, 0.18]) {
+        ball.state.timer = 1.35;
+        ball.state.cycle += 1;
+        const a = aimAngleToEnemy(sim, ball, 0.08);
+
+        if (countHelpersOfKind(sim, ball.owner, 'shadow_decoy') < 2) {
+          sim.addHelper({
+            kind: 'shadow_decoy',
+            owner: ball.owner,
+            parentId: ball.id,
+            independent: true,
+            x: ball.x + Math.cos(a + 0.5) * 28,
+            y: ball.y + Math.sin(a + 0.5) * 28,
+            vx: Math.cos(a + 0.35) * 320,
+            vy: Math.sin(a + 0.35) * 320,
+            radius: 26,
+            dmg: 8,
+            ttl: 4.5,
+            hitCooldowns: {},
+          });
+          sim.emitText(ball.x, ball.y - ball.radius - 10, 'HALLUCINATING!', '#a7f3d0');
+        } else {
+          sim.emitText(ball.x, ball.y - ball.radius - 10, 'AS AN AI...', '#34d399');
+        }
+
+        for (const off of [-0.18, 0, 0.18]) {
           sim.addProjectile({
             kind: 'orb',
             owner: ball.owner,
             x: ball.x + Math.cos(a + off) * (ball.radius + 8),
             y: ball.y + Math.sin(a + off) * (ball.radius + 8),
-            vx: Math.cos(a + off) * 460,
-            vy: Math.sin(a + off) * 460,
-            radius: 11,
+            vx: Math.cos(a + off) * 470,
+            vy: Math.sin(a + off) * 470,
+            radius: 10,
             dmg: 4.5,
-            bouncesLeft: 2,
-            ttl: 2.0,
-            color: idx === 2 ? '#fde047' : '#fb923c',
+            bouncesLeft: 1,
+            ttl: 1.7,
+            color: '#10a37f',
           });
         }
-        sim.emitText(ball.x, ball.y - ball.radius - 10, lyrics[idx], '#fde047');
 
-        if (idx === 2) {
-          sim.healBall(ball, 4);
+        if (ball.state.cycle % 3 === 0) {
+          sim.healBall(ball, 3);
           sim.addHazard(
             {
               kind: 'ring_wave',
-              variant: 'solar',
+              variant: 'dome',
               owner: ball.owner,
               x: ball.x,
               y: ball.y,
               currentRadius: ball.radius,
               expandSpeed: 330,
-              dmg: 7.5,
-              knockback: 210,
-              ttl: 0.65,
+              dmg: 7,
+              knockback: 200,
+              ttl: 0.6,
             },
-            3
+            2
           );
-          for (const enemy of sim.getEnemyBalls(ball.owner)) {
-            if (Math.hypot(enemy.x - ball.x, enemy.y - ball.y) <= 210) {
-              enemy.stunTimer = Math.max(enemy.stunTimer, 0.6);
-            }
-          }
         }
       }
     },
   },
 
-  /** 112. Stonks Ball: Wall bounces flip between BULL RUN green candles & RUG PULL crash waves. */
-  stonks: {
+  /** 112. Dondurma Ball: Turkish Ice Cream vendor swinging a 156px cone paddle & yanking away with "SIKE!" */
+  dondurma: {
     onInit(sim, ball) {
-      ball.state = { bull: true, timer: 0.8, flipCd: 0 };
+      ball.state = { sikeCd: 0, scoopTimer: 1.25 };
+      sim.addHelper({
+        kind: 'dondurma_paddle',
+        owner: ball.owner,
+        parentId: ball.id,
+        orbitAngle: 0,
+        orbitRadius: 156,
+        angularSpeed: 4.6,
+        hitRadius: 28,
+        hitCd: 0.38,
+        dmg: 8.5,
+        knockback: 210,
+        x: ball.x,
+        y: ball.y,
+        hitCooldowns: {},
+      });
     },
     onUpdate(sim, ball, dt) {
-      ball.state.flipCd = Math.max(0, ball.state.flipCd - dt);
-      ball.state.timer -= dt;
-      if (ball.state.timer <= 0) {
+      ball.state.sikeCd = Math.max(0, ball.state.sikeCd - dt);
+      ball.state.scoopTimer -= dt;
+      if (ball.state.scoopTimer <= 0) {
+        ball.state.scoopTimer = 1.75;
         const a = aimAngleToEnemy(sim, ball, 0.08);
-        if (ball.state.bull) {
-          ball.state.timer = 0.72;
+        sim.addProjectile({
+          kind: 'ice_spike',
+          owner: ball.owner,
+          x: ball.x + Math.cos(a) * (ball.radius + 8),
+          y: ball.y + Math.sin(a) * (ball.radius + 8),
+          vx: Math.cos(a) * 470,
+          vy: Math.sin(a) * 470,
+          radius: 10,
+          dmg: 4,
+          chillStacks: 1,
+          bouncesLeft: 1,
+          ttl: 1.5,
+          color: '#fbcfe8',
+        });
+      }
+    },
+    onTakeDamage(sim, ball) {
+      if (ball.state.sikeCd > 0) return;
+      ball.state.sikeCd = 2.2;
+      const enemy = sim.getClosestEnemy(ball);
+      const oldX = ball.x;
+      const oldY = ball.y;
+      sim.addHazard(
+        {
+          kind: 'ice_bomb',
+          owner: ball.owner,
+          x: oldX,
+          y: oldY,
+          vx: 0,
+          vy: 0,
+          radius: 22,
+          fuse: 0.2,
+          ttl: 1.5,
+        },
+        3
+      );
+      if (enemy) {
+        const awayAngle = Math.atan2(ball.y - enemy.y, ball.x - enemy.x) + (sim.rng() < 0.5 ? 0.9 : -0.9);
+        const pos = clampPos(
+          sim,
+          enemy.x + Math.cos(awayAngle) * 145,
+          enemy.y + Math.sin(awayAngle) * 145,
+          ball.radius + 10
+        );
+        ball.x = pos.x;
+        ball.y = pos.y;
+      }
+      sim.emitText(oldX, oldY - 24, 'SIKE! TOO SLOW!', '#fde047');
+      sim.addParticleBurst(oldX, oldY, '#fbcfe8', 10);
+    },
+  },
+
+  /** 113. Doner Kebab Ball: Spins 2 Doner carving blades while spraying fiery chili-garlic sauce! */
+  kebab: {
+    onInit(sim, ball) {
+      ball.state = { sauceTimer: 0.95 };
+      for (let i = 0; i < 2; i++) {
+        sim.addHelper({
+          kind: 'blade',
+          owner: ball.owner,
+          parentId: ball.id,
+          orbitAngle: i * Math.PI,
+          orbitRadius: ball.radius + 28,
+          angularSpeed: 5.2,
+          hitRadius: 19,
+          hitCd: 0.42,
+          dmg: 6,
+          knockback: 165,
+          x: ball.x,
+          y: ball.y,
+          hitCooldowns: {},
+        });
+      }
+    },
+    onUpdate(sim, ball, dt) {
+      ball.state.sauceTimer -= dt;
+      if (ball.state.sauceTimer <= 0) {
+        ball.state.sauceTimer = 1.35;
+        const a = aimAngleToEnemy(sim, ball, 0.08);
+        for (const off of [-0.18, 0, 0.18]) {
           sim.addProjectile({
             kind: 'dart',
             owner: ball.owner,
-            x: ball.x + Math.cos(a) * (ball.radius + 8),
-            y: ball.y + Math.sin(a) * (ball.radius + 8),
-            vx: Math.cos(a) * 560,
-            vy: Math.sin(a) * 560,
-            radius: 10,
-            dmg: 5.5,
-            bouncesLeft: 0,
-            ttl: 1.5,
-            color: '#4ade80',
-          });
-        } else {
-          ball.state.timer = 1.15;
-          for (const off of [-0.22, 0, 0.22]) {
-            sim.addProjectile({
-              kind: 'orb',
-              owner: ball.owner,
-              x: ball.x + Math.cos(a + off) * (ball.radius + 8),
-              y: ball.y + Math.sin(a + off) * (ball.radius + 8),
-              vx: Math.cos(a + off) * 410,
-              vy: Math.sin(a + off) * 410,
-              radius: 11,
-              dmg: 4.5,
-              slowDuration: 0.5,
-              bouncesLeft: 1,
-              ttl: 1.6,
-              color: '#ef4444',
-            });
-          }
-        }
-      }
-    },
-    onWallHit(sim, ball) {
-      if (ball.state.flipCd > 0) return;
-      ball.state.flipCd = 0.9;
-      ball.state.bull = !ball.state.bull;
-      if (ball.state.bull) {
-        ball.baseSpeed = 395;
-        sim.emitText(ball.x, ball.y - ball.radius - 12, 'BULL RUN!', '#4ade80');
-      } else {
-        ball.baseSpeed = 315;
-        sim.addHazard(
-          {
-            kind: 'ring_wave',
-            variant: 'blood',
-            owner: ball.owner,
-            x: ball.x,
-            y: ball.y,
-            currentRadius: ball.radius,
-            expandSpeed: 340,
-            dmg: 7.5,
-            knockback: 230,
-            ttl: 0.55,
-          },
-          3
-        );
-        sim.emitText(ball.x, ball.y - ball.radius - 12, 'RUG PULL!', '#ef4444');
-      }
-    },
-  },
-
-  /** 113. Karen Ball: Screams complaint cones & builds Rage to summon angry Manager turrets! */
-  karen: {
-    onInit(sim, ball) {
-      ball.state = { yellTimer: 1.0, rage: 0, managerTimer: 3.4 };
-    },
-    onUpdate(sim, ball, dt) {
-      ball.state.yellTimer -= dt;
-      if (ball.state.yellTimer <= 0) {
-        ball.state.yellTimer = 1.45;
-        const a = aimAngleToEnemy(sim, ball, 0.06);
-        for (const off of [-0.24, 0, 0.24]) {
-          sim.addProjectile({
-            kind: 'orb',
-            owner: ball.owner,
             x: ball.x + Math.cos(a + off) * (ball.radius + 8),
             y: ball.y + Math.sin(a + off) * (ball.radius + 8),
-            vx: Math.cos(a + off) * 445,
-            vy: Math.sin(a + off) * 445,
+            vx: Math.cos(a + off) * 485,
+            vy: Math.sin(a + off) * 485,
             radius: 10,
-            dmg: 3.5,
-            slowDuration: 0.45,
-            bouncesLeft: 0,
-            ttl: 1.45,
-            color: '#f43f5e',
+            dmg: 4,
+            poisonTicks: 2,
+            bouncesLeft: 1,
+            ttl: 1.55,
+            color: off === 0 ? '#fef3c7' : '#ef4444',
           });
         }
-        sim.emitText(ball.x, ball.y - ball.radius - 10, 'EXCUSE ME?!', '#fef08a');
+        sim.emitText(ball.x, ball.y - ball.radius - 10, 'EXTRA SPICY!', '#fb923c');
       }
-
-      ball.state.managerTimer -= dt;
-      if (ball.state.managerTimer <= 0 || ball.state.rage >= 18) {
-        ball.state.managerTimer = 4.5;
-        ball.state.rage = 0;
-        if (countHelpersOfKind(sim, ball.owner, 'mini_turret') < 2) {
-          const pos = clampPos(sim, ball.x, ball.y, 48);
-          sim.addHelper({
-            kind: 'mini_turret',
-            owner: ball.owner,
-            parentId: ball.id,
-            independent: true,
-            x: pos.x,
-            y: pos.y,
-            orbitAngle: 0,
-            radius: 22,
-            fireTimer: 0.25,
-            fireRate: 0.85,
-            dmg: 5.5,
-            ttl: 10.5,
-            hitCooldowns: {},
-          });
-          sim.emitText(ball.x, ball.y - ball.radius - 14, 'MANAGER!!', '#facc15');
-        }
-      }
-    },
-    onTakeDamage(sim, ball, dmg) {
-      ball.state.rage += dmg;
     },
   },
 
@@ -994,7 +951,6 @@ export const MEME_ABILITY_HANDLERS = {
           ball.contactDmg = Math.min(16, 4 + ball.state.stacks * 2);
           sim.emitText(ball.x, ball.y - ball.radius - 10, `GRIND x${ball.state.stacks}`, '#e2e8f0');
         } else {
-          // Discharge laser eyes at max stacks so kiting enemies still get mogged
           const a = aimAngleToEnemy(sim, ball, 0);
           const dx = Math.cos(a);
           const dy = Math.sin(a);
@@ -1138,153 +1094,122 @@ export const MEME_ABILITY_HANDLERS = {
     },
   },
 
-  /** 118. Florida Man Ball: Rolls an unhinged chaotic Florida headline every 1.65s! */
-  floridaman: {
+  /** 118. Aura Ball: Surrounded by a live Aura Field that grows (+1000 AURA!) on wall bounces & crushes enemies with -9999 AURA! */
+  aura: {
     onInit(sim, ball) {
-      ball.state = { timer: 0.9 };
+      ball.state = { wallCd: 0, waveTimer: 1.5, auraLevel: 0 };
+      sim.addHazard(
+        {
+          kind: 'red_zone',
+          variant: 'aura_field',
+          owner: ball.owner,
+          followParentId: ball.id,
+          x: ball.x,
+          y: ball.y,
+          radius: 78,
+          dmg: 4,
+          slowDuration: 0.55,
+          tickRate: 0.45,
+          ttl: 999,
+          tickTimers: {},
+        },
+        1
+      );
+    },
+    onUpdate(sim, ball, dt) {
+      ball.state.wallCd = Math.max(0, ball.state.wallCd - dt);
+      ball.state.waveTimer -= dt;
+      if (ball.state.waveTimer <= 0) {
+        ball.state.waveTimer = 1.65;
+        sim.addHazard(
+          {
+            kind: 'ring_wave',
+            variant: 'solar',
+            owner: ball.owner,
+            x: ball.x,
+            y: ball.y,
+            currentRadius: ball.radius,
+            expandSpeed: 340,
+            dmg: 7,
+            knockback: 220,
+            ttl: 0.65,
+          },
+          3
+        );
+        const enemy = sim.getClosestEnemy(ball);
+        if (enemy && Math.hypot(enemy.x - ball.x, enemy.y - ball.y) <= 155) {
+          sim.emitText(enemy.x, enemy.y - enemy.radius - 12, '-9999 AURA!', '#c084fc');
+        }
+      }
+    },
+    onWallHit(sim, ball) {
+      if (ball.state.wallCd > 0) return;
+      ball.state.wallCd = 0.48;
+      ball.state.auraLevel = Math.min(8, ball.state.auraLevel + 1);
+      const field = sim.hazards.find(
+        (h) => h.kind === 'red_zone' && h.variant === 'aura_field' && h.followParentId === ball.id
+      );
+      if (field) {
+        field.radius = Math.min(134, 78 + ball.state.auraLevel * 7);
+        field.dmg = 4 + ball.state.auraLevel * 0.45;
+      }
+      sim.emitText(ball.x, ball.y - ball.radius - 10, '+1000 AURA!', '#fde047');
+    },
+  },
+
+  /** 119. Blue Screen Ball (BSOD): Ticks 25% -> 50% -> 100% CRASH! system-freeze stun wave + pixel shards. */
+  bsod: {
+    onInit(sim, ball) {
+      ball.state = { timer: 0.95, step: 0 };
     },
     onUpdate(sim, ball, dt) {
       ball.state.timer -= dt;
       if (ball.state.timer <= 0) {
-        ball.state.timer = 1.65;
-        const roll = Math.floor(sim.rng() * 5);
-        const a = aimAngleToEnemy(sim, ball, 0.08);
-        if (roll === 0) {
-          const pos = clampPos(sim, ball.x, ball.y, 48);
-          sim.addHazard(
-            {
-              kind: 'red_zone',
-              variant: 'mimic_lure',
-              owner: ball.owner,
-              x: pos.x,
-              y: pos.y,
-              radius: 42,
-              dmg: 10,
-              trapRoot: 0.85,
-              tickRate: 0.5,
-              ttl: 9,
-              tickTimers: {},
-            },
-            3
-          );
-          sim.emitText(ball.x, ball.y - ball.radius - 12, 'GATOR TRAP!', '#4ade80');
-        } else if (roll === 1) {
-          ball.vx = Math.cos(a) * ball.baseSpeed * 1.65;
-          ball.vy = Math.sin(a) * ball.baseSpeed * 1.65;
-          ball.dashTimer = 0.45;
-          for (let k = -1; k <= 1; k++) {
-            sim.addProjectile({
-              kind: 'shard',
-              owner: ball.owner,
-              x: ball.x + Math.cos(a + k * 0.25) * (ball.radius + 8),
-              y: ball.y + Math.sin(a + k * 0.25) * (ball.radius + 8),
-              vx: Math.cos(a + k * 0.25) * 510,
-              vy: Math.sin(a + k * 0.25) * 510,
-              radius: 10,
-              dmg: 5,
-              bouncesLeft: 1,
-              ttl: 1.5,
-              color: '#f97316',
-            });
-          }
-          sim.emitText(ball.x, ball.y - ball.radius - 12, 'LAWNMOWER!', '#fb923c');
-        } else if (roll === 2) {
-          sim.addHazard(
-            {
-              kind: 'red_zone',
-              variant: 'tornado',
-              owner: ball.owner,
-              x: ball.x,
-              y: ball.y,
-              vx: Math.cos(a) * 140,
-              vy: Math.sin(a) * 140,
-              radius: 74,
-              swirlForce: 480,
-              dmg: 3.5,
-              tickRate: 0.45,
-              ttl: 5.0,
-              tickTimers: {},
-            },
-            2
-          );
-          sim.emitText(ball.x, ball.y - ball.radius - 12, 'HURRICANE!', '#bae6fd');
-        } else if (roll === 3) {
-          for (let k = -2; k <= 2; k++) {
-            sim.addProjectile({
-              kind: 'dart',
-              owner: ball.owner,
-              x: ball.x + Math.cos(a + k * 0.2) * (ball.radius + 8),
-              y: ball.y + Math.sin(a + k * 0.2) * (ball.radius + 8),
-              vx: Math.cos(a + k * 0.2) * 470,
-              vy: Math.sin(a + k * 0.2) * 470,
-              radius: 9,
-              dmg: 3.5,
-              poisonTicks: 2,
-              bouncesLeft: 0,
-              ttl: 1.5,
-              color: '#22c55e',
-            });
-          }
-          sim.emitText(ball.x, ball.y - ball.radius - 12, 'SWAMP GATOR!', '#86efac');
-        } else {
+        ball.state.timer = 1.15;
+        ball.state.step += 1;
+        const pct = (ball.state.step % 3) === 0 ? 100 : (ball.state.step % 3) * 35;
+        const a = aimAngleToEnemy(sim, ball, 0.1);
+
+        for (const off of [-0.16, 0.16]) {
+          sim.addProjectile({
+            kind: 'shard',
+            owner: ball.owner,
+            x: ball.x + Math.cos(a + off) * (ball.radius + 8),
+            y: ball.y + Math.sin(a + off) * (ball.radius + 8),
+            vx: Math.cos(a + off) * 485,
+            vy: Math.sin(a + off) * 485,
+            radius: 10,
+            dmg: 4.5,
+            bouncesLeft: 1,
+            ttl: 1.65,
+            color: '#e0f2fe',
+          });
+        }
+
+        if (pct === 100) {
           sim.addHazard(
             {
               kind: 'ring_wave',
-              variant: 'nuke',
+              variant: 'dome',
               owner: ball.owner,
               x: ball.x,
               y: ball.y,
               currentRadius: ball.radius,
-              expandSpeed: 370,
-              dmg: 10,
-              knockback: 260,
-              ttl: 0.7,
+              expandSpeed: 345,
+              dmg: 8.5,
+              knockback: 210,
+              ttl: 0.65,
             },
             3
           );
-          sim.emitText(ball.x, ball.y - ball.radius - 12, 'FIREWORKS!', '#fde047');
-        }
-      }
-    },
-  },
-
-  /** 119. IRS Tax Ball: Audits enemy HP into golden coins, taxes 12% current HP & heals a cut! */
-  taxman: {
-    onInit(sim, ball) {
-      ball.state = { auditTimer: 1.55, coinTimer: 1.05 };
-    },
-    onUpdate(sim, ball, dt) {
-      ball.state.auditTimer -= dt;
-      if (ball.state.auditTimer <= 0) {
-        ball.state.auditTimer = 2.2;
-        const enemy = sim.getClosestEnemy(ball);
-        if (enemy) {
-          const tax = Math.max(4.5, Math.min(10, Math.round(enemy.hp * 0.11)));
-          sim.dealDamage(enemy, tax, ball.owner, 'irs_tax');
-          sim.healBall(ball, 3);
-          sim.emitText(enemy.x, enemy.y - enemy.radius - 12, `TAXED -${tax}!`, '#fbbf24');
-          sim.addParticleBurst(enemy.x, enemy.y, '#fbbf24', 8);
-        }
-      }
-
-      ball.state.coinTimer -= dt;
-      if (ball.state.coinTimer <= 0) {
-        ball.state.coinTimer = 1.2;
-        const a = aimAngleToEnemy(sim, ball, 0.1);
-        for (const off of [-0.18, 0, 0.18]) {
-          sim.addProjectile({
-            kind: 'robux',
-            owner: ball.owner,
-            x: ball.x + Math.cos(a + off) * (ball.radius + 8),
-            y: ball.y + Math.sin(a + off) * (ball.radius + 8),
-            vx: Math.cos(a + off) * 465,
-            vy: Math.sin(a + off) * 465,
-            radius: 10,
-            dmg: 3.5,
-            bouncesLeft: 1,
-            ttl: 1.65,
-            color: '#fbbf24',
-          });
+          for (const enemy of sim.getEnemyBalls(ball.owner)) {
+            if (Math.hypot(enemy.x - ball.x, enemy.y - ball.y) <= 210) {
+              enemy.stunTimer = Math.max(enemy.stunTimer, 0.68);
+            }
+          }
+          sim.emitText(ball.x, ball.y - ball.radius - 12, 'FATAL ERROR! :(', '#ffffff');
+        } else {
+          sim.emitText(ball.x, ball.y - ball.radius - 10, `CRASH ${pct}%`, '#93c5fd');
         }
       }
     },

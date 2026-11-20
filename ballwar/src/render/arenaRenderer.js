@@ -128,6 +128,7 @@ function drawHazard(ctx, h, bounds, time) {
         banana_peel: ['rgba(250, 204, 21, 0.42)', 'rgba(254, 249, 195, 0.95)'],
         flush: ['rgba(14, 165, 233, 0.24)', 'rgba(56, 189, 248, 0.92)'],
         mod_zone: ['rgba(88, 101, 242, 0.26)', 'rgba(165, 180, 252, 0.9)'],
+        aura_field: ['rgba(168, 85, 247, 0.24)', 'rgba(250, 204, 21, 0.95)'],
       };
       const [fill, stroke] = palettes[h.variant] || ['rgba(239, 68, 68, 0.22)', 'rgba(248, 113, 113, 0.85)'];
       const pulse = h.variant === 'range' ? 0.96 + Math.sin(time * 9) * 0.04 : 0.92 + Math.sin(time * 6) * 0.08;
@@ -663,6 +664,87 @@ function drawHelper(ctx, h, sim) {
     ctx.arc(0, 0, h.hitRadius, -1.15, 1.15);
     ctx.lineTo(0, 0);
     ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+  } else if (h.kind === 'hypergamy_symbol') {
+    const parent = sim && sim.balls.find((b) => b.id === h.parentId);
+    if (parent) {
+      // Long Venus cross-stem shaft from Hypergamy Ball to the outer symbol head
+      ctx.strokeStyle = '#db2777';
+      ctx.lineWidth = 9;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(parent.x, parent.y);
+      ctx.lineTo(h.x, h.y);
+      ctx.stroke();
+      ctx.strokeStyle = '#fef08a';
+      ctx.lineWidth = 4;
+      ctx.stroke();
+      // Crossbar on the Venus stem
+      const mx = parent.x + (h.x - parent.x) * 0.56;
+      const my = parent.y + (h.y - parent.y) * 0.56;
+      const perpX = -Math.sin(h.orbitAngle) * 18;
+      const perpY = Math.cos(h.orbitAngle) * 18;
+      ctx.strokeStyle = '#db2777';
+      ctx.lineWidth = 8;
+      ctx.beginPath();
+      ctx.moveTo(mx - perpX, my - perpY);
+      ctx.lineTo(mx + perpX, my + perpY);
+      ctx.stroke();
+      ctx.strokeStyle = '#fef08a';
+      ctx.lineWidth = 3.5;
+      ctx.stroke();
+    }
+    ctx.translate(h.x, h.y);
+    ctx.rotate(h.orbitAngle);
+    const hr = h.hitRadius || 30;
+    // Glowing Venus ring + upward upgrade arrow
+    ctx.strokeStyle = '#f472b6';
+    ctx.lineWidth = 8;
+    ctx.beginPath();
+    ctx.arc(0, 0, hr * 0.66, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.strokeStyle = '#fef08a';
+    ctx.lineWidth = 3.5;
+    ctx.stroke();
+    // Upward upgrade arrow tip pointing outward
+    ctx.fillStyle = '#fef08a';
+    ctx.strokeStyle = '#db2777';
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.moveTo(hr * 1.18, 0);
+    ctx.lineTo(hr * 0.62, -hr * 0.42);
+    ctx.lineTo(hr * 0.62, hr * 0.42);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+  } else if (h.kind === 'dondurma_paddle') {
+    const parent = sim && sim.balls.find((b) => b.id === h.parentId);
+    if (parent) {
+      ctx.strokeStyle = '#94a3b8';
+      ctx.lineWidth = 7;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(parent.x, parent.y);
+      ctx.lineTo(h.x, h.y);
+      ctx.stroke();
+    }
+    ctx.translate(h.x, h.y);
+    ctx.rotate(h.orbitAngle);
+    const hr = h.hitRadius || 24;
+    // Waffle cone + pink/vanilla Maraş dondurma scoop
+    ctx.fillStyle = '#d97706';
+    ctx.beginPath();
+    ctx.moveTo(-hr * 0.55, 0);
+    ctx.lineTo(hr * 0.15, -hr * 0.44);
+    ctx.lineTo(hr * 0.15, hr * 0.44);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = '#fbcfe8';
+    ctx.strokeStyle = '#be123c';
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.arc(hr * 0.35, 0, hr * 0.48, 0, Math.PI * 2);
     ctx.fill();
     ctx.stroke();
   } else if (h.kind === 'spear') {

@@ -1,6 +1,6 @@
 # Ball VS Ball — Web Arena Edition
 
-A 1v1 & 2v2 physics arena auto-battler web version inspired by Roblox **Ball VS Ball** (ATYS 3) and viral physics reels, featuring **120 unlocked iconic & meme contenders** (including **Hydrogen Bomb Ball**, **Coughing Baby Ball**, **Piñata Ball**, **Claude Ball**, **Hypergamy Ball**, **Iron Dome Ball**, **Nokia 3310 Ball**, **Impostor Ball**, **Florida Man Ball**, **Brainrot Ball**, **Verity Ball**, **Duplicator Ball**, **Omega Ball**, and more).
+A 1v1 & 2v2 physics arena auto-battler web version inspired by Roblox **Ball VS Ball** (ATYS 3) and viral physics reels, featuring **120 unlocked iconic & meme contenders** (including **Hydrogen Bomb Ball**, **Coughing Baby Ball**, **Piñata Ball**, **Claude Ball**, **ChatGPT Ball**, **Hypergamy Ball**, **Israel Ball**, **Dondurma Ball**, **Doner Kebab Ball**, **Aura Ball**, **Blue Screen Ball**, **Nokia 3310 Ball**, **Impostor Ball**, **Brainrot Ball**, **Verity Ball**, **Duplicator Ball**, **Omega Ball**, and more).
 
 ## Features
 

@@ -33,13 +33,11 @@ export function drawMemeBallPattern(ctx, def, x, y, r, opts = {}) {
       ctx.arc(x - r * 0.24, y - r * 0.14, r * 0.11, 0, Math.PI * 2);
       ctx.arc(x + r * 0.24, y - r * 0.14, r * 0.11, 0, Math.PI * 2);
       ctx.fill();
-      // Tears
       ctx.fillStyle = '#38bdf8';
       ctx.beginPath();
       ctx.arc(x - r * 0.28, y + r * 0.04, r * 0.07, 0, Math.PI * 2);
       ctx.arc(x + r * 0.28, y + r * 0.04, r * 0.07, 0, Math.PI * 2);
       ctx.fill();
-      // Open coughing mouth + green puffs
       ctx.fillStyle = '#991b1b';
       ctx.beginPath();
       ctx.arc(x, y + r * 0.22, r * 0.16, 0, Math.PI * 2);
@@ -94,57 +92,53 @@ export function drawMemeBallPattern(ctx, def, x, y, r, opts = {}) {
     }
 
     case 'hypergamy': {
-      // Golden crown + pink upward tier arrow
-      ctx.fillStyle = '#fef08a';
+      // Crisp Venus + Upward Arrow Hypergamy Symbol (♀↑)
+      ctx.strokeStyle = '#fef08a';
+      ctx.lineWidth = Math.max(2.6, r * 0.1);
+      ctx.lineCap = 'round';
       ctx.beginPath();
-      ctx.moveTo(x - r * 0.42, y + r * 0.08);
-      ctx.lineTo(x - r * 0.36, y - r * 0.34);
-      ctx.lineTo(x - r * 0.12, y - r * 0.12);
-      ctx.lineTo(x, y - r * 0.44);
-      ctx.lineTo(x + r * 0.12, y - r * 0.12);
-      ctx.lineTo(x + r * 0.36, y - r * 0.34);
-      ctx.lineTo(x + r * 0.42, y + r * 0.08);
-      ctx.closePath();
-      ctx.fill();
-      ctx.strokeStyle = '#fdf2f8';
-      ctx.lineWidth = Math.max(2.5, r * 0.09);
-      ctx.beginPath();
-      ctx.moveTo(x - r * 0.25, y + r * 0.42);
-      ctx.lineTo(x + r * 0.25, y + r * 0.16);
+      ctx.arc(x - r * 0.08, y - r * 0.12, r * 0.26, 0, Math.PI * 2);
+      ctx.moveTo(x - r * 0.08, y + r * 0.14);
+      ctx.lineTo(x - r * 0.08, y + r * 0.52);
+      ctx.moveTo(x - r * 0.26, y + r * 0.34);
+      ctx.lineTo(x + r * 0.1, y + r * 0.34);
+      // Upward arrow on top-right
+      ctx.moveTo(x + r * 0.12, y - r * 0.28);
+      ctx.lineTo(x + r * 0.42, y - r * 0.52);
+      ctx.moveTo(x + r * 0.22, y - r * 0.52);
+      ctx.lineTo(x + r * 0.42, y - r * 0.52);
+      ctx.lineTo(x + r * 0.42, y - r * 0.32);
       ctx.stroke();
       break;
     }
 
-    case 'irondome': {
-      // Crisp blue/white radar dome + hexagram star radar reticle
+    case 'israel': {
+      // Crisp blue/white Star of David + flag stripes
       ctx.strokeStyle = '#1d4ed8';
       ctx.lineWidth = Math.max(2.2, r * 0.08);
-      // Upward triangle
       ctx.beginPath();
       for (let i = 0; i < 3; i++) {
         const a = -Math.PI / 2 + (i * Math.PI * 2) / 3;
-        const px = x + Math.cos(a) * r * 0.52;
-        const py = y + Math.sin(a) * r * 0.52;
+        const px = x + Math.cos(a) * r * 0.46;
+        const py = y + Math.sin(a) * r * 0.46;
         if (i === 0) ctx.moveTo(px, py);
         else ctx.lineTo(px, py);
       }
       ctx.closePath();
       ctx.stroke();
-      // Downward triangle
       ctx.beginPath();
       for (let i = 0; i < 3; i++) {
         const a = Math.PI / 2 + (i * Math.PI * 2) / 3;
-        const px = x + Math.cos(a) * r * 0.52;
-        const py = y + Math.sin(a) * r * 0.52;
+        const px = x + Math.cos(a) * r * 0.46;
+        const py = y + Math.sin(a) * r * 0.46;
         if (i === 0) ctx.moveTo(px, py);
         else ctx.lineTo(px, py);
       }
       ctx.closePath();
       ctx.stroke();
-      // Top & bottom radar bars
       ctx.fillStyle = '#1d4ed8';
-      ctx.fillRect(x - r * 0.6, y - r * 0.62, r * 1.2, r * 0.1);
-      ctx.fillRect(x - r * 0.6, y + r * 0.52, r * 1.2, r * 0.1);
+      ctx.fillRect(x - r * 0.62, y - r * 0.62, r * 1.24, r * 0.11);
+      ctx.fillRect(x - r * 0.62, y + r * 0.51, r * 1.24, r * 0.11);
       break;
     }
 
@@ -169,7 +163,7 @@ export function drawMemeBallPattern(ctx, def, x, y, r, opts = {}) {
     }
 
     case 'lagswitch': {
-      // Red Wi-Fi signal arcs + "999" ping badge
+      // Red Wi-Fi signal arcs + "999ms" ping badge
       ctx.strokeStyle = '#ef4444';
       ctx.lineWidth = Math.max(2.2, r * 0.08);
       for (const rr of [0.24, 0.44, 0.62]) {
@@ -186,7 +180,7 @@ export function drawMemeBallPattern(ctx, def, x, y, r, opts = {}) {
     }
 
     case 'impostor': {
-      // Iconic glossy cyan Crewmate/Impostor visor + sneaky brow
+      // Iconic glossy cyan Crewmate/Impostor visor
       ctx.fillStyle = '#7dd3fc';
       ctx.strokeStyle = '#0f172a';
       ctx.lineWidth = Math.max(2, r * 0.08);
@@ -194,7 +188,6 @@ export function drawMemeBallPattern(ctx, def, x, y, r, opts = {}) {
       ctx.roundRect(x - r * 0.22, y - r * 0.28, r * 0.66, r * 0.4, r * 0.18);
       ctx.fill();
       ctx.stroke();
-      // Visor shine
       ctx.fillStyle = '#ffffff';
       ctx.beginPath();
       ctx.ellipse(x + r * 0.16, y - r * 0.16, r * 0.14, r * 0.07, -0.2, 0, Math.PI * 2);
@@ -217,61 +210,61 @@ export function drawMemeBallPattern(ctx, def, x, y, r, opts = {}) {
       break;
     }
 
-    case 'rickroll': {
-      // Musical eighth note beamed symbol
-      ctx.fillStyle = '#fde047';
-      ctx.strokeStyle = '#fde047';
+    case 'chatgpt': {
+      // 6-petal OpenAI / ChatGPT hexagonal knot emblem
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = Math.max(2.2, r * 0.085);
+      for (let i = 0; i < 6; i++) {
+        const a = (i * Math.PI) / 3;
+        ctx.beginPath();
+        ctx.arc(
+          x + Math.cos(a) * r * 0.22,
+          y + Math.sin(a) * r * 0.22,
+          r * 0.26,
+          a - 0.5,
+          a + Math.PI * 0.85
+        );
+        ctx.stroke();
+      }
+      break;
+    }
+
+    case 'dondurma': {
+      // Turkish ice cream cone + vendor fez/vest gold trim
+      ctx.fillStyle = '#fde68a';
+      ctx.beginPath();
+      ctx.moveTo(x, y + r * 0.52);
+      ctx.lineTo(x - r * 0.26, y + r * 0.02);
+      ctx.lineTo(x + r * 0.26, y + r * 0.02);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = '#fbcfe8';
+      ctx.beginPath();
+      ctx.arc(x, y - r * 0.12, r * 0.28, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#fef3c7';
+      ctx.beginPath();
+      ctx.arc(x, y - r * 0.34, r * 0.18, 0, Math.PI * 2);
+      ctx.fill();
+      break;
+    }
+
+    case 'kebab': {
+      // Vertical Doner Kebab spit + sizzling meat layers
+      ctx.strokeStyle = '#e2e8f0';
       ctx.lineWidth = Math.max(2.5, r * 0.1);
       ctx.beginPath();
-      ctx.arc(x - r * 0.22, y + r * 0.24, r * 0.14, 0, Math.PI * 2);
-      ctx.arc(x + r * 0.22, y + r * 0.14, r * 0.14, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.beginPath();
-      ctx.moveTo(x - r * 0.1, y + r * 0.24);
-      ctx.lineTo(x - r * 0.1, y - r * 0.34);
-      ctx.lineTo(x + r * 0.34, y - r * 0.44);
-      ctx.lineTo(x + r * 0.34, y + r * 0.14);
+      ctx.moveTo(x, y - r * 0.65);
+      ctx.lineTo(x, y + r * 0.65);
       ctx.stroke();
-      break;
-    }
-
-    case 'stonks': {
-      // Rising zigzag stock chart arrow
-      ctx.strokeStyle = '#4ade80';
-      ctx.lineWidth = Math.max(2.8, r * 0.11);
-      ctx.lineCap = 'round';
-      ctx.lineJoin = 'round';
-      ctx.beginPath();
-      ctx.moveTo(x - r * 0.52, y + r * 0.36);
-      ctx.lineTo(x - r * 0.18, y + r * 0.06);
-      ctx.lineTo(x + r * 0.06, y + r * 0.22);
-      ctx.lineTo(x + r * 0.48, y - r * 0.38);
-      ctx.stroke();
-      // Arrow head
-      ctx.fillStyle = '#4ade80';
-      ctx.beginPath();
-      ctx.moveTo(x + r * 0.54, y - r * 0.44);
-      ctx.lineTo(x + r * 0.22, y - r * 0.38);
-      ctx.lineTo(x + r * 0.48, y - r * 0.12);
-      ctx.closePath();
-      ctx.fill();
-      break;
-    }
-
-    case 'karen': {
-      // Iconic blonde bob swoop + angry eyes + megaphone exclamation
-      ctx.fillStyle = '#fef08a';
-      ctx.beginPath();
-      ctx.arc(x, y - r * 0.16, r * 0.55, Math.PI, Math.PI * 2);
-      ctx.lineTo(x + r * 0.45, y + r * 0.12);
-      ctx.lineTo(x - r * 0.45, y + r * 0.12);
-      ctx.closePath();
-      ctx.fill();
-      ctx.fillStyle = '#0f172a';
-      ctx.font = `900 ${Math.max(10, Math.round(r * 0.46))}px system-ui, sans-serif`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText('?!', x, y + r * 0.24);
+      const widths = [0.46, 0.54, 0.42, 0.3];
+      for (let i = 0; i < 4; i++) {
+        const yy = y - r * 0.34 + i * r * 0.22;
+        ctx.fillStyle = i % 2 === 0 ? '#f97316' : '#fde047';
+        ctx.beginPath();
+        ctx.roundRect(x - r * widths[i], yy - r * 0.08, r * widths[i] * 2, r * 0.15, 6);
+        ctx.fill();
+      }
       break;
     }
 
@@ -291,7 +284,7 @@ export function drawMemeBallPattern(ctx, def, x, y, r, opts = {}) {
     }
 
     case 'sigma': {
-      // Crisp white Greek Sigma Σ + cool dark shades bar
+      // Crisp white Greek Sigma Σ
       ctx.fillStyle = '#f8fafc';
       ctx.font = `900 ${Math.max(11, Math.round(r * 0.64))}px Georgia, serif`;
       ctx.textAlign = 'center';
@@ -319,7 +312,7 @@ export function drawMemeBallPattern(ctx, def, x, y, r, opts = {}) {
     }
 
     case 'rizz': {
-      // Glowing heart-shaped shades / heart emblem
+      // Glowing heart emblem
       ctx.fillStyle = '#fdf2f8';
       ctx.beginPath();
       ctx.moveTo(x, y + r * 0.42);
@@ -329,39 +322,41 @@ export function drawMemeBallPattern(ctx, def, x, y, r, opts = {}) {
       break;
     }
 
-    case 'floridaman': {
-      // Gator eyes + jagged teeth grin
-      ctx.fillStyle = '#fef08a';
+    case 'aura': {
+      // Radiant golden Aura flame star + "+∞" badge
+      ctx.strokeStyle = '#fef08a';
+      ctx.lineWidth = Math.max(2.2, r * 0.08);
       ctx.beginPath();
-      ctx.arc(x - r * 0.24, y - r * 0.22, r * 0.13, 0, Math.PI * 2);
-      ctx.arc(x + r * 0.24, y - r * 0.22, r * 0.13, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = '#0f172a';
-      ctx.fillRect(x - r * 0.26, y - r * 0.3, r * 0.05, r * 0.16);
-      ctx.fillRect(x + r * 0.22, y - r * 0.3, r * 0.05, r * 0.16);
-      ctx.strokeStyle = '#ffffff';
-      ctx.lineWidth = Math.max(2, r * 0.08);
-      ctx.beginPath();
-      ctx.moveTo(x - r * 0.46, y + r * 0.2);
-      for (let i = 0; i < 6; i++) {
-        ctx.lineTo(x - r * 0.38 + i * r * 0.15, y + (i % 2 === 0 ? r * 0.34 : r * 0.14));
+      for (let i = 0; i < 8; i++) {
+        const a = (i * Math.PI) / 4;
+        const rad = i % 2 === 0 ? r * 0.62 : r * 0.34;
+        const px = x + Math.cos(a) * rad;
+        const py = y + Math.sin(a) * rad;
+        if (i === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
       }
+      ctx.closePath();
       ctx.stroke();
+      ctx.fillStyle = '#ffffff';
+      ctx.font = `900 ${Math.max(9, Math.round(r * 0.34))}px system-ui, sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('AURA', x, y + 1);
       break;
     }
 
-    case 'taxman': {
-      // Golden IRS dollar crest
-      ctx.fillStyle = '#fbbf24';
-      ctx.font = `900 ${Math.max(11, Math.round(r * 0.58))}px system-ui, sans-serif`;
+    case 'bsod': {
+      // Classic Windows Blue Screen ":(" sad face
+      ctx.fillStyle = '#ffffff';
+      ctx.font = `900 ${Math.max(12, Math.round(r * 0.62))}px monospace`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText('$$', x, y + 2);
+      ctx.fillText(':(', x, y + 1);
       break;
     }
 
     case 'brainrot': {
-      // Chaotic neon "67" + glitch eyes
+      // Chaotic neon "67"
       ctx.fillStyle = '#22d3ee';
       ctx.font = `900 ${Math.max(11, Math.round(r * 0.52))}px system-ui, sans-serif`;
       ctx.textAlign = 'center';

@@ -954,7 +954,13 @@ export class ArenaSimulation {
           h.x = parent.x + Math.cos(h.orbitAngle) * h.orbitRadius;
           h.y = parent.y + Math.sin(h.orbitAngle) * h.orbitRadius;
 
-          const hasShaft = h.kind === 'axe' || h.kind === 'spear' || h.kind === 'hammer' || h.kind === 'knight_lance';
+          const hasShaft =
+            h.kind === 'axe' ||
+            h.kind === 'spear' ||
+            h.kind === 'hammer' ||
+            h.kind === 'knight_lance' ||
+            h.kind === 'hypergamy_symbol' ||
+            h.kind === 'dondurma_paddle';
           const sx = hasShaft ? parent.x + Math.cos(h.orbitAngle) * (h.orbitRadius * 0.68) : h.x;
           const sy = hasShaft ? parent.y + Math.sin(h.orbitAngle) * (h.orbitRadius * 0.68) : h.y;
 
@@ -973,6 +979,16 @@ export class ArenaSimulation {
                 hitDmg += Math.max(0, (sp - 260) * h.speedDmgFactor);
               }
               this.dealDamage(enemy, hitDmg, h.owner, 'orbit');
+              if (h.kind === 'hypergamy_symbol' && parent) {
+                this.healBall(parent, 2);
+                h.upgrades = Math.min(6, (h.upgrades || 0) + 1);
+                h.dmg = 9 + h.upgrades * 1.1;
+                h.angularSpeed = 4.2 + h.upgrades * 0.45;
+                h.orbitRadius = Math.min(198, 162 + h.upgrades * 6);
+                this.emitText(enemy.x, enemy.y - enemy.radius - 12, 'UPGRADED! ♀↑', '#f472b6');
+              } else if (h.kind === 'dondurma_paddle') {
+                this.applyChill(enemy, 1, h.owner);
+              }
               if (h.stunDuration) {
                 enemy.stunTimer = Math.max(enemy.stunTimer, h.stunDuration);
                 this.emitText(enemy.x, enemy.y - enemy.radius - 10, 'STUN!', '#facc15');
