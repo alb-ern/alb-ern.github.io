@@ -1,47 +1,64 @@
-# Alperen Akkan
-Computer Engineering @ İTÜ
-
-[GitHub](https://github.com/alb-ern) | [LinkedIn](https://linkedin.com/in/alperen-akkan) | [Email](mailto:akkan23@itu.edu.tr)
-
 <style>
+body {
+  padding-top: 68px !important;
+}
 .subtab-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 9999;
   display: flex;
-  gap: 6px;
-  border-bottom: 2px solid #e5e7eb;
-  margin: 16px 0 22px 0;
-  padding-bottom: 0;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 48px;
+  padding: 0 24px;
+  background: #171a21;
+  border-bottom: 1px solid #2a475e;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.22);
 }
 .subtab-btn {
   appearance: none;
   background: transparent;
   border: none;
   border-bottom: 3px solid transparent;
-  margin-bottom: -2px;
-  padding: 8px 16px;
+  height: 48px;
+  padding: 0 18px;
   font-family: inherit;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 700;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: #6b7280;
+  color: #c7d5e0;
   cursor: pointer;
   transition: color 0.15s ease, border-color 0.15s ease, background-color 0.15s ease;
-  border-radius: 6px 6px 0 0;
 }
 .subtab-btn:hover {
-  color: #111827;
-  background: #f3f4f6;
+  color: #ffffff;
+  background: rgba(102, 192, 244, 0.12);
 }
 .subtab-btn.is-active {
-  color: #267CB9;
-  border-bottom-color: #267CB9;
-  background: rgba(38, 124, 185, 0.07);
+  color: #66c0f4;
+  border-bottom-color: #66c0f4;
+  background: rgba(102, 192, 244, 0.16);
 }
 .subtab-pane {
   display: none;
 }
 .subtab-pane.is-active {
   display: block;
+}
+/* When Hobby Projects tab is active, hide the Jekyll theme header/footer (name & sidebar) completely */
+body.is-hobby-tab .wrapper > header,
+body.is-hobby-tab .wrapper > footer {
+  display: none !important;
+}
+body.is-hobby-tab .wrapper > section {
+  float: none !important;
+  width: 100% !important;
+  max-width: 720px !important;
+  margin: 0 auto !important;
 }
 </style>
 
@@ -51,6 +68,13 @@ Computer Engineering @ İTÜ
 </nav>
 
 <div id="tab-main" class="subtab-pane is-active" markdown="1">
+
+# Alperen Akkan
+Computer Engineering @ İTÜ
+
+[GitHub](https://github.com/alb-ern) | [LinkedIn](https://linkedin.com/in/alperen-akkan) | [Email](mailto:akkan23@itu.edu.tr)
+
+---
 
 ## Education
 **Istanbul Technical University (İTÜ)**
@@ -102,6 +126,7 @@ Bachelor of Science in Computer Engineering
 <script>
 function switchSiteTab(tab) {
   var isHobby = tab === 'hobby';
+  document.body.classList.toggle('is-hobby-tab', isHobby);
   document.getElementById('tab-main').classList.toggle('is-active', !isHobby);
   document.getElementById('tab-hobby').classList.toggle('is-active', isHobby);
   var btnMain = document.getElementById('tabbtn-main');
