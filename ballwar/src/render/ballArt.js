@@ -729,15 +729,66 @@ export function drawBallBody(ctx, ballOrDef, x, y, radius, opts = {}) {
     ctx.setLineDash([]);
   }
 
+  // Per-Ball Mastery Prestige Cosmetics (Lv 1..5 — strictly cosmetic)
+  const mLv = opts.masteryLevel || 0;
+  if (mLv >= 1) {
+    const ringColors = ['', '#d97706', '#e2e8f0', '#facc15', '#e879f9', '#2dd4bf'];
+    ctx.save();
+    ctx.strokeStyle = ringColors[Math.min(5, mLv)];
+    ctx.lineWidth = mLv >= 4 ? 3 : 2;
+    if (mLv >= 4) {
+      ctx.shadowColor = ringColors[Math.min(5, mLv)];
+      ctx.shadowBlur = mLv === 5 ? 12 : 8;
+    }
+    ctx.beginPath();
+    ctx.arc(x, y, radius + Math.max(2, radius * 0.05), 0, Math.PI * 2);
+    ctx.stroke();
+
+    // Lv 5 rotating Cosmic Omega starlight motes
+    if (mLv >= 5) {
+      for (let i = 0; i < 4; i++) {
+        const a = time * 2.2 + (i * Math.PI) / 2;
+        const sx = x + Math.cos(a) * (radius + 9);
+        const sy = y + Math.sin(a) * (radius + 9);
+        ctx.fillStyle = i % 2 === 0 ? '#fef08a' : '#2dd4bf';
+        ctx.beginPath();
+        ctx.arc(sx, sy, Math.max(2, radius * 0.07), 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    // Lv 3+ floating mini crown above ball
+    if (mLv >= 3) {
+      const cw = Math.max(12, radius * 0.44);
+      const ch = Math.max(7, radius * 0.24);
+      const cy = y - radius - Math.max(5, radius * 0.14);
+      ctx.fillStyle = mLv === 5 ? '#2dd4bf' : mLv === 4 ? '#f0abfc' : '#facc15';
+      ctx.strokeStyle = '#0f172a';
+      ctx.lineWidth = 1.6;
+      ctx.beginPath();
+      ctx.moveTo(x - cw * 0.5, cy);
+      ctx.lineTo(x - cw * 0.5, cy - ch * 0.85);
+      ctx.lineTo(x - cw * 0.18, cy - ch * 0.35);
+      ctx.lineTo(x, cy - ch);
+      ctx.lineTo(x + cw * 0.18, cy - ch * 0.35);
+      ctx.lineTo(x + cw * 0.5, cy - ch * 0.85);
+      ctx.lineTo(x + cw * 0.5, cy);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
   ctx.restore();
 }
 
-export function renderBallPreview(canvas, ballDef) {
+export function renderBallPreview(canvas, ballDef, opts = {}) {
   if (!canvas) return;
   const ctx = canvas.getContext('2d');
   const w = canvas.width;
   const h = canvas.height;
   ctx.clearRect(0, 0, w, h);
-  const r = Math.min(w, h) * 0.38;
-  drawBallBody(ctx, ballDef, w * 0.5, h * 0.5, r, { time: 0.4 });
+  const r = Math.min(w, h) * 0.35;
+  drawBallBody(ctx, ballDef, w * 0.5, h * 0.54, r, { time: 0.4, ...opts });
 }

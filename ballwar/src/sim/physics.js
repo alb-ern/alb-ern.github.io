@@ -18,6 +18,16 @@ import {
 import { getBallDef } from './balls.js';
 import { ABILITY_HANDLERS } from './abilities.js';
 import { getBallTuning } from './balanceTuning.js';
+import {
+  applyRelicsOnBallHit,
+  applyRelicsOnBeforeDeath,
+  applyRelicsOnDamagePrevent,
+  applyRelicsOnInit,
+  applyRelicsOnTakeDamage,
+  applyRelicsOnUpdate,
+  applyRelicsOnWallHit,
+  getRelicDmgMult,
+} from './gauntlet.js';
 
 export function createSeededRng(seed = Date.now()) {
   let s = seed >>> 0 || 123456789;
@@ -65,6 +75,8 @@ export class ArenaSimulation {
     this.aimAngles = { 1: 0, 2: Math.PI };
     this._actingBallId = null;
     this._actingEntityId = null;
+    this.runRelics = Array.isArray(options.runRelics) ? [...options.runRelics] : [];
+    this.bossHpScale = options.bossHpScale ?? 1;
 
     this.resetRoundEntities();
   }
@@ -92,6 +104,7 @@ export class ArenaSimulation {
     this.shakeIntensity = 0;
     this._actingBallId = null;
     this._actingEntityId = null;
+    this.roundStats = { dmgDealt: { 1: 0, 2: 0 }, wallHits: { 1: 0, 2: 0 } };
   }
 
   startMatch(options = {}) {
@@ -100,6 +113,9 @@ export class ArenaSimulation {
     if (options.hearts != null) this.heartsToWin = options.hearts;
     if (options.suddenDeathStart != null) this.suddenDeathStart = options.suddenDeathStart;
     if (options.speedMultiplier != null) this.speedMultiplier = options.speedMultiplier;
+    this.runRelics =
+      this.mode === MODES.GAUNTLET && Array.isArray(options.runRelics) ? [...options.runRelics] : [];
+    this.bossHpScale = this.mode === MODES.GAUNTLET && options.bossHpScale != null ? options.bossHpScale : 1;
 
     this.roundNumber = 1;
     this.hearts = { 1: this.heartsToWin, 2: this.heartsToWin };
@@ -161,9 +177,15 @@ export class ArenaSimulation {
   }) {
     const tuning = getBallTuning(def.id);
     const speed = speedOverride ?? def.speed;
-    const hp =
+    const baseHp =
       hpOverride ??
-      (['cell', 'berserker', 'micro'].includes(def.id) ? def.hp : Math.max(10, Math.round(def.hp * tuning.hpMult)));
+      (['cell', 'berserker', 'micro', 'coughingbaby'].includes(def.id)
+        ? def.hp
+        : Math.max(10, Math.round(def.hp * tuning.hpMult)));
+    const hp =
+      this.mode === MODES.GAUNTLET && owner === 2 && !isSplitChild && this.bossHpScale !== 1
+        ? Math.max(15, Math.round(baseHp * this.bossHpScale))
+        : baseHp;
     return {
       id: this.nextEntityId++,
       owner,
@@ -258,6 +280,9 @@ export class ArenaSimulation {
           this._actingBallId = null;
           this._actingEntityId = null;
         }
+      }
+      if (this.mode === MODES.GAUNTLET && this.runRelics.length > 0 && ball.owner === 1) {
+        applyRelicsOnInit(this, ball, this.runRelics);
       }
     }
     this.phase = PHASES.FIGHT;
@@ -425,10 +450,17 @@ export class ArenaSimulation {
         const dmgMult = getBallTuning(resolvedBallId).dmgMult;
         amount *= resolvedBallId === 'vampire' ? Math.max(1, dmgMult) : dmgMult;
       }
+      if (this.mode === MODES.GAUNTLET && sourceOwner === 1 && this.runRelics.length > 0) {
+        amount *= getRelicDmgMult(this.runRelics);
+      }
     }
     const targetHandler = ABILITY_HANDLERS[target.ballId];
     if (targetHandler && targetHandler.onDamagePrevent) {
       amount = targetHandler.onDamagePrevent(this, target, amount, sourceOwner, reason);
+      if (!(amount > 0)) return 0;
+    }
+    if (this.mode === MODES.GAUNTLET && target.owner === 1 && this.runRelics.length > 0) {
+      amount = applyRelicsOnDamagePrevent(this, target, amount);
       if (!(amount > 0)) return 0;
     }
 
@@ -436,6 +468,9 @@ export class ArenaSimulation {
     const dmg = Math.max(1, Math.round(total));
     target._dmgCarry = Math.max(-0.5, Math.min(0.5, total - dmg));
     target.hp = Math.max(0, target.hp - dmg);
+    if ((sourceOwner === 1 || sourceOwner === 2) && target.owner !== sourceOwner && this.roundStats) {
+      this.roundStats.dmgDealt[sourceOwner] += dmg;
+    }
     target.flashTimer = 0.12;
     this.emitText(
       target.x + (this.rng() - 0.5) * 18,
@@ -457,8 +492,19 @@ export class ArenaSimulation {
       if (target.hp > 0 && targetHandler && targetHandler.onTakeDamage) {
         targetHandler.onTakeDamage(this, target, dmg, sourceOwner);
       }
+      if (target.hp > 0 && this.mode === MODES.GAUNTLET && target.owner === 1 && this.runRelics.length > 0) {
+        applyRelicsOnTakeDamage(this, target, dmg, sourceOwner, this.runRelics, reason);
+      }
       if (target.hp <= 0 && !target._deathHandled) {
         if (targetHandler && targetHandler.onBeforeDeath && targetHandler.onBeforeDeath(this, target)) {
+          return dmg;
+        }
+        if (
+          this.mode === MODES.GAUNTLET &&
+          target.owner === 1 &&
+          this.runRelics.length > 0 &&
+          applyRelicsOnBeforeDeath(this, target)
+        ) {
           return dmg;
         }
         target._deathHandled = true;
@@ -564,6 +610,9 @@ export class ArenaSimulation {
           this._actingBallId = null;
           this._actingEntityId = null;
         }
+      }
+      if (this.mode === MODES.GAUNTLET && this.runRelics.length > 0 && ball.owner === 1) {
+        applyRelicsOnUpdate(this, ball, simDt, this.runRelics);
       }
     }
 
@@ -762,6 +811,9 @@ export class ArenaSimulation {
         this.emitText(ball.x, ball.y - ball.radius - 10, 'SLAM!', '#38bdf8');
       }
 
+      if (this.roundStats && (ball.owner === 1 || ball.owner === 2)) {
+        this.roundStats.wallHits[ball.owner] += 1;
+      }
       this.emitEvent('wall', { owner: ball.owner });
       this.addParticleBurst(wallHit.x, wallHit.y, '#e2e8f0', 4);
       const handler = ABILITY_HANDLERS[ball.ballId];
@@ -774,6 +826,9 @@ export class ArenaSimulation {
           this._actingBallId = null;
           this._actingEntityId = null;
         }
+      }
+      if (this.mode === MODES.GAUNTLET && this.runRelics.length > 0 && ball.owner === 1) {
+        applyRelicsOnWallHit(this, ball, this.runRelics);
       }
     }
   }
@@ -864,6 +919,10 @@ export class ArenaSimulation {
               this._actingBallId = null;
               this._actingEntityId = null;
             }
+          }
+          if (this.mode === MODES.GAUNTLET && this.runRelics.length > 0 && a.hp > 0 && b.hp > 0) {
+            if (a.owner === 1) applyRelicsOnBallHit(this, a, b, this.runRelics);
+            else if (b.owner === 1) applyRelicsOnBallHit(this, b, a, this.runRelics);
           }
         }
       }

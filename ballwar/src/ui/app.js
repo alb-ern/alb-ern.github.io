@@ -16,11 +16,46 @@ import { renderArena } from '../render/arenaRenderer.js';
 import { soundEngine } from '../audio/soundEngine.js';
 import { P2PRoomClient, sanitizeRoomCode } from '../net/p2p.js';
 import { applySnapshot, encodeSnapshot, stepMirrorVisuals } from '../net/protocol.js';
+import {
+  ARENA_THEMES,
+  BALL_TRAILS,
+  claimBounty,
+  equipCosmetic,
+  exportProfileCode,
+  getBallMasteryInfo,
+  getBallMasteryLevelMap,
+  getBountyDef,
+  getClaimableBountyCount,
+  getPlayerLevelInfo,
+  getRankInfo,
+  importProfileCode,
+  loadProfile,
+  recordCombatProgress,
+  saveProfile,
+  unlockCosmetic,
+} from '../sim/progression.js';
+import {
+  drawRelicChoices,
+  GAUNTLET_FLOORS,
+  getGauntletFloor,
+  getRelicDef,
+  getRelicRewardMult,
+} from '../sim/gauntlet.js';
 
 const $ = (id) => document.getElementById(id);
 
 const sim = new ArenaSimulation();
 const p2p = new P2PRoomClient();
+let profile = loadProfile();
+
+const gauntletRun = {
+  active: false,
+  floor: 1,
+  hearts: 3,
+  relics: [],
+  pendingRelicChoices: [],
+  floorWon: false,
+};
 
 const online = {
   active: false,
@@ -74,6 +109,7 @@ const ui = {
   sandboxSearch: { 1: '', 2: '' },
   dexRarity: 'ALL',
   dexQuery: '',
+  profileTab: 'overview',
   pendingShieldCallback: null,
 };
 
@@ -179,6 +215,7 @@ function resetOnlineState() {
 
 function init() {
   setTeamFormat(1);
+  refreshProfileChrome();
   renderLobbyShowcases();
   renderSandboxGrids();
   updateSandboxPreviews();
@@ -197,8 +234,12 @@ function init() {
 }
 
 function renderLobbyShowcases() {
-  renderBallPreview($('showcase-verity'), getBallDef('verity'));
-  renderBallPreview($('showcase-spider'), getBallDef('spider'));
+  renderBallPreview($('showcase-verity'), getBallDef('verity'), {
+    masteryLevel: getBallMasteryInfo(profile, 'verity').level,
+  });
+  renderBallPreview($('showcase-spider'), getBallDef('spider'), {
+    masteryLevel: getBallMasteryInfo(profile, 'spider').level,
+  });
 }
 
 function showView(name) {
@@ -214,6 +255,9 @@ function showView(name) {
     p2p.close();
     resetOnlineState();
     setQuickmatchSearching(false);
+    gauntletRun.active = false;
+    $('gauntlet-hud-bar')?.classList.add('hidden');
+    $('modal-relic')?.classList.add('hidden');
     $('online-room-box').classList.add('hidden');
     $('online-seat-roster')?.classList.add('hidden');
     $('online-guest-roster')?.classList.add('hidden');
@@ -229,6 +273,8 @@ function showView(name) {
     sim.phase = PHASES.LOBBY;
     sim.setTeamSize(ui.teamSize);
     $('view-arena').classList.toggle('is-2v2', ui.teamSize === 2);
+    refreshProfileChrome();
+    renderLobbyShowcases();
   }
 }
 
@@ -477,7 +523,122 @@ function runSandboxBatchSim(runs = 10) {
 }
 
 /* ==================== DRAFT FLOW ==================== */
+function updateGauntletHud() {
+  const bar = $('gauntlet-hud-bar');
+  if (!bar) return;
+  if (!gauntletRun.active || sim.mode !== MODES.GAUNTLET) {
+    bar.classList.add('hidden');
+    return;
+  }
+  const f = getGauntletFloor(gauntletRun.floor);
+  bar.classList.remove('hidden');
+  $('gauntlet-floor-badge').textContent = `FLOOR ${f.floor} / ${GAUNTLET_FLOORS.length}${f.isBoss ? ' • BOSS' : ''}`;
+  $('gauntlet-floor-title').textContent = f.title;
+  $('gauntlet-floor-sub').textContent = f.subtitle;
+
+  const row = $('gauntlet-relics-row');
+  row.innerHTML = '';
+  if (gauntletRun.relics.length === 0) {
+    const empty = document.createElement('span');
+    empty.className = 'muted';
+    empty.style.fontSize = '0.74rem';
+    empty.textContent = 'Clear Floor 1 to draft your first Run Relic!';
+    row.appendChild(empty);
+  } else {
+    for (const rid of gauntletRun.relics) {
+      const r = getRelicDef(rid);
+      const pill = document.createElement('span');
+      pill.className = 'relic-pill';
+      pill.title = r.desc;
+      pill.textContent = `${r.icon} ${r.name}`;
+      row.appendChild(pill);
+    }
+  }
+}
+
+function startGauntletRun() {
+  gauntletRun.active = true;
+  gauntletRun.floor = 1;
+  gauntletRun.hearts = 3;
+  gauntletRun.relics = [];
+  gauntletRun.pendingRelicChoices = [];
+  gauntletRun.floorWon = false;
+  startGauntletFloor(1);
+}
+
+function startGauntletFloor(floorNum) {
+  gauntletRun.active = true;
+  gauntletRun.floor = floorNum;
+  gauntletRun.floorWon = false;
+  const f = getGauntletFloor(floorNum);
+  setTeamFormat(f.teamSize);
+  sim.startMatch({
+    mode: MODES.GAUNTLET,
+    teamSize: f.teamSize,
+    hearts: 1,
+    suddenDeathStart: SUDDEN_DEATH_START_SEC,
+    runRelics: [...gauntletRun.relics],
+    bossHpScale: f.bossHpScale,
+  });
+  sim.hearts = { 1: gauntletRun.hearts, 2: 1 };
+  sim.heartsToWin = 3;
+  sim.roundNumber = floorNum;
+  ui.paused = false;
+  ui.simSpeed = 1;
+  updateFightButtons();
+  showView('arena');
+  updateGauntletHud();
+  beginRoundDraft();
+}
+
+function openRelicDraftModal() {
+  const f = getGauntletFloor(gauntletRun.floor);
+  const nextFloor = getGauntletFloor(gauntletRun.floor + 1);
+  gauntletRun.pendingRelicChoices = drawRelicChoices(gauntletRun.relics, 3);
+  $('relic-kicker').textContent = `FLOOR ${f.floor} CLEARED • NEXT: FLOOR ${nextFloor.floor} (${nextFloor.title.toUpperCase()})`;
+  $('relic-title').textContent = 'Choose 1 Stacking Run Relic';
+  $('relic-sub').textContent = nextFloor.isBoss
+    ? `⚠️ Next up is ${nextFloor.title} (${nextFloor.teamSize}v${nextFloor.teamSize} Boss Arena)!`
+    : 'Relics stack for the rest of this Gauntlet Tower run (PvE only).';
+
+  const container = $('relic-cards');
+  container.innerHTML = '';
+  for (const r of gauntletRun.pendingRelicChoices) {
+    const card = document.createElement('button');
+    card.type = 'button';
+    card.className = `relic-card border-${r.rarity}`;
+    card.dataset.relicId = r.id;
+    card.innerHTML = `
+      <span class="relic-icon">${r.icon}</span>
+      <h3>${r.name}</h3>
+      <span class="rarity-pill r-${r.rarity}">${r.rarity} Relic</span>
+      <p>${r.desc}</p>
+    `;
+    card.addEventListener('click', () => {
+      soundEngine.unlock();
+      soundEngine.playReward();
+      chooseGauntletRelic(r.id);
+    });
+    container.appendChild(card);
+  }
+  $('modal-relic').classList.remove('hidden');
+}
+
+function chooseGauntletRelic(relicId) {
+  $('modal-relic').classList.add('hidden');
+  if (relicId) {
+    gauntletRun.relics.push(relicId);
+  } else {
+    profile.sparks += 35;
+    saveProfile(profile);
+    refreshProfileChrome();
+  }
+  startGauntletFloor(gauntletRun.floor + 1);
+}
+
 function startArenaMode(mode, teamSize = ui.teamSize) {
+  gauntletRun.active = false;
+  $('gauntlet-hud-bar')?.classList.add('hidden');
   setTeamFormat(teamSize);
   sim.startMatch({ mode, teamSize: ui.teamSize, hearts: 3, suddenDeathStart: SUDDEN_DEATH_START_SEC });
   ui.paused = false;
@@ -511,13 +672,21 @@ function openDraftForPlayer(playerNum, slotIdx = 0) {
     $('draft-player-kicker').textContent = `ROUND ${sim.roundNumber} • ${modeTag} • ${meta.label.toUpperCase()}`;
     $('draft-title').textContent = 'Choose Your Ball';
   } else {
-    const label = playerNum === 1 ? 'PLAYER 1 (BLUE)' : 'PLAYER 2 (RED)';
+    const label = sim.mode === MODES.GAUNTLET
+      ? `GAUNTLET FLOOR ${gauntletRun.floor}/${GAUNTLET_FLOORS.length} • ${getGauntletFloor(gauntletRun.floor).title.toUpperCase()}`
+      : playerNum === 1
+      ? 'PLAYER 1 (BLUE)'
+      : 'PLAYER 2 (RED)';
     const firstNote =
       is2v2 && slotIdx === 1 && ui.draftTeams[playerNum][0]
         ? ` • PICKING WITH ${getBallDef(ui.draftTeams[playerNum][0]).name.replace(' Ball', '').toUpperCase()}`
         : '';
     $('draft-player-kicker').textContent = is2v2
-      ? `ROUND ${sim.roundNumber} • ${label} • BALL ${slotIdx + 1}/2${firstNote}`
+      ? sim.mode === MODES.GAUNTLET
+        ? `${label} • BALL ${slotIdx + 1}/2${firstNote}`
+        : `ROUND ${sim.roundNumber} • ${label} • BALL ${slotIdx + 1}/2${firstNote}`
+      : sim.mode === MODES.GAUNTLET
+      ? label
       : `ROUND ${sim.roundNumber} • ${label}`;
     $('draft-title').textContent = is2v2
       ? slotIdx === 0
@@ -536,6 +705,7 @@ function renderDraftCards() {
   const container = $('draft-cards');
   container.innerHTML = '';
   for (const def of ui.draftChoices) {
+    const mastery = getBallMasteryInfo(profile, def.id);
     const card = document.createElement('button');
     card.type = 'button';
     card.className = `draft-card border-${def.rarity}`;
@@ -543,14 +713,14 @@ function renderDraftCards() {
     const canvas = document.createElement('canvas');
     canvas.width = 76;
     canvas.height = 76;
-    renderBallPreview(canvas, def);
+    renderBallPreview(canvas, def, { masteryLevel: mastery.level });
 
     const title = document.createElement('h3');
     title.textContent = def.name;
 
     const pill = document.createElement('span');
     pill.className = `rarity-pill r-${def.rarity}`;
-    pill.textContent = `${def.rarity} • ${def.archetype}`;
+    pill.textContent = `${def.rarity} • ${def.archetype}${mastery.level > 0 ? ` • Lv.${mastery.level}` : ''}`;
 
     const stats = document.createElement('div');
     stats.className = 'draft-stats';
@@ -612,13 +782,24 @@ function selectDraftBall(ballId) {
   ui.draftTeams[ui.draftPlayer][ui.draftSlot] = ballId;
   if (ui.draftSlot === 0) ui.draftPicks[ui.draftPlayer] = ballId;
 
-  if (sim.mode === MODES.BOT && ui.draftTeams[ui.draftPlayer].length < sim.teamSize) {
+  if ((sim.mode === MODES.BOT || sim.mode === MODES.GAUNTLET) && ui.draftTeams[ui.draftPlayer].length < sim.teamSize) {
     openDraftForPlayer(ui.draftPlayer, ui.draftSlot + 1);
     return;
   }
 
   $('modal-draft').classList.add('hidden');
   const is2v2 = sim.teamSize === 2;
+
+  if (sim.mode === MODES.GAUNTLET) {
+    const f = getGauntletFloor(gauntletRun.floor);
+    ui.draftTeams[2] = [...f.bossTeam];
+    ui.draftPicks[2] = f.bossTeam[0];
+    enterAimPhase(
+      is2v2 ? ui.draftTeams[1] : ui.draftTeams[1][0],
+      is2v2 ? ui.draftTeams[2] : ui.draftTeams[2][0]
+    );
+    return;
+  }
 
   if (sim.mode === MODES.ONLINE) {
     online.myDraftPick = ballId;
@@ -905,6 +1086,49 @@ function updateFightButtons() {
   $('fight-tip').textContent = `${name1} vs ${name2} — Abilities trigger automatically!`;
 }
 
+function renderBannerRewards(summary) {
+  const wrap = $('banner-rewards');
+  if (!wrap) return;
+  wrap.innerHTML = '';
+  if (!summary) {
+    wrap.classList.add('hidden');
+    return;
+  }
+  const chips = [];
+  if (summary.sparksEarned > 0) chips.push({ text: `+${summary.sparksEarned} ✨ Sparks`, cls: 'gold' });
+  if (summary.xpEarned > 0) chips.push({ text: `+${summary.xpEarned} XP`, cls: '' });
+  if (summary.trophiesDelta !== 0) {
+    chips.push({
+      text: `${summary.trophiesDelta > 0 ? '+' : ''}${summary.trophiesDelta} 🏆`,
+      cls: summary.trophiesDelta > 0 ? 'green' : '',
+    });
+  }
+  if (summary.ballXpGain > 0) chips.push({ text: `+${summary.ballXpGain} Mastery`, cls: 'purple' });
+  if (summary.leveledUp) chips.push({ text: `LEVEL UP → Lv.${summary.leveledUp}!`, cls: 'gold' });
+  if (summary.rankedUp) chips.push({ text: `RANK UP → ${summary.rankedUp.icon} ${summary.rankedUp.name}!`, cls: 'gold' });
+  for (const m of summary.masteryUps || []) {
+    chips.push({ text: `👑 ${m.name} Lv.${m.level} (${m.label})!`, cls: 'gold' });
+  }
+  for (const b of summary.completedBounties || []) {
+    chips.push({ text: `🎯 Bounty Ready: ${b.title}!`, cls: 'green' });
+  }
+  for (const u of summary.milestoneUnlocks || []) {
+    chips.push({ text: `🔓 Unlocked ${u}!`, cls: 'purple' });
+  }
+
+  if (chips.length === 0) {
+    wrap.classList.add('hidden');
+    return;
+  }
+  for (const c of chips) {
+    const el = document.createElement('span');
+    el.className = `reward-chip ${c.cls}`.trim();
+    el.textContent = c.text;
+    wrap.appendChild(el);
+  }
+  wrap.classList.remove('hidden');
+}
+
 function showRoundOrMatchBanner() {
   $('controls-fight').classList.add('hidden');
   const banner = $('arena-banner');
@@ -918,59 +1142,183 @@ function showRoundOrMatchBanner() {
   const name1 = formatTeamNames(sim.selectedTeams?.[1] || [sim.selectedBallIds[1]]);
   const name2 = formatTeamNames(sim.selectedTeams?.[2] || [sim.selectedBallIds[2]]);
 
-  if (sim.phase === PHASES.ROUND_END) {
-    kicker.textContent = `ROUND ${sim.roundNumber} COMPLETE`;
-    if (sim.roundWinner === 0) {
-      title.textContent = 'DOUBLE KO — DRAW!';
-      sub.textContent = 'Both sides fell at the exact same moment. No hearts lost!';
-    } else if (sim.roundWinner === 1) {
-      title.textContent = `${name1} (Blue) Wins Round!`;
-      sub.textContent = `Red loses 1 Heart (${sim.hearts[2]} remaining).`;
+  // Compute & persist player progression for this round/match
+  const myOwner = sim.mode === MODES.ONLINE ? online.myOwner : 1;
+  const usedBalls = sim.selectedTeams?.[myOwner] || [sim.selectedBallIds[myOwner]];
+  const myAlive = sim.balls.filter((b) => b.owner === myOwner && b.hp > 0);
+  const remainingHp = myAlive.reduce((acc, b) => Math.max(acc, Math.ceil(b.hp)), 0);
+  const wonRound = sim.roundWinner === myOwner;
+  const isDraw = sim.roundWinner === 0;
+
+  let rewardSummary = null;
+
+  if (sim.mode === MODES.GAUNTLET) {
+    const f = getGauntletFloor(gauntletRun.floor);
+    if (wonRound) {
+      gauntletRun.floorWon = true;
+      const clearedAll = gauntletRun.floor >= GAUNTLET_FLOORS.length;
+      rewardSummary = recordCombatProgress(profile, {
+        mode: MODES.GAUNTLET,
+        teamSize: sim.teamSize,
+        usedBalls,
+        wonRound: true,
+        matchEnded: clearedAll,
+        wonMatch: clearedAll,
+        suddenDeathActive: sim.suddenDeathActive,
+        remainingHp,
+        dmgDealt: sim.roundStats?.dmgDealt?.[1] || 0,
+        wallHits: sim.roundStats?.wallHits?.[1] || 0,
+        gauntletFloor: gauntletRun.floor,
+        gauntletCleared: clearedAll,
+        rewardMult: getRelicRewardMult(gauntletRun.relics),
+      });
+      if (clearedAll) {
+        kicker.textContent = 'GAUNTLET TOWER CONQUERED!';
+        title.textContent = 'ALL 10 FLOORS CLEARED!';
+        sub.textContent = `You defeated ${f.title} with ${gauntletRun.relics.length} Run Relics!`;
+        nextBtn.textContent = 'New Gauntlet Run';
+        lobbyBtn.classList.remove('hidden');
+        soundEngine.playLevelUp();
+      } else {
+        kicker.textContent = `FLOOR ${f.floor} / ${GAUNTLET_FLOORS.length} CLEARED`;
+        title.textContent = `${name1} Defeated ${f.title}!`;
+        sub.textContent = `Pick a stacking Run Relic before entering Floor ${f.floor + 1}!`;
+        nextBtn.textContent = 'Choose Run Relic →';
+        lobbyBtn.classList.add('hidden');
+        soundEngine.playReward();
+      }
+    } else if (isDraw) {
+      gauntletRun.floorWon = false;
+      kicker.textContent = `FLOOR ${f.floor} — DOUBLE KO`;
+      title.textContent = 'DRAW — NO HEART LOST!';
+      sub.textContent = 'Both sides fell together. Retry this floor!';
+      nextBtn.textContent = 'Retry Floor';
+      lobbyBtn.classList.add('hidden');
     } else {
-      title.textContent = `${name2} (Red) Wins Round!`;
-      sub.textContent = `Blue loses 1 Heart (${sim.hearts[1]} remaining).`;
+      gauntletRun.floorWon = false;
+      gauntletRun.hearts = Math.max(0, gauntletRun.hearts - 1);
+      sim.hearts[1] = gauntletRun.hearts;
+      const runOver = gauntletRun.hearts <= 0;
+      rewardSummary = recordCombatProgress(profile, {
+        mode: MODES.GAUNTLET,
+        teamSize: sim.teamSize,
+        usedBalls,
+        wonRound: false,
+        matchEnded: runOver,
+        wonMatch: false,
+        suddenDeathActive: sim.suddenDeathActive,
+        remainingHp: 0,
+        dmgDealt: sim.roundStats?.dmgDealt?.[1] || 0,
+        wallHits: sim.roundStats?.wallHits?.[1] || 0,
+        gauntletFloor: gauntletRun.floor,
+        rewardMult: getRelicRewardMult(gauntletRun.relics),
+      });
+      if (runOver) {
+        kicker.textContent = 'GAUNTLET RUN OVER';
+        title.textContent = `Defeated on Floor ${f.floor} / ${GAUNTLET_FLOORS.length}`;
+        sub.textContent = `${f.title} shattered your final Heart. Keep your Sparks & Mastery XP!`;
+        nextBtn.textContent = 'Try Again (Floor 1)';
+        lobbyBtn.classList.remove('hidden');
+      } else {
+        kicker.textContent = `FLOOR ${f.floor} FAILED`;
+        title.textContent = `${name2} Held Floor ${f.floor}!`;
+        sub.textContent = `You lost 1 Run Heart (${gauntletRun.hearts} ♥ remaining). Draft again and retry!`;
+        nextBtn.textContent = 'Retry Floor';
+        lobbyBtn.classList.add('hidden');
+      }
     }
-    nextBtn.textContent = 'Next Round';
-    lobbyBtn.classList.add('hidden');
   } else {
-    kicker.textContent = 'MATCH OVER';
-    const winnerTeam =
-      sim.mode === MODES.ONLINE
-        ? sim.teamSize === 2
-          ? sim.roundWinner === online.myOwner
+    const matchEnded = sim.phase === PHASES.MATCH_END;
+    rewardSummary = recordCombatProgress(profile, {
+      mode: sim.mode,
+      teamSize: sim.teamSize,
+      usedBalls,
+      wonRound,
+      isDraw,
+      matchEnded,
+      wonMatch: matchEnded && wonRound,
+      suddenDeathActive: sim.suddenDeathActive,
+      remainingHp,
+      dmgDealt: sim.roundStats?.dmgDealt?.[myOwner] || 0,
+      wallHits: sim.roundStats?.wallHits?.[myOwner] || 0,
+    });
+    if (rewardSummary.leveledUp || rewardSummary.rankedUp || rewardSummary.masteryUps.length > 0) {
+      soundEngine.playLevelUp();
+    }
+
+    if (sim.phase === PHASES.ROUND_END) {
+      kicker.textContent = `ROUND ${sim.roundNumber} COMPLETE`;
+      if (sim.roundWinner === 0) {
+        title.textContent = 'DOUBLE KO — DRAW!';
+        sub.textContent = 'Both sides fell at the exact same moment. No hearts lost!';
+      } else if (sim.roundWinner === 1) {
+        title.textContent = `${name1} (Blue) Wins Round!`;
+        sub.textContent = `Red loses 1 Heart (${sim.hearts[2]} remaining).`;
+      } else {
+        title.textContent = `${name2} (Red) Wins Round!`;
+        sub.textContent = `Blue loses 1 Heart (${sim.hearts[1]} remaining).`;
+      }
+      nextBtn.textContent = 'Next Round';
+      lobbyBtn.classList.add('hidden');
+    } else {
+      kicker.textContent = 'MATCH OVER';
+      const winnerTeam =
+        sim.mode === MODES.ONLINE
+          ? sim.teamSize === 2
+            ? sim.roundWinner === online.myOwner
+              ? online.myOwner === 1
+                ? 'YOUR TEAM (BLUE)'
+                : 'YOUR TEAM (RED)'
+              : sim.roundWinner === 1
+              ? 'BLUE TEAM'
+              : 'RED TEAM'
+            : sim.roundWinner === online.myOwner
             ? online.myOwner === 1
-              ? 'YOUR TEAM (BLUE)'
-              : 'YOUR TEAM (RED)'
+              ? 'YOU (BLUE)'
+              : 'YOU (RED)'
             : sim.roundWinner === 1
-            ? 'BLUE TEAM'
-            : 'RED TEAM'
-          : sim.roundWinner === online.myOwner
-          ? online.myOwner === 1
-            ? 'YOU (BLUE)'
-            : 'YOU (RED)'
+            ? 'BLUE (OPPONENT)'
+            : 'RED (OPPONENT)'
+          : sim.mode === MODES.LOCAL_2P && sim.teamSize === 2
+          ? sim.roundWinner === 1
+            ? 'BLUE TEAM (P1 & P2)'
+            : 'RED TEAM (P3 & P4)'
           : sim.roundWinner === 1
-          ? 'BLUE (OPPONENT)'
-          : 'RED (OPPONENT)'
-        : sim.mode === MODES.LOCAL_2P && sim.teamSize === 2
-        ? sim.roundWinner === 1
-          ? 'BLUE TEAM (P1 & P2)'
-          : 'RED TEAM (P3 & P4)'
-        : sim.roundWinner === 1
-        ? 'BLUE (PLAYER 1)'
-        : sim.mode === MODES.BOT
-        ? 'RED (AI BOT)'
-        : 'RED (PLAYER 2)';
-    title.textContent = `${winnerTeam} WINS!`;
-    sub.textContent = `Final Hearts — Blue: ${sim.hearts[1]} ♥  |  Red: ${sim.hearts[2]} ♥`;
-    nextBtn.textContent = sim.mode === MODES.SANDBOX ? 'Rematch' : 'Play Again';
-    lobbyBtn.classList.remove('hidden');
+          ? 'BLUE (PLAYER 1)'
+          : sim.mode === MODES.BOT
+          ? 'RED (AI BOT)'
+          : 'RED (PLAYER 2)';
+      title.textContent = `${winnerTeam} WINS!`;
+      sub.textContent = `Final Hearts — Blue: ${sim.hearts[1]} ♥  |  Red: ${sim.hearts[2]} ♥`;
+      nextBtn.textContent = sim.mode === MODES.SANDBOX ? 'Rematch' : 'Play Again';
+      lobbyBtn.classList.remove('hidden');
+    }
   }
 
+  saveProfile(profile);
+  refreshProfileChrome();
+  renderBannerRewards(rewardSummary);
   banner.classList.remove('hidden');
 }
 
 function handleBannerNext() {
   soundEngine.unlock();
+
+  if (sim.mode === MODES.GAUNTLET) {
+    $('arena-banner').classList.add('hidden');
+    if (gauntletRun.floorWon) {
+      if (gauntletRun.floor >= GAUNTLET_FLOORS.length) {
+        startGauntletRun();
+      } else {
+        openRelicDraftModal();
+      }
+    } else if (gauntletRun.hearts <= 0) {
+      startGauntletRun();
+    } else {
+      startGauntletFloor(gauntletRun.floor);
+    }
+    return;
+  }
 
   if (sim.mode === MODES.ONLINE) {
     if (online.myNextReady) return;
@@ -1337,6 +1685,9 @@ function updateHud() {
       $('hud-p1-label').textContent = online.myOwner === 1 ? 'YOU (BLUE)' : 'P1 (BLUE)';
       $('hud-p2-label').textContent = online.myOwner === 2 ? 'YOU (RED)' : 'P2 (RED)';
     }
+  } else if (sim.mode === MODES.GAUNTLET) {
+    $('hud-p1-label').textContent = 'YOU (BLUE)';
+    $('hud-p2-label').textContent = `FLOOR ${gauntletRun.floor} BOSS`;
   } else if (sim.mode === MODES.LOCAL_2P && sim.teamSize === 2) {
     $('hud-p1-label').textContent = 'BLUE (P1 & P2)';
     $('hud-p2-label').textContent = 'RED (P3 & P4)';
@@ -1347,7 +1698,7 @@ function updateHud() {
   }
 
   renderHearts($('hud-p1-hearts'), sim.hearts[1], sim.heartsToWin);
-  renderHearts($('hud-p2-hearts'), sim.hearts[2], sim.heartsToWin);
+  renderHearts($('hud-p2-hearts'), sim.hearts[2], sim.mode === MODES.GAUNTLET ? 1 : sim.heartsToWin);
 
   const team1 = sim.selectedTeams?.[1]?.length ? sim.selectedTeams[1] : [sim.selectedBallIds[1]];
   const team2 = sim.selectedTeams?.[2]?.length ? sim.selectedTeams[2] : [sim.selectedBallIds[2]];
@@ -1379,7 +1730,12 @@ function updateHud() {
   renderTeamRows($('hud-p1-rows'), 1, team1, 'blue');
   renderTeamRows($('hud-p2-rows'), 2, team2, 'red');
 
-  $('hud-round').textContent = is2v2 ? `2v2 • ROUND ${sim.roundNumber}` : `ROUND ${sim.roundNumber}`;
+  $('hud-round').textContent =
+    sim.mode === MODES.GAUNTLET
+      ? `FLOOR ${gauntletRun.floor} / ${GAUNTLET_FLOORS.length}`
+      : is2v2
+      ? `2v2 • ROUND ${sim.roundNumber}`
+      : `ROUND ${sim.roundNumber}`;
 
   const timerEl = $('hud-timer');
   if (sim.suddenDeathActive) {
@@ -1394,6 +1750,15 @@ function updateHud() {
     timerEl.textContent = `${String(Math.floor(sec / 60)).padStart(2, '0')}:${String(sec % 60).padStart(2, '0')}`;
     timerEl.classList.remove('is-sd');
   }
+}
+
+function getArenaCosmetics() {
+  return {
+    arenaTheme: profile.equippedTheme,
+    ballTrail: profile.equippedTrail,
+    ballMasteryMap: getBallMasteryLevelMap(profile),
+    localOwner: sim.mode === MODES.ONLINE ? online.myOwner : 1,
+  };
 }
 
 function loop(nowMs) {
@@ -1413,6 +1778,7 @@ function loop(nowMs) {
       aimingPlayer: online.myAimLocked ? 0 : online.myOwner,
       aimSlot: sim.teamSize === 2 ? online.mySlot : ui.aimSlot,
       aimOnlySingleSlot: isSingleSeatAim(),
+      ...getArenaCosmetics(),
     });
     return;
   }
@@ -1452,6 +1818,7 @@ function loop(nowMs) {
     aimingPlayer: online.active && online.myAimLocked ? 0 : ui.aimingPlayer,
     aimSlot: ui.aimSlot,
     aimOnlySingleSlot: isSingleSeatAim(),
+    ...getArenaCosmetics(),
   });
 }
 
@@ -1472,6 +1839,7 @@ function renderDexGrid() {
   });
 
   for (const def of filtered) {
+    const mastery = getBallMasteryInfo(profile, def.id);
     const card = document.createElement('article');
     card.className = 'dex-card';
 
@@ -1480,13 +1848,18 @@ function renderDexGrid() {
     const c = document.createElement('canvas');
     c.width = 56;
     c.height = 56;
-    renderBallPreview(c, def);
+    renderBallPreview(c, def, { masteryLevel: mastery.level });
 
+    const masteryBadge =
+      mastery.level > 0
+        ? `<span class="mastery-pill" style="border-color:${mastery.color}; color:${mastery.color};">Lv.${mastery.level} ${mastery.label}</span>`
+        : '';
     const meta = document.createElement('div');
     meta.innerHTML = `
       <h3>${def.name}</h3>
       <span class="rarity-pill r-${def.rarity}">${def.rarity}</span>
       <span class="muted" style="font-size:0.75rem; margin-left:6px;">${def.hp} HP</span>
+      ${masteryBadge}
     `;
     top.append(c, meta);
 
@@ -1508,6 +1881,190 @@ function renderDexGrid() {
 
     card.append(top, desc, btn);
     grid.appendChild(card);
+  }
+}
+
+/* ==================== PROFILE, BOUNTIES & ARMORY UI ==================== */
+function refreshProfileChrome() {
+  const rank = getRankInfo(profile.trophies);
+  const lvl = getPlayerLevelInfo(profile.xp);
+  const readyBounties = getClaimableBountyCount(profile);
+
+  if ($('topbar-rank')) $('topbar-rank').textContent = `${rank.current.icon} ${rank.current.name}`;
+  if ($('topbar-sparks')) $('topbar-sparks').textContent = `✨ ${profile.sparks}`;
+  if ($('topbar-bounty-dot')) $('topbar-bounty-dot').classList.toggle('hidden', readyBounties === 0);
+
+  if ($('strip-rank-badge')) $('strip-rank-badge').textContent = `${rank.current.icon} ${rank.current.name} • ${profile.trophies}`;
+  if ($('strip-level-label')) $('strip-level-label').textContent = `Lv. ${lvl.level}`;
+  if ($('strip-xp-label')) $('strip-xp-label').textContent = `${lvl.currentXp} / ${lvl.nextXp} XP`;
+  if ($('strip-xp-bar')) $('strip-xp-bar').style.width = `${Math.round(lvl.progress * 100)}%`;
+  if ($('strip-sparks')) $('strip-sparks').textContent = `✨ ${profile.sparks}`;
+  if ($('strip-tower')) $('strip-tower').textContent = `Floor ${profile.bestGauntletFloor} / ${GAUNTLET_FLOORS.length}`;
+  if ($('strip-bounty-summary')) {
+    $('strip-bounty-summary').textContent =
+      readyBounties > 0 ? `${readyBounties} Ready to Claim!` : `0 / ${profile.bounties.length} Ready`;
+  }
+}
+
+function setProfileTab(tab) {
+  ui.profileTab = tab;
+  document.querySelectorAll('#profile-tab-row .chip').forEach((c) => {
+    c.classList.toggle('is-active', c.dataset.ptab === tab);
+  });
+  $('ptab-overview')?.classList.toggle('hidden', tab !== 'overview');
+  $('ptab-armory')?.classList.toggle('hidden', tab !== 'armory');
+  $('ptab-mastery')?.classList.toggle('hidden', tab !== 'mastery');
+  renderProfileModal();
+}
+
+function openProfileModal(tab = 'overview') {
+  setProfileTab(tab);
+  $('modal-profile').classList.remove('hidden');
+}
+
+function renderArmorySection(container, catalog, unlockedIds, equippedId, kind) {
+  container.innerHTML = '';
+  for (const item of catalog) {
+    const owned = unlockedIds.includes(item.id);
+    const equipped = equippedId === item.id;
+    const card = document.createElement('article');
+    card.className = `armory-card${equipped ? ' is-equipped' : ''}`;
+    card.dataset.cosmeticId = item.id;
+
+    const swatch = document.createElement('div');
+    swatch.className = 'armory-swatch';
+    swatch.style.background = `linear-gradient(135deg, ${item.preview.join(', ')})`;
+
+    const title = document.createElement('h4');
+    title.textContent = item.name;
+
+    const desc = document.createElement('p');
+    desc.textContent = item.milestone && !owned ? `${item.desc} (${item.milestone})` : item.desc;
+
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    if (equipped) {
+      btn.className = 'btn btn-primary btn-sm';
+      btn.textContent = 'Equipped ✓';
+      btn.disabled = true;
+    } else if (owned) {
+      btn.className = 'btn btn-secondary btn-sm';
+      btn.textContent = 'Equip';
+      btn.addEventListener('click', () => {
+        soundEngine.unlock();
+        equipCosmetic(profile, kind, item.id);
+        saveProfile(profile);
+        soundEngine.playReward();
+        renderProfileModal();
+      });
+    } else {
+      const canAfford = profile.sparks >= item.cost;
+      btn.className = canAfford ? 'btn btn-gold btn-sm' : 'btn btn-ghost btn-sm';
+      btn.textContent = `Unlock (✨ ${item.cost})`;
+      btn.disabled = !canAfford;
+      btn.addEventListener('click', () => {
+        soundEngine.unlock();
+        const res = unlockCosmetic(profile, kind, item.id);
+        if (res.ok) {
+          saveProfile(profile);
+          soundEngine.playLevelUp();
+          refreshProfileChrome();
+          renderProfileModal();
+        }
+      });
+    }
+
+    card.append(swatch, title, desc, btn);
+    container.appendChild(card);
+  }
+}
+
+function renderProfileModal() {
+  refreshProfileChrome();
+  const rank = getRankInfo(profile.trophies);
+  const lvl = getPlayerLevelInfo(profile.xp);
+
+  // Tab 1: Overview & Bounties
+  if (ui.profileTab === 'overview') {
+    const masteredCount = Object.keys(getBallMasteryLevelMap(profile)).length;
+    $('profile-summary-grid').innerHTML = `
+      <div class="pstat-card"><span>Rank Tier</span><strong>${rank.current.icon} ${rank.current.name} (${profile.trophies})</strong></div>
+      <div class="pstat-card"><span>Player Level</span><strong>Lv. ${lvl.level} (${lvl.currentXp}/${lvl.nextXp})</strong></div>
+      <div class="pstat-card"><span>Tower Best</span><strong>Floor ${profile.bestGauntletFloor}/10 (${profile.gauntletClears} Clears)</strong></div>
+      <div class="pstat-card"><span>Record &amp; Mastery</span><strong>${profile.stats.wins}W-${profile.stats.losses}L • ${masteredCount} Mastered</strong></div>
+    `;
+
+    const bGrid = $('profile-bounties-grid');
+    bGrid.innerHTML = '';
+    for (const b of profile.bounties) {
+      const def = getBountyDef(b.id);
+      const ready = !b.claimed && b.progress >= b.target;
+      const pct = Math.min(100, Math.round((b.progress / Math.max(1, b.target)) * 100));
+      const card = document.createElement('article');
+      card.className = `bounty-card${ready ? ' is-ready' : ''}`;
+      card.innerHTML = `
+        <h4>${def.title}</h4>
+        <p>${def.desc}</p>
+        <div class="bounty-meta">
+          <span>${b.progress} / ${b.target}</span>
+          <span>+✨ ${def.sparks} • +${def.xp} XP</span>
+        </div>
+        <div class="xp-bar-track"><div class="xp-bar-fill" style="width:${pct}%"></div></div>
+      `;
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = ready ? 'btn btn-gold btn-sm' : 'btn btn-ghost btn-sm';
+      btn.textContent = ready ? 'Claim Reward!' : 'In Progress';
+      btn.disabled = !ready;
+      if (ready) {
+        btn.addEventListener('click', () => {
+          soundEngine.unlock();
+          if (claimBounty(profile, b.id)) {
+            saveProfile(profile);
+            soundEngine.playLevelUp();
+            renderProfileModal();
+          }
+        });
+      }
+      card.appendChild(btn);
+      bGrid.appendChild(card);
+    }
+  }
+
+  // Tab 2: Armory
+  if (ui.profileTab === 'armory') {
+    $('armory-sparks').textContent = `✨ ${profile.sparks}`;
+    renderArmorySection($('armory-themes-grid'), ARENA_THEMES, profile.unlockedThemes, profile.equippedTheme, 'theme');
+    renderArmorySection($('armory-trails-grid'), BALL_TRAILS, profile.unlockedTrails, profile.equippedTrail, 'trail');
+  }
+
+  // Tab 3: Ball Mastery
+  if (ui.profileTab === 'mastery') {
+    const mGrid = $('profile-mastery-grid');
+    mGrid.innerHTML = '';
+    const sorted = BALL_DEFS.map((def) => ({ def, info: getBallMasteryInfo(profile, def.id) }))
+      .sort((a, b) => b.info.xp - a.info.xp || b.info.wins - a.info.wins)
+      .slice(0, 36);
+    for (const { def, info } of sorted) {
+      const card = document.createElement('article');
+      card.className = 'mastery-card';
+      const cv = document.createElement('canvas');
+      cv.width = 52;
+      cv.height = 52;
+      renderBallPreview(cv, def, { masteryLevel: info.level });
+
+      const body = document.createElement('div');
+      body.className = 'mastery-card-info';
+      const nextText = info.nextTier ? `${info.xp}/${info.nextTier.minXp} XP` : `${info.xp} XP (MAX)`;
+      body.innerHTML = `
+        <strong>${def.name}</strong>
+        <span style="font-size:0.74rem; color:${info.color}; font-weight:800;">Lv.${info.level} ${info.label} • ${info.wins}W</span>
+        <div class="xp-bar-track"><div class="xp-bar-fill" style="width:${Math.round(info.progress * 100)}%"></div></div>
+        <span class="muted" style="font-size:0.7rem;">${nextText}</span>
+      `;
+      card.append(cv, body);
+      mGrid.appendChild(card);
+    }
   }
 }
 
@@ -1551,11 +2108,70 @@ function bindEvents() {
   $('btn-home').addEventListener('click', () => showView('lobby'));
   $('btn-back-lobby').addEventListener('click', () => showView('lobby'));
 
+  $('btn-open-profile')?.addEventListener('click', () => {
+    soundEngine.unlock();
+    openProfileModal('overview');
+  });
+  $('btn-strip-armory')?.addEventListener('click', () => {
+    soundEngine.unlock();
+    openProfileModal('armory');
+  });
+  $('btn-strip-bounties')?.addEventListener('click', () => {
+    soundEngine.unlock();
+    openProfileModal('overview');
+  });
+  $('btn-close-profile')?.addEventListener('click', () => {
+    $('modal-profile').classList.add('hidden');
+  });
+  document.querySelectorAll('#profile-tab-row .chip').forEach((chip) => {
+    chip.addEventListener('click', () => setProfileTab(chip.dataset.ptab));
+  });
+  $('btn-export-save')?.addEventListener('click', async () => {
+    const code = exportProfileCode(profile);
+    $('profile-save-input').value = code;
+    if (navigator.clipboard) {
+      try {
+        await navigator.clipboard.writeText(code);
+        $('save-code-status').textContent = 'Save code copied to clipboard!';
+        return;
+      } catch (_) {}
+    }
+    $('save-code-status').textContent = 'Save code generated — copy from box!';
+  });
+  $('btn-import-save')?.addEventListener('click', () => {
+    const imported = importProfileCode($('profile-save-input').value);
+    if (!imported) {
+      $('save-code-status').textContent = 'Invalid save code.';
+      return;
+    }
+    profile = imported;
+    saveProfile(profile);
+    $('save-code-status').textContent = 'Profile imported successfully!';
+    soundEngine.playLevelUp();
+    renderProfileModal();
+    renderDexGrid();
+  });
+
+  $('btn-relic-skip')?.addEventListener('click', () => {
+    soundEngine.unlock();
+    soundEngine.playReward();
+    chooseGauntletRelic(null);
+  });
+
   document.querySelectorAll('[data-format-toggle] .fmt-btn').forEach((btn) => {
     btn.addEventListener('click', () => {
       soundEngine.unlock();
       setTeamFormat(Number(btn.dataset.teamSize));
     });
+  });
+
+  $('btn-quick-gauntlet')?.addEventListener('click', () => {
+    soundEngine.unlock();
+    startGauntletRun();
+  });
+  $('btn-mode-gauntlet')?.addEventListener('click', () => {
+    soundEngine.unlock();
+    startGauntletRun();
   });
 
   $('btn-quick-bot').addEventListener('click', () => {
@@ -1816,6 +2432,7 @@ function bindEvents() {
 
   // Dex
   $('btn-open-dex').addEventListener('click', () => {
+    renderDexGrid();
     $('modal-dex').classList.remove('hidden');
   });
   $('btn-close-dex').addEventListener('click', () => {

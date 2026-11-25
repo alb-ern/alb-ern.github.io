@@ -10,25 +10,27 @@
   <script type="importmap">
     {
       "imports": {
-        "./src/sim/constants.js": "./src/sim/constants.js?v=20261120i",
-        "./src/sim/balls.js": "./src/sim/balls.js?v=20261120i",
-        "./src/sim/physics.js": "./src/sim/physics.js?v=20261120i",
-        "./src/sim/ai.js": "./src/sim/ai.js?v=20261120i",
-        "./src/sim/abilities.js": "./src/sim/abilities.js?v=20261120i",
-        "./src/sim/abilitiesExtra.js": "./src/sim/abilitiesExtra.js?v=20261120i",
-        "./src/sim/abilitiesMeme.js": "./src/sim/abilitiesMeme.js?v=20261120i",
-        "./src/sim/balanceTuning.js": "./src/sim/balanceTuning.js?v=20261120i",
-        "./src/net/p2p.js": "./src/net/p2p.js?v=20261120i",
-        "./src/net/protocol.js": "./src/net/protocol.js?v=20261120i",
-        "./src/audio/soundEngine.js": "./src/audio/soundEngine.js?v=20261120i",
-        "./src/render/ballArt.js": "./src/render/ballArt.js?v=20261120i",
-        "./src/render/ballArtExtra.js": "./src/render/ballArtExtra.js?v=20261120i",
-        "./src/render/ballArtMeme.js": "./src/render/ballArtMeme.js?v=20261120i",
-        "./src/render/arenaRenderer.js": "./src/render/arenaRenderer.js?v=20261120i"
+        "./src/sim/constants.js": "./src/sim/constants.js?v=20261125a",
+        "./src/sim/balls.js": "./src/sim/balls.js?v=20261125a",
+        "./src/sim/physics.js": "./src/sim/physics.js?v=20261125a",
+        "./src/sim/ai.js": "./src/sim/ai.js?v=20261125a",
+        "./src/sim/abilities.js": "./src/sim/abilities.js?v=20261125a",
+        "./src/sim/abilitiesExtra.js": "./src/sim/abilitiesExtra.js?v=20261125a",
+        "./src/sim/abilitiesMeme.js": "./src/sim/abilitiesMeme.js?v=20261125a",
+        "./src/sim/balanceTuning.js": "./src/sim/balanceTuning.js?v=20261125a",
+        "./src/sim/progression.js": "./src/sim/progression.js?v=20261125a",
+        "./src/sim/gauntlet.js": "./src/sim/gauntlet.js?v=20261125a",
+        "./src/net/p2p.js": "./src/net/p2p.js?v=20261125a",
+        "./src/net/protocol.js": "./src/net/protocol.js?v=20261125a",
+        "./src/audio/soundEngine.js": "./src/audio/soundEngine.js?v=20261125a",
+        "./src/render/ballArt.js": "./src/render/ballArt.js?v=20261125a",
+        "./src/render/ballArtExtra.js": "./src/render/ballArtExtra.js?v=20261125a",
+        "./src/render/ballArtMeme.js": "./src/render/ballArtMeme.js?v=20261125a",
+        "./src/render/arenaRenderer.js": "./src/render/arenaRenderer.js?v=20261125a"
       }
     }
   </script>
-  <link rel="stylesheet" href="./styles/main.css?v=20261120i" />
+  <link rel="stylesheet" href="./styles/main.css?v=20261125a" />
 </head>
 <body>
   <div class="app-shell">
@@ -40,6 +42,12 @@
         <span class="brand-tag">WEB ARENA</span>
       </div>
       <div class="topbar-actions">
+        <button class="btn btn-profile-pill" id="btn-open-profile" type="button" title="Profile, Bounties & Armory">
+          <span id="topbar-rank">🥉 Bronze</span>
+          <span class="pill-sep">•</span>
+          <span id="topbar-sparks">✨ 100</span>
+          <span id="topbar-bounty-dot" class="bounty-dot hidden" aria-label="Claimable Bounty"></span>
+        </button>
         <button class="btn btn-ghost" id="btn-open-dex" type="button">Ball Dex (120)</button>
         <button class="btn btn-ghost" id="btn-toggle-timer" type="button" title="Toggle Draft Countdown">Timer: ON</button>
         <button class="btn btn-ghost" id="btn-toggle-mute" type="button" aria-label="Toggle Sound">SFX: ON</button>
@@ -54,15 +62,16 @@
           <p class="hero-kicker" id="lobby-kicker">1v1 &amp; 2v2 Physics Auto-Battler • 120 Iconic Balls Unlocked</p>
           <h1>Pick. Aim. <span class="accent-gold">Bounce to Win!</span></h1>
           <p class="hero-sub">
-            Draft from 3 random balls or pick any matchup directly, lock your opening trajectory,
-            and watch automated wall-bounce abilities clash until all 3 hearts shatter.
+            Draft from 3 random balls or pick any matchup directly, climb the 10-Floor Roguelike Gauntlet Tower
+            with stacking Run Relics, earn Prestige Mastery Crowns, and duel online!
           </p>
           <div class="hero-cta-row">
+            <button class="btn btn-purple btn-lg" id="btn-quick-gauntlet" type="button">Gauntlet Tower</button>
             <button class="btn btn-primary btn-lg" id="btn-quick-bot" type="button">Play 1v1 Bot</button>
             <button class="btn btn-gold btn-lg" id="btn-quick-bot-2v2" type="button">Play 2v2 Bot (740 Arena)</button>
-            <button class="btn btn-purple btn-lg" id="btn-quick-sandbox-2v2" type="button">Sandbox 2v2</button>
             <button class="btn btn-secondary btn-lg" id="btn-quick-online" type="button">Online P2P</button>
-            <button class="btn btn-ghost btn-lg" id="btn-verity-spider" type="button">Verity vs Spider</button>
+            <button class="btn btn-ghost btn-lg" id="btn-quick-sandbox-2v2" type="button">Sandbox 2v2</button>
+            <button class="btn btn-ghost btn-lg hidden" id="btn-verity-spider" type="button">Verity vs Spider</button>
           </div>
         </div>
         <div class="hero-showcase" aria-hidden="true">
@@ -80,11 +89,43 @@
         </div>
       </section>
 
+      <!-- PLAYER PROGRESSION STRIP -->
+      <section id="lobby-profile-strip" class="profile-strip" aria-label="Player Progression">
+        <div class="profile-strip-left">
+          <div class="rank-badge-lg" id="strip-rank-badge">🥉 Bronze • 1000</div>
+          <div class="strip-lvl-wrap">
+            <div class="strip-lvl-head">
+              <strong id="strip-level-label">Lv. 1</strong>
+              <span class="muted" id="strip-xp-label">0 / 100 XP</span>
+            </div>
+            <div class="xp-bar-track"><div class="xp-bar-fill" id="strip-xp-bar" style="width:0%"></div></div>
+          </div>
+        </div>
+        <div class="profile-strip-mid">
+          <div class="strip-stat"><span>Sparks</span><strong id="strip-sparks">✨ 100</strong></div>
+          <div class="strip-stat"><span>Best Tower</span><strong id="strip-tower">Floor 0 / 10</strong></div>
+          <div class="strip-stat"><span>Bounties</span><strong id="strip-bounty-summary">0 / 3 Ready</strong></div>
+        </div>
+        <div class="profile-strip-right">
+          <button class="btn btn-gold btn-sm" id="btn-strip-armory" type="button">Armory &amp; Themes</button>
+          <button class="btn btn-ghost btn-sm" id="btn-strip-bounties" type="button">Bounties</button>
+        </div>
+      </section>
+
       <section class="mode-grid" aria-label="Game Modes">
+        <article class="mode-card mode-card-gauntlet" data-mode="gauntlet">
+          <div class="mode-badge purple">ROGUELIKE PVE • 10 FLOORS</div>
+          <h2>Gauntlet Tower</h2>
+          <p>Climb 10 escalating boss floors (2v2 Boss Arenas on Floors 5, 8 &amp; 10), drafting stacking Run Relics after every clear!</p>
+          <div class="mode-card-actions">
+            <button class="btn btn-purple btn-span2" id="btn-mode-gauntlet" type="button">Enter Gauntlet Tower</button>
+          </div>
+        </article>
+
         <article class="mode-card" data-mode="online">
           <div class="mode-badge green">REAL MULTIPLAYER</div>
           <h2>Online P2P</h2>
-          <p>Auto-match with random 1v1 players in Quickmatch, or share a 1v1 (2P) / 2v2 (4P) room code.</p>
+          <p>Auto-match with random 1v1 players in Quickmatch, or share a 1v1 (2P) / 2v2 (4P) room code. Strictly fair PvP.</p>
           <div class="mode-card-actions">
             <button class="btn btn-gold btn-span2" id="btn-mode-quickmatch" type="button">Quickmatch (1v1)</button>
             <button class="btn btn-secondary" id="btn-mode-online" type="button">1v1 (2P)</button>
@@ -95,7 +136,7 @@
         <article class="mode-card" data-mode="bot">
           <div class="mode-badge blue">1 PLAYER</div>
           <h2>VS Bot</h2>
-          <p>Best-of-3 Hearts arena match. Draft random balls (2 free Rerolls + All Balls picker) and outsmart the AI Bot.</p>
+          <p>Best-of-3 Hearts arena match. Draft random balls (2 free Rerolls + All Balls picker) and earn Trophies &amp; Ball Mastery.</p>
           <div class="mode-card-actions">
             <button class="btn btn-primary" id="btn-mode-bot" type="button">Bot 1v1</button>
             <button class="btn btn-gold" id="btn-mode-bot-2v2" type="button">Bot 2v2</button>
@@ -305,6 +346,15 @@
           <div class="round-pill" id="hud-round">ROUND 1</div>
           <div class="timer-pill" id="hud-timer">00:00</div>
         </div>
+
+        <div id="gauntlet-hud-bar" class="gauntlet-hud-card arena-side-card hidden">
+          <div class="gauntlet-hud-head">
+            <span class="mode-badge purple" id="gauntlet-floor-badge">FLOOR 1 / 10</span>
+            <strong id="gauntlet-floor-title">Warmup Street</strong>
+          </div>
+          <p class="muted gauntlet-floor-sub" id="gauntlet-floor-sub"></p>
+          <div id="gauntlet-relics-row" class="relic-pills-row"></div>
+        </div>
       </aside>
 
       <!-- Center Zoomed Canvas Stage + Overlays -->
@@ -317,6 +367,7 @@
             <p class="banner-kicker" id="banner-kicker">ROUND OVER</p>
             <h2 id="banner-title">BLUE WINS THE ROUND!</h2>
             <p id="banner-sub"></p>
+            <div id="banner-rewards" class="banner-rewards hidden"></div>
             <div class="banner-actions">
               <button class="btn btn-primary btn-lg" id="btn-banner-next" type="button">Next Round</button>
               <button class="btn btn-ghost hidden" id="btn-banner-lobby" type="button">Back to Lobby</button>
@@ -435,7 +486,81 @@
     </div>
   </div>
 
+  <!-- GAUNTLET RELIC DRAFT MODAL -->
+  <div id="modal-relic" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="relic-title">
+    <div class="modal-card relic-modal">
+      <div class="modal-head">
+        <div>
+          <p class="draft-kicker" id="relic-kicker">FLOOR CLEARED • CHOOSE A RUN RELIC</p>
+          <h2 id="relic-title">Pick 1 of 3 Relics</h2>
+          <p class="muted" id="relic-sub">Relics stack for the rest of this Gauntlet Tower run (PvE only).</p>
+        </div>
+      </div>
+      <div id="relic-cards" class="relic-cards"></div>
+      <div class="draft-footer">
+        <button class="btn btn-ghost" id="btn-relic-skip" type="button">Skip Relic (+35 Sparks)</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- PROFILE, BOUNTIES, ARMORY & MASTERY MODAL -->
+  <div id="modal-profile" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="profile-modal-title">
+    <div class="modal-card profile-modal">
+      <div class="modal-head">
+        <div>
+          <h2 id="profile-modal-title">Arena Profile &amp; Armory</h2>
+          <p class="muted" id="profile-modal-sub">Cosmetics &amp; Mastery Crowns apply everywhere; Online PvP stays 100% fair.</p>
+        </div>
+        <button class="btn btn-ghost" id="btn-close-profile" type="button">Close</button>
+      </div>
+
+      <div class="chip-row profile-tabs" id="profile-tab-row">
+        <button class="chip is-active" data-ptab="overview" type="button">Overview &amp; Bounties</button>
+        <button class="chip" data-ptab="armory" type="button">Armory (Themes &amp; Trails)</button>
+        <button class="chip" data-ptab="mastery" type="button">Ball Mastery</button>
+      </div>
+
+      <!-- TAB 1: OVERVIEW & BOUNTIES -->
+      <div id="ptab-overview" class="ptab-pane">
+        <div class="profile-summary-grid" id="profile-summary-grid"></div>
+        <h3 class="section-subhead">Active Bounties</h3>
+        <div id="profile-bounties-grid" class="bounties-grid"></div>
+        <div class="save-code-box">
+          <div class="save-code-head">
+            <strong>Backup / Transfer Save Code</strong>
+            <span class="muted" id="save-code-status">Stored automatically in this browser.</span>
+          </div>
+          <div class="save-code-row">
+            <input type="text" id="profile-save-input" class="search-input" placeholder="Paste save code to import..." />
+            <button class="btn btn-secondary btn-sm" id="btn-export-save" type="button">Copy Save</button>
+            <button class="btn btn-primary btn-sm" id="btn-import-save" type="button">Import</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB 2: ARMORY (ARENA THEMES & BALL TRAILS) -->
+      <div id="ptab-armory" class="ptab-pane hidden">
+        <div class="armory-balance-bar">
+          <span>Your Balance: <strong id="armory-sparks">✨ 100</strong></span>
+          <span class="muted">Earn Sparks from Bot, Gauntlet Tower, Online wins &amp; Bounties.</span>
+        </div>
+        <h3 class="section-subhead">Arena Themes (6)</h3>
+        <div id="armory-themes-grid" class="armory-grid"></div>
+        <h3 class="section-subhead">Ball Trails (6)</h3>
+        <div id="armory-trails-grid" class="armory-grid"></div>
+      </div>
+
+      <!-- TAB 3: BALL MASTERY -->
+      <div id="ptab-mastery" class="ptab-pane hidden">
+        <p class="muted" style="margin:0 0 10px;">
+          Play &amp; win rounds with any ball to level it from <strong>Lv 1 Bronze</strong> → <strong>Lv 3 Gold Crown</strong> → <strong>Lv 5 Cosmic Ω</strong>!
+        </p>
+        <div id="profile-mastery-grid" class="mastery-grid"></div>
+      </div>
+    </div>
+  </div>
+
   <script src="./vendor/peerjs.min.js"></script>
-  <script type="module" src="./src/ui/app.js?v=20261120i"></script>
+  <script type="module" src="./src/ui/app.js?v=20261125a"></script>
 </body>
 </html>

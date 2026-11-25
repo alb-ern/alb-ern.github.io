@@ -15,6 +15,22 @@ import { ArenaSimulation, createSeededRng } from '../src/sim/physics.js';
 import { chooseBotAimAngle, chooseBotBall, drawRandomBallChoices } from '../src/sim/ai.js';
 import { encodeSnapshot, applySnapshot, stepMirrorVisuals } from '../src/net/protocol.js';
 import { generateRoomCode, quickmatchRoomCode, QUICKMATCH_SLOTS, sanitizeRoomCode } from '../src/net/p2p.js';
+import {
+  ARENA_THEMES,
+  BALL_TRAILS,
+  claimBounty,
+  createDefaultProfile,
+  equipCosmetic,
+  exportProfileCode,
+  getBallMasteryInfo,
+  getRankInfo,
+  importProfileCode,
+  loadProfile,
+  recordCombatProgress,
+  saveProfile,
+  unlockCosmetic,
+} from '../src/sim/progression.js';
+import { drawRelicChoices, GAUNTLET_FLOORS, GAUNTLET_RELICS, getGauntletFloor } from '../src/sim/gauntlet.js';
 
 function assert(cond, msg) {
   if (!cond) throw new Error(`ASSERTION FAILED: ${msg}`);
@@ -492,6 +508,112 @@ test('Claude refusal shield blocks hits, Israel Ball intercepts projectiles, and
   const pad = sim2.helpers.find((h) => h.kind === 'dondurma_paddle');
   assert(sym && sym.orbitRadius >= 160, 'Hypergamy must spawn 162px-reach hypergamy_symbol helper');
   assert(pad && pad.orbitRadius >= 145, 'Dondurma must spawn 148px-reach dondurma_paddle helper');
+});
+
+test('Progression awards Sparks, Mastery Lv 1-5, Bounties, Armory unlocks, milestones, and Save Code roundtrip', () => {
+  const rng = createSeededRng(777);
+  const store = new Map();
+  const memStorage = {
+    getItem: (k) => store.get(k) ?? null,
+    setItem: (k, v) => store.set(k, v),
+  };
+  const prof = createDefaultProfile(rng);
+  assert(prof.sparks === 100 && prof.bounties.length === 3, 'Default profile must start with 100 Sparks & 3 bounties');
+  assert(ARENA_THEMES.length === 6 && BALL_TRAILS.length === 6, 'Armory must contain 6 themes and 6 trails');
+
+  // Record 7 Gauntlet floor wins with hydrogenbomb including Floor 10 clear
+  let lastRes = null;
+  for (let i = 1; i <= 7; i++) {
+    lastRes = recordCombatProgress(prof, {
+      mode: MODES.GAUNTLET,
+      teamSize: i === 7 ? 2 : 1,
+      usedBalls: ['hydrogenbomb'],
+      wonRound: true,
+      matchEnded: i === 7,
+      wonMatch: i === 7,
+      gauntletFloor: i === 7 ? 10 : i,
+      gauntletCleared: i === 7,
+      dmgDealt: 120,
+      wallHits: 10,
+      remainingHp: 75,
+    });
+  }
+  const mastery = getBallMasteryInfo(prof, 'hydrogenbomb');
+  assert(mastery.level >= 3, `Expected Hydrogen Bomb to reach Gold Crown Lv 3+, got Lv ${mastery.level} (${mastery.xp} XP)`);
+  assert(prof.unlockedThemes.includes('cosmic_omega'), 'Clearing Gauntlet Floor 10 must auto-unlock Cosmic Void Ω theme');
+  assert(lastRes.sparksEarned > 200, 'Gauntlet Floor 10 clear should award large Sparks reward');
+
+  // Unlock & equip Neon Cyber theme and Flame trail
+  const uTheme = unlockCosmetic(prof, 'theme', 'neon_cyber');
+  const uTrail = unlockCosmetic(prof, 'trail', 'flame');
+  assert(uTheme.ok && prof.equippedTheme === 'neon_cyber', 'Should unlock & equip neon_cyber theme');
+  assert(uTrail.ok && prof.equippedTrail === 'flame', 'Should unlock & equip flame trail');
+  assert(equipCosmetic(prof, 'theme', 'cosmic_omega') && prof.equippedTheme === 'cosmic_omega', 'Should equip unlocked cosmic_omega');
+
+  // Claim any completed bounty
+  const readyBounty = prof.bounties.find((b) => b.progress >= b.target);
+  if (readyBounty) {
+    const beforeSparks = prof.sparks;
+    const claimed = claimBounty(prof, readyBounty.id, rng);
+    assert(claimed && prof.sparks > beforeSparks, 'Claiming completed bounty must grant Sparks');
+  }
+
+  // Persistence + Save Code roundtrip
+  saveProfile(prof, memStorage);
+  const loaded = loadProfile(memStorage);
+  assert(loaded.sparks === prof.sparks && loaded.equippedTheme === 'cosmic_omega', 'Storage persistence failed');
+  const code = exportProfileCode(prof);
+  const imported = importProfileCode(code);
+  assert(imported && imported.ballMastery.hydrogenbomb.xp === prof.ballMastery.hydrogenbomb.xp, 'Save code roundtrip failed');
+  assert(getRankInfo(1400).current.id === 'gold', '1400 trophies should map to Gold rank');
+});
+
+test('Gauntlet Tower 10 floors & Run Relics trigger in GAUNTLET mode and stay inactive in BOT/ONLINE modes', () => {
+  assert(GAUNTLET_FLOORS.length === 10 && GAUNTLET_RELICS.length === 12, 'Expected 10 floors & 12 relics');
+  const f10 = getGauntletFloor(10);
+  assert(f10.teamSize === 2 && f10.bossTeam.length === 2, 'Floor 10 must be a 2v2 Final Boss arena');
+  const picks = drawRelicChoices(['vampiric_walls'], 3, createSeededRng(99));
+  assert(picks.length === 3 && picks.every((r) => r.id !== 'vampiric_walls'), 'Relic draft should prefer unowned relics');
+
+  // Test Aegis Start (blocks 2 hits), Titan Plating (+25 HP), and Second Wind (revive at 25 HP) in GAUNTLET mode
+  const sim = new ArenaSimulation({
+    mode: MODES.GAUNTLET,
+    hearts: 1,
+    seed: 9001,
+    runRelics: ['titan_plating', 'aegis_start', 'second_wind'],
+    bossHpScale: 1.2,
+  });
+  sim.startMatch({
+    mode: MODES.GAUNTLET,
+    hearts: 1,
+    runRelics: ['titan_plating', 'aegis_start', 'second_wind'],
+    bossHpScale: 1.2,
+    skipDraft: true,
+  });
+  sim.setupAimPhase('verity', 'banana');
+  sim.launchRound(0, Math.PI);
+  const p1 = sim.balls.find((b) => b.owner === 1);
+  const boss = sim.balls.find((b) => b.owner === 2);
+  assert(p1.maxHp === 125 && p1.hp === 125, `Titan Plating should give +25 HP (got ${p1.maxHp})`);
+  assert(boss.maxHp === 120, `Boss HP scale 1.2x should give 120 HP (got ${boss.maxHp})`);
+
+  // First 2 hits blocked by Aegis Start
+  assert(sim.dealDamage(p1, 20, 2, 'test') === 0, 'Aegis hit 1 should be blocked');
+  assert(sim.dealDamage(p1, 20, 2, 'test') === 0, 'Aegis hit 2 should be blocked');
+  assert(p1.hp === 125, 'HP should remain full after 2 Aegis blocks');
+
+  // Lethal hit should trigger Second Wind revive at 25 HP
+  sim.dealDamage(p1, 999, 2, 'lethal_test');
+  assert(p1.hp === 25 && p1.phaseTimer > 0, `Second Wind must revive player at 25 HP with phase shield (hp=${p1.hp})`);
+
+  // Verify PvP / BOT mode ignores runRelics completely
+  const pvp = new ArenaSimulation({ mode: MODES.ONLINE, hearts: 1, seed: 9002 });
+  pvp.startMatch({ mode: MODES.ONLINE, hearts: 1, runRelics: ['titan_plating', 'aegis_start'], bossHpScale: 1.5, skipDraft: true });
+  pvp.setupAimPhase('verity', 'banana');
+  pvp.launchRound(0, Math.PI);
+  const pvpP1 = pvp.balls.find((b) => b.owner === 1);
+  const pvpP2 = pvp.balls.find((b) => b.owner === 2);
+  assert(pvpP1.maxHp === 100 && pvpP2.maxHp === 100, 'Online mode must ignore all Gauntlet relics & bossHpScale');
 });
 
 let spiderWins = 0;

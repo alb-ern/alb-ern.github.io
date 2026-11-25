@@ -4,12 +4,15 @@ A 1v1 & 2v2 physics arena auto-battler web version inspired by Roblox **Ball VS 
 
 ## Features
 
+- **Roguelike Gauntlet Tower (10 Boss Floors + 12 Stacking Run Relics)**: Single-player PvE tower climb with 3 Run Hearts, escalating enemies, 2v2 Boss Arenas on **Floor 5 (H-Bomb & Coughing Baby)**, **Floor 8 (Claude & Gemini)**, and **Floor 10 (Omega & Aura)**, and a 3-choice **Run Relic Draft** after every clear (e.g., *Overclocked Walls*, *Vampiric Core*, *Second Wind*, *Glass Cannon*, *Boss Slayer*, *Spark Magnet*). Relics apply strictly inside Gauntlet PvE — Online P2P & Quickmatch stay 100% fair!
+- **Per-Ball Mastery (`Lv 1–5`)**: Earn Mastery XP on every ball you play across all modes to unlock strictly cosmetic **Bronze / Silver / Gold Crown / Neon Halo / Cosmic Ω** prestige rings, floating crowns, and orbiting starlight motes directly in the arena and Ball Dex.
+- **Rank Ladder, Rotating Bounties & Cosmetic Armory**: Climb 6 Trophy tiers (**Bronze → Silver → Gold → Platinum → Diamond → Omega**), complete 3 rotating Bounties for **Sparks (✨)** & XP, unlock **6 Arena Themes** (*Classic Slate, Neon Cyber, Volcano Core, Notebook Doodle, Matrix Grid, Cosmic Omega*) and **6 Ball Trails** (*Classic, Flame, Rainbow, Glitch, Gold Dust, Void Lightning*), and back up progress via Base64 Save Codes (`localStorage`).
 - **1v1 Classic (`600×600`) & 2v2 Teams (`740×740` Bigger Arena)**: Direct 1-click launch buttons on Lobby for 1v1 or 2v2 across **VS Bot**, **Local Pass & Play (`2P` / `4P`)**, **Online P2P (`2P` / `4P`)**, and **Sandbox**! Teammates bounce cleanly with zero friendly fire and per-ball tuning attribution.
 - **VS Bot (1v1 / 2v2)**: Best-of-3 Hearts matches with 3-card random Drafts (2 free Rerolls + All Balls picker), interactive Lock Aim trajectories, and tactical Bot opponents.
 - **Online Multiplayer (WebRTC P2P — Quickmatch 1v1 + Private 2P/4P Rooms)**: Tap **Quickmatch (1v1)** to match automatically with the next searching player (client-hosted via PeerJS queues), or create shareable `?room=CODE` links for 2-player 1v1 and 4-player 2v2 matches. Works over localhost, LAN, Tailscale, or GitHub Pages.
 - **Local Pass & Play (2P 1v1 & 4P 2v2)**: Same-device pass-and-play with secret Drafts and hidden Lock Aim shields for 2 players (1v1) or 4 players (`P1 Blue #1` → `P2 Blue #2` → `P3 Red #1` → `P4 Red #2` in 2v2).
 - **Sandbox Lab (1v1 / 2v2)**: Live search input bars for Blue & Red teams to filter all 120 balls, presets (including **H-Bomb vs Baby**), configurable Hearts & Sudden Death (`30s` default shrink), and 10-match instant simulator.
-- **Ball Dex**: Browse all 120 balls filtered by rarity (`Rare`, `Epic`, `Legendary`, `Mythic`, `Exclusive`) or keyword.
+- **Ball Dex**: Browse all 120 balls filtered by rarity (`Rare`, `Epic`, `Legendary`, `Mythic`, `Exclusive`) or keyword, complete with Mastery badges.
 - **Zero-Asset Web Audio SFX & Procedural 2D Canvas Art**: Instant play with zero build tools required.
 
 ## Running Locally & Network Play

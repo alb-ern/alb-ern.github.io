@@ -95,6 +95,17 @@ class SoundEngine {
       }
     }
   }
+
+  playReward() {
+    this.playTone(587, 784, 0.12, 'triangle', 0.09);
+    setTimeout(() => this.playTone(784, 1175, 0.18, 'triangle', 0.09), 90);
+  }
+
+  playLevelUp() {
+    this.playTone(523, 659, 0.12, 'triangle', 0.1);
+    setTimeout(() => this.playTone(659, 784, 0.12, 'triangle', 0.1), 85);
+    setTimeout(() => this.playTone(784, 1046, 0.24, 'triangle', 0.11), 175);
+  }
 }
 
 export const soundEngine = new SoundEngine();

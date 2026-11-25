@@ -24,6 +24,7 @@ export const MODES = Object.freeze({
   LOCAL_2P: 'local2p',
   SANDBOX: 'sandbox',
   ONLINE: 'online',
+  GAUNTLET: 'gauntlet',
 });
 
 export const PHASES = Object.freeze({

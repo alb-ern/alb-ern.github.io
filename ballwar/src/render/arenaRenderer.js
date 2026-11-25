@@ -845,8 +845,56 @@ export function renderArena(ctx, sim, uiState = {}) {
     ctx.translate(sx, sy);
   }
 
+  // Arena Theme Palette (cosmetic-only)
+  const themeId = uiState.arenaTheme || 'classic';
+  const themeStyles = {
+    classic: {
+      outer: '#0f172a',
+      bg0: '#1e293b',
+      bg1: '#111827',
+      grid: 'rgba(148, 163, 184, 0.12)',
+      ring: 'rgba(148, 163, 184, 0.16)',
+    },
+    neon_cyber: {
+      outer: '#09071a',
+      bg0: '#1e1b4b',
+      bg1: '#0b0920',
+      grid: 'rgba(34, 211, 238, 0.18)',
+      ring: 'rgba(232, 121, 249, 0.35)',
+    },
+    volcano: {
+      outer: '#1c0a00',
+      bg0: '#451a03',
+      bg1: '#1c0902',
+      grid: 'rgba(249, 115, 22, 0.16)',
+      ring: 'rgba(251, 146, 60, 0.34)',
+    },
+    notebook: {
+      outer: '#cbd5e1',
+      bg0: '#fefce8',
+      bg1: '#fef3c7',
+      grid: 'rgba(59, 130, 246, 0.22)',
+      ring: 'rgba(239, 68, 68, 0.26)',
+    },
+    matrix: {
+      outer: '#010a06',
+      bg0: '#022c22',
+      bg1: '#010f0a',
+      grid: 'rgba(34, 197, 94, 0.2)',
+      ring: 'rgba(74, 222, 128, 0.32)',
+    },
+    cosmic_omega: {
+      outer: '#090214',
+      bg0: '#2e1065',
+      bg1: '#090214',
+      grid: 'rgba(251, 191, 36, 0.14)',
+      ring: 'rgba(251, 191, 36, 0.42)',
+    },
+  };
+  const th = themeStyles[themeId] || themeStyles.classic;
+
   // Outer danger background (visible when Sudden Death shrinks arena)
-  ctx.fillStyle = sim.suddenDeathActive ? '#4c0519' : '#0f172a';
+  ctx.fillStyle = sim.suddenDeathActive ? '#4c0519' : th.outer;
   ctx.fillRect(0, 0, arenaSz, arenaSz);
 
   // Playable arena court inside current bounds
@@ -859,16 +907,29 @@ export function renderArena(ctx, sim, uiState = {}) {
   ctx.rect(b.left, b.top, bw, bh);
   ctx.clip();
 
-  // Tactile Roblox-style bright court floor
+  // Themed court floor
   const bgGrad = ctx.createLinearGradient(0, 0, arenaSz, arenaSz);
-  bgGrad.addColorStop(0, '#1e293b');
-  bgGrad.addColorStop(1, '#111827');
+  bgGrad.addColorStop(0, th.bg0);
+  bgGrad.addColorStop(1, th.bg1);
   ctx.fillStyle = bgGrad;
   ctx.fillRect(b.left, b.top, bw, bh);
 
-  // Clean subtle grid lines
-  ctx.strokeStyle = 'rgba(148, 163, 184, 0.12)';
-  ctx.lineWidth = 1;
+  // Subtle decorative starfield for Cosmic Omega theme
+  if (themeId === 'cosmic_omega') {
+    ctx.fillStyle = 'rgba(254, 240, 138, 0.32)';
+    for (let s = 0; s < 26; s++) {
+      const sx = ((s * 173 + 47) % 100) * 0.01 * arenaSz;
+      const sy = ((s * 293 + 83) % 100) * 0.01 * arenaSz;
+      const sr = (s % 3) * 0.7 + 1.1;
+      ctx.beginPath();
+      ctx.arc(sx, sy, sr, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  // Clean grid lines
+  ctx.strokeStyle = th.grid;
+  ctx.lineWidth = themeId === 'notebook' ? 1.2 : 1;
   const step = 40;
   for (let gx = 0; gx <= arenaSz; gx += step) {
     ctx.beginPath();
@@ -884,11 +945,18 @@ export function renderArena(ctx, sim, uiState = {}) {
   }
 
   // Center arena emblem
-  ctx.strokeStyle = 'rgba(148, 163, 184, 0.16)';
+  ctx.strokeStyle = th.ring;
   ctx.lineWidth = 3;
   ctx.beginPath();
   ctx.arc(arenaSz * 0.5, arenaSz * 0.5, 84, 0, Math.PI * 2);
   ctx.stroke();
+  if (themeId === 'cosmic_omega') {
+    ctx.fillStyle = 'rgba(251, 191, 36, 0.16)';
+    ctx.font = '900 72px Georgia, serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('Ω', arenaSz * 0.5, arenaSz * 0.5 + 3);
+  }
 
   // Hazards inside arena
   for (const hz of sim.hazards) {
@@ -970,19 +1038,64 @@ export function renderArena(ctx, sim, uiState = {}) {
     }
   }
 
-  // Ball motion trails
+  // Ball motion trails (with unlockable cosmetic trail for local player's balls)
+  const localOwner = uiState.localOwner || 1;
+  const equippedTrail = uiState.ballTrail || 'default';
   for (const ball of sim.balls) {
     if (!ball.trail || ball.trail.length < 2) continue;
+    const trailId = ball.owner === localOwner ? equippedTrail : 'default';
     ctx.save();
     for (let i = 0; i < ball.trail.length - 1; i++) {
       const pt = ball.trail[i];
       const frac = (i + 1) / ball.trail.length;
-      ctx.fillStyle = ball.owner === 1
-        ? `rgba(56, 189, 248, ${frac * 0.2})`
-        : `rgba(244, 63, 94, ${frac * 0.2})`;
-      ctx.beginPath();
-      ctx.arc(pt.x, pt.y, ball.radius * frac * 0.72, 0, Math.PI * 2);
-      ctx.fill();
+      const rad = ball.radius * frac * 0.72;
+      if (trailId === 'flame') {
+        ctx.fillStyle = i % 2 === 0
+          ? `rgba(249, 115, 22, ${frac * 0.36})`
+          : `rgba(250, 204, 21, ${frac * 0.32})`;
+        ctx.beginPath();
+        ctx.arc(pt.x, pt.y, rad * 1.06, 0, Math.PI * 2);
+        ctx.fill();
+      } else if (trailId === 'rainbow') {
+        const hue = Math.round((time * 160 + i * 28) % 360);
+        ctx.fillStyle = `hsla(${hue}, 92%, 62%, ${frac * 0.32})`;
+        ctx.beginPath();
+        ctx.arc(pt.x, pt.y, rad, 0, Math.PI * 2);
+        ctx.fill();
+      } else if (trailId === 'glitch') {
+        const off = (i % 2 === 0 ? 1 : -1) * 5;
+        ctx.fillStyle = i % 2 === 0
+          ? `rgba(34, 211, 238, ${frac * 0.34})`
+          : `rgba(232, 121, 249, ${frac * 0.34})`;
+        ctx.fillRect(pt.x - rad * 0.65 + off, pt.y - rad * 0.65, rad * 1.3, rad * 1.3);
+      } else if (trailId === 'gold_dust') {
+        ctx.fillStyle = `rgba(251, 191, 36, ${frac * 0.35})`;
+        ctx.beginPath();
+        ctx.arc(pt.x, pt.y, rad * 0.85, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = `rgba(254, 240, 138, ${frac * 0.6})`;
+        ctx.beginPath();
+        ctx.arc(pt.x + Math.sin(i * 2.1) * 7, pt.y + Math.cos(i * 1.9) * 7, 3.2, 0, Math.PI * 2);
+        ctx.fill();
+      } else if (trailId === 'void_lightning') {
+        const nextPt = ball.trail[i + 1];
+        ctx.strokeStyle = i % 2 === 0
+          ? `rgba(168, 85, 247, ${frac * 0.62})`
+          : `rgba(45, 212, 191, ${frac * 0.62})`;
+        ctx.lineWidth = Math.max(2, frac * 6);
+        ctx.beginPath();
+        ctx.moveTo(pt.x, pt.y);
+        ctx.lineTo((pt.x + nextPt.x) * 0.5 + ((i % 2) * 8 - 4), (pt.y + nextPt.y) * 0.5 + ((i % 3) * 5 - 5));
+        ctx.lineTo(nextPt.x, nextPt.y);
+        ctx.stroke();
+      } else {
+        ctx.fillStyle = ball.owner === 1
+          ? `rgba(56, 189, 248, ${frac * 0.2})`
+          : `rgba(244, 63, 94, ${frac * 0.2})`;
+        ctx.beginPath();
+        ctx.arc(pt.x, pt.y, rad, 0, Math.PI * 2);
+        ctx.fill();
+      }
     }
     ctx.restore();
   }
@@ -1140,6 +1253,10 @@ export function renderArena(ctx, sim, uiState = {}) {
       stunTimer: ball.stunTimer,
       slowTimer: ball.slowTimer,
       poisonTimer: ball.poisonTimer,
+      masteryLevel:
+        ball.owner === localOwner && uiState.ballMasteryMap
+          ? uiState.ballMasteryMap[ball.ballId] || 0
+          : 0,
     });
 
     // Centered HP number inside ball (Roblox style)
