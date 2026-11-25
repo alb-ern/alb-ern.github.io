@@ -27,6 +27,61 @@ export const MASTERY_TIERS = Object.freeze([
   { level: 5, label: 'Cosmic Ω', minXp: 500, color: '#2dd4bf' },
 ]);
 
+export const STARTER_BALL_IDS = Object.freeze([
+  // 10 Rare starters (classics + meme favorites)
+  'spider', 'vampire', 'blade', 'bow', 'electric', 'cell', 'slime', 'coughingbaby', 'banana', 'kebab',
+  // 6 Epic starters
+  'axe', 'laser', 'cannon', 'snake', 'shield', 'pinata',
+  // 3 Legendary starters
+  'verity', 'orbital', 'nokia',
+  // 1 Mythic starter
+  'shackles',
+]);
+
+export const BALL_UNLOCK_COSTS = Object.freeze({
+  Rare: 60,
+  Epic: 100,
+  Legendary: 160,
+  Mythic: 240,
+  Exclusive: 320,
+});
+
+export const CAPSULE_DEFS = Object.freeze([
+  {
+    id: 'standard',
+    name: 'Standard Capsule',
+    cost: 75,
+    icon: '🎁',
+    accent: '#38bdf8',
+    desc: 'Guaranteed NEW ball from any locked rarity (no duplicates!).',
+    oddsLabel: '42% Rare • 32% Epic • 16% Leg • 6% Mythic • 4% Excl',
+    weights: { Rare: 42, Epic: 32, Legendary: 16, Mythic: 6, Exclusive: 4 },
+    preferredRarities: null,
+  },
+  {
+    id: 'royal',
+    name: 'Royal Capsule',
+    cost: 160,
+    icon: '👑',
+    accent: '#facc15',
+    desc: 'Guaranteed NEW Legendary, Mythic, or Exclusive ball!',
+    oddsLabel: '58% Legendary • 24% Mythic • 18% Exclusive',
+    weights: { Legendary: 58, Mythic: 24, Exclusive: 18 },
+    preferredRarities: ['Legendary', 'Mythic', 'Exclusive'],
+  },
+  {
+    id: 'vault',
+    name: 'Exclusive Vault',
+    cost: 260,
+    icon: '⚡',
+    accent: '#c084fc',
+    desc: 'Guaranteed NEW Mythic or Exclusive apex contender!',
+    oddsLabel: '48% Mythic • 52% Exclusive',
+    weights: { Mythic: 48, Exclusive: 52 },
+    preferredRarities: ['Mythic', 'Exclusive'],
+  },
+]);
+
 export const ARENA_THEMES = Object.freeze([
   {
     id: 'classic',
@@ -247,6 +302,8 @@ export function rollBounties(existingIds = [], count = 3, rng = Math.random) {
   return picked;
 }
 
+const VALID_BALL_ID_SET = new Set(BALL_DEFS.map((b) => b.id));
+
 export function createDefaultProfile(rng = Math.random) {
   return {
     version: 1,
@@ -259,6 +316,7 @@ export function createDefaultProfile(rng = Math.random) {
     equippedTrail: 'default',
     unlockedThemes: ['classic'],
     unlockedTrails: ['default'],
+    unlockedBalls: [...STARTER_BALL_IDS],
     ballMastery: {},
     bounties: rollBounties([], 3, rng),
     stats: {
@@ -291,6 +349,9 @@ export function sanitizeProfile(raw) {
     unlockedTrails: Array.from(
       new Set(['default', ...(Array.isArray(raw.unlockedTrails) ? raw.unlockedTrails : [])])
     ).filter((id) => BALL_TRAILS.some((t) => t.id === id)),
+    unlockedBalls: Array.from(
+      new Set([...STARTER_BALL_IDS, ...(Array.isArray(raw.unlockedBalls) ? raw.unlockedBalls : [])])
+    ).filter((id) => VALID_BALL_ID_SET.has(id)),
     ballMastery: {},
     bounties: [],
     stats: {
@@ -500,6 +561,106 @@ function checkMilestoneUnlocks(profile) {
   return unlocked;
 }
 
+export function getBallUnlockCost(ballIdOrDef) {
+  const def = typeof ballIdOrDef === 'string' ? getBallDef(ballIdOrDef) : ballIdOrDef;
+  return BALL_UNLOCK_COSTS[def?.rarity] ?? 100;
+}
+
+export function getUnlockedBallIds(profile) {
+  if (!Array.isArray(profile?.unlockedBalls) || profile.unlockedBalls.length === 0) {
+    return [...STARTER_BALL_IDS];
+  }
+  return profile.unlockedBalls;
+}
+
+export function isBallUnlocked(profile, ballId) {
+  return getUnlockedBallIds(profile).includes(ballId);
+}
+
+export function getLockedBallDefs(profile, allowedRarities = null) {
+  const owned = new Set(getUnlockedBallIds(profile));
+  const allowedSet = Array.isArray(allowedRarities) && allowedRarities.length > 0 ? new Set(allowedRarities) : null;
+  return BALL_DEFS.filter((b) => !owned.has(b.id) && (!allowedSet || allowedSet.has(b.rarity)));
+}
+
+export function unlockBallDirect(profile, ballId) {
+  if (!VALID_BALL_ID_SET.has(ballId)) return { ok: false, reason: 'Invalid ball' };
+  if (!Array.isArray(profile.unlockedBalls)) profile.unlockedBalls = [...STARTER_BALL_IDS];
+  if (profile.unlockedBalls.includes(ballId)) {
+    return { ok: true, alreadyUnlocked: true, ball: getBallDef(ballId), cost: 0 };
+  }
+  const ball = getBallDef(ballId);
+  const cost = getBallUnlockCost(ball);
+  if (profile.sparks < cost) return { ok: false, reason: `Need ${cost} Sparks` };
+  profile.sparks -= cost;
+  profile.unlockedBalls.push(ballId);
+  return { ok: true, ball, cost };
+}
+
+function pickWeightedLockedBall(profile, weights = null, preferredRarities = null, rng = Math.random) {
+  let candidates = preferredRarities ? getLockedBallDefs(profile, preferredRarities) : getLockedBallDefs(profile);
+  if (candidates.length === 0) {
+    candidates = getLockedBallDefs(profile);
+  }
+  if (candidates.length === 0) return null;
+
+  if (weights && typeof weights === 'object') {
+    const byRarity = {};
+    for (const b of candidates) {
+      if (!byRarity[b.rarity]) byRarity[b.rarity] = [];
+      byRarity[b.rarity].push(b);
+    }
+    const availableRarities = Object.keys(byRarity);
+    const totalWeight = availableRarities.reduce((acc, r) => acc + (weights[r] || 10), 0);
+    let roll = rng() * totalWeight;
+    let chosenRarity = availableRarities[0];
+    for (const r of availableRarities) {
+      roll -= weights[r] || 10;
+      if (roll <= 0) {
+        chosenRarity = r;
+        break;
+      }
+    }
+    const bucket = byRarity[chosenRarity];
+    return bucket[Math.floor(rng() * bucket.length)];
+  }
+
+  return candidates[Math.floor(rng() * candidates.length)];
+}
+
+export function openBallCapsule(profile, capsuleId = 'standard', rng = Math.random) {
+  const capsule = CAPSULE_DEFS.find((c) => c.id === capsuleId) || CAPSULE_DEFS[0];
+  if (!Array.isArray(profile.unlockedBalls)) profile.unlockedBalls = [...STARTER_BALL_IDS];
+  const allLocked = getLockedBallDefs(profile);
+  if (allLocked.length === 0) {
+    return { ok: false, reason: 'All 120 balls are already unlocked!' };
+  }
+  if (profile.sparks < capsule.cost) {
+    return { ok: false, reason: `Need ${capsule.cost} Sparks` };
+  }
+  const ball = pickWeightedLockedBall(profile, capsule.weights, capsule.preferredRarities, rng);
+  if (!ball) return { ok: false, reason: 'No locked balls left!' };
+  profile.sparks -= capsule.cost;
+  profile.unlockedBalls.push(ball.id);
+  return {
+    ok: true,
+    ball,
+    capsule,
+    remainingLocked: Math.max(0, BALL_DEFS.length - profile.unlockedBalls.length),
+  };
+}
+
+export function grantFreeBallUnlock(profile, preferredRarities = null, rng = Math.random) {
+  if (!Array.isArray(profile.unlockedBalls)) profile.unlockedBalls = [...STARTER_BALL_IDS];
+  const ball = pickWeightedLockedBall(profile, null, preferredRarities, rng);
+  if (!ball) {
+    profile.sparks += 150;
+    return { ball: null, bonusSparks: 150 };
+  }
+  profile.unlockedBalls.push(ball.id);
+  return { ball, bonusSparks: 0 };
+}
+
 /**
  * Records a completed round (and optional match end / gauntlet floor clear) into the player profile.
  * Returns a structured reward summary for the Arena Banner UI.
@@ -520,6 +681,7 @@ export function recordCombatProgress(profile, opts = {}) {
     gauntletFloor = 0,
     gauntletCleared = false,
     rewardMult = 1,
+    rng = Math.random,
   } = opts;
 
   const isSandbox = mode === MODES.SANDBOX;
@@ -531,6 +693,7 @@ export function recordCombatProgress(profile, opts = {}) {
   let xpEarned = 0;
   let trophiesDelta = 0;
   const masteryUps = [];
+  let bossBallUnlock = null;
 
   if (isSandbox) {
     // Light practice Mastery XP only (no currency/rank farming in Sandbox)
@@ -585,6 +748,22 @@ export function recordCombatProgress(profile, opts = {}) {
   profile.xp += xpEarned;
   profile.trophies = Math.max(0, profile.trophies + trophiesDelta);
 
+  // Gauntlet Boss Floor (5, 8, 10) FREE Ball Unlock Drop!
+  if (mode === MODES.GAUNTLET && wonRound && (gauntletFloor === 5 || gauntletFloor === 8 || gauntletFloor === 10)) {
+    const preferred =
+      gauntletFloor === 10
+        ? ['Mythic', 'Exclusive']
+        : gauntletFloor === 8
+        ? ['Legendary', 'Mythic', 'Exclusive']
+        : ['Epic', 'Legendary', 'Mythic', 'Exclusive'];
+    const drop = grantFreeBallUnlock(profile, preferred, rng);
+    if (drop.ball) {
+      bossBallUnlock = drop.ball;
+    } else if (drop.bonusSparks > 0) {
+      sparksEarned += drop.bonusSparks;
+    }
+  }
+
   // Per-ball Mastery XP
   const uniqueBalls = Array.from(new Set(usedBalls.filter(Boolean)));
   const ballXpGain = Math.round((isSandbox ? 5 : wonRound ? 28 : 14) * rewardMult);
@@ -631,6 +810,7 @@ export function recordCombatProgress(profile, opts = {}) {
     masteryUps,
     completedBounties,
     milestoneUnlocks,
+    bossBallUnlock,
   };
 }
 

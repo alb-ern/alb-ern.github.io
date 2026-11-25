@@ -19,19 +19,25 @@ import { applySnapshot, encodeSnapshot, stepMirrorVisuals } from '../net/protoco
 import {
   ARENA_THEMES,
   BALL_TRAILS,
+  CAPSULE_DEFS,
   claimBounty,
   equipCosmetic,
   exportProfileCode,
   getBallMasteryInfo,
   getBallMasteryLevelMap,
+  getBallUnlockCost,
   getBountyDef,
   getClaimableBountyCount,
   getPlayerLevelInfo,
   getRankInfo,
+  getUnlockedBallIds,
   importProfileCode,
+  isBallUnlocked,
   loadProfile,
+  openBallCapsule,
   recordCombatProgress,
   saveProfile,
+  unlockBallDirect,
   unlockCosmetic,
 } from '../sim/progression.js';
 import {
@@ -108,8 +114,10 @@ const ui = {
   sandboxSlot: { 1: 0, 2: 0 },
   sandboxSearch: { 1: '', 2: '' },
   dexRarity: 'ALL',
+  dexLock: 'ALL',
   dexQuery: '',
   profileTab: 'overview',
+  lastCapsuleBallId: null,
   pendingShieldCallback: null,
 };
 
@@ -303,13 +311,23 @@ function startQuickmatch() {
   p2p.quickmatch();
 }
 
+function usesUnlockedPool() {
+  return sim.mode === MODES.BOT || sim.mode === MODES.GAUNTLET;
+}
+
 /* ==================== SANDBOX ==================== */
-function renderMiniBallGrid(container, selectedId, onPick) {
+function renderMiniBallGrid(container, selectedId, onPick, opts = {}) {
   container.innerHTML = '';
-  for (const def of BALL_DEFS) {
+  const lockedSet = opts.lockedSet || null;
+  const list = lockedSet
+    ? [...BALL_DEFS].sort((a, b) => Number(lockedSet.has(a.id)) - Number(lockedSet.has(b.id)))
+    : BALL_DEFS;
+
+  for (const def of list) {
+    const locked = Boolean(lockedSet && lockedSet.has(def.id));
     const btn = document.createElement('button');
     btn.type = 'button';
-    btn.className = `mini-ball-btn${def.id === selectedId ? ' is-selected' : ''}`;
+    btn.className = `mini-ball-btn${def.id === selectedId ? ' is-selected' : ''}${locked ? ' is-locked' : ''}`;
     btn.dataset.ballId = def.id;
     btn.dataset.search = `${def.id} ${def.name} ${def.rarity} ${def.archetype} ${def.quote}`.toLowerCase();
 
@@ -322,10 +340,19 @@ function renderMiniBallGrid(container, selectedId, onPick) {
     label.textContent = def.name.replace(' Ball', '');
 
     btn.append(c, label);
-    btn.addEventListener('click', () => {
-      soundEngine.unlock();
-      onPick(def.id);
-    });
+    if (locked) {
+      const lockTag = document.createElement('span');
+      lockTag.className = 'mini-lock-tag';
+      lockTag.textContent = `🔒 ✨${getBallUnlockCost(def)}`;
+      btn.appendChild(lockTag);
+      btn.disabled = true;
+      btn.title = `Locked — Unlock ${def.name} via Ball Capsules, Ball Dex (✨${getBallUnlockCost(def)}), or Gauntlet Boss Drops`;
+    } else {
+      btn.addEventListener('click', () => {
+        soundEngine.unlock();
+        onPick(def.id);
+      });
+    }
     container.appendChild(btn);
   }
 }
@@ -659,7 +686,8 @@ function openDraftForPlayer(playerNum, slotIdx = 0) {
   ui.draftPlayer = playerNum;
   ui.draftSlot = slotIdx;
   ui.draftRerollsLeft = FREE_REROLLS_PER_ROUND;
-  ui.draftChoices = drawRandomBallChoices(3);
+  const allowedIds = usesUnlockedPool() ? getUnlockedBallIds(profile) : null;
+  ui.draftChoices = drawRandomBallChoices(3, Math.random, [], allowedIds);
   $('draft-all-panel').classList.add('hidden');
   $('draft-cards').classList.remove('hidden');
 
@@ -1115,6 +1143,9 @@ function renderBannerRewards(summary) {
   for (const u of summary.milestoneUnlocks || []) {
     chips.push({ text: `🔓 Unlocked ${u}!`, cls: 'purple' });
   }
+  if (summary.bossBallUnlock) {
+    chips.push({ text: `🎁 BOSS DROP: Unlocked ${summary.bossBallUnlock.name}!`, cls: 'gold' });
+  }
 
   if (chips.length === 0) {
     wrap.classList.add('hidden');
@@ -1175,17 +1206,22 @@ function showRoundOrMatchBanner() {
       if (clearedAll) {
         kicker.textContent = 'GAUNTLET TOWER CONQUERED!';
         title.textContent = 'ALL 10 FLOORS CLEARED!';
-        sub.textContent = `You defeated ${f.title} with ${gauntletRun.relics.length} Run Relics!`;
+        sub.textContent = rewardSummary.bossBallUnlock
+          ? `You defeated ${f.title} and unlocked ${rewardSummary.bossBallUnlock.name}!`
+          : `You defeated ${f.title} with ${gauntletRun.relics.length} Run Relics!`;
         nextBtn.textContent = 'New Gauntlet Run';
         lobbyBtn.classList.remove('hidden');
         soundEngine.playLevelUp();
       } else {
         kicker.textContent = `FLOOR ${f.floor} / ${GAUNTLET_FLOORS.length} CLEARED`;
         title.textContent = `${name1} Defeated ${f.title}!`;
-        sub.textContent = `Pick a stacking Run Relic before entering Floor ${f.floor + 1}!`;
+        sub.textContent = rewardSummary.bossBallUnlock
+          ? `BOSS DROP! Unlocked ${rewardSummary.bossBallUnlock.name} — now pick a Run Relic for Floor ${f.floor + 1}!`
+          : `Pick a stacking Run Relic before entering Floor ${f.floor + 1}!`;
         nextBtn.textContent = 'Choose Run Relic →';
         lobbyBtn.classList.add('hidden');
-        soundEngine.playReward();
+        if (rewardSummary.bossBallUnlock) soundEngine.playLevelUp();
+        else soundEngine.playReward();
       }
     } else if (isDraw) {
       gauntletRun.floorWon = false;
@@ -1826,9 +1862,19 @@ function loop(nowMs) {
 function renderDexGrid() {
   const grid = $('dex-grid');
   grid.innerHTML = '';
+  const unlockedSet = new Set(getUnlockedBallIds(profile));
+  if ($('dex-subtitle')) {
+    $('dex-subtitle').textContent = `Unlocked ${unlockedSet.size} / ${BALL_DEFS.length} for VS Bot & Gauntlet • All ${BALL_DEFS.length} free in Sandbox & Online PvP!`;
+  }
+  if ($('dex-sparks-pill')) {
+    $('dex-sparks-pill').textContent = `✨ ${profile.sparks}`;
+  }
+
   const q = ui.dexQuery.trim().toLowerCase();
   const filtered = BALL_DEFS.filter((b) => {
     if (ui.dexRarity !== 'ALL' && b.rarity !== ui.dexRarity) return false;
+    if (ui.dexLock === 'UNLOCKED' && !unlockedSet.has(b.id)) return false;
+    if (ui.dexLock === 'LOCKED' && unlockedSet.has(b.id)) return false;
     if (!q) return true;
     return (
       b.name.toLowerCase().includes(q) ||
@@ -1839,9 +1885,12 @@ function renderDexGrid() {
   });
 
   for (const def of filtered) {
+    const owned = unlockedSet.has(def.id);
+    const unlockCost = getBallUnlockCost(def);
     const mastery = getBallMasteryInfo(profile, def.id);
     const card = document.createElement('article');
-    card.className = 'dex-card';
+    card.className = `dex-card${owned ? '' : ' is-locked'}`;
+    card.dataset.ballId = def.id;
 
     const top = document.createElement('div');
     top.className = 'dex-card-top';
@@ -1850,6 +1899,9 @@ function renderDexGrid() {
     c.height = 56;
     renderBallPreview(c, def, { masteryLevel: mastery.level });
 
+    const lockBadge = owned
+      ? '<span class="dex-lock-badge unlocked">✓ Unlocked</span>'
+      : '<span class="dex-lock-badge locked">🔒 Locked</span>';
     const masteryBadge =
       mastery.level > 0
         ? `<span class="mastery-pill" style="border-color:${mastery.color}; color:${mastery.color};">Lv.${mastery.level} ${mastery.label}</span>`
@@ -1859,12 +1911,36 @@ function renderDexGrid() {
       <h3>${def.name}</h3>
       <span class="rarity-pill r-${def.rarity}">${def.rarity}</span>
       <span class="muted" style="font-size:0.75rem; margin-left:6px;">${def.hp} HP</span>
+      ${lockBadge}
       ${masteryBadge}
     `;
     top.append(c, meta);
 
     const desc = document.createElement('p');
     desc.textContent = def.details;
+
+    const actions = document.createElement('div');
+    actions.className = 'dex-card-actions';
+
+    if (!owned) {
+      const canAfford = profile.sparks >= unlockCost;
+      const unlockBtn = document.createElement('button');
+      unlockBtn.type = 'button';
+      unlockBtn.className = canAfford ? 'btn btn-gold btn-sm' : 'btn btn-ghost btn-sm';
+      unlockBtn.textContent = `Unlock (✨ ${unlockCost})`;
+      unlockBtn.disabled = !canAfford;
+      unlockBtn.addEventListener('click', () => {
+        soundEngine.unlock();
+        const res = unlockBallDirect(profile, def.id);
+        if (res.ok) {
+          saveProfile(profile);
+          soundEngine.playLevelUp();
+          refreshProfileChrome();
+          renderDexGrid();
+        }
+      });
+      actions.appendChild(unlockBtn);
+    }
 
     const btn = document.createElement('button');
     btn.type = 'button';
@@ -1878,17 +1954,19 @@ function renderDexGrid() {
       updateSandboxPreviews();
       showView('sandbox');
     });
+    actions.appendChild(btn);
 
-    card.append(top, desc, btn);
+    card.append(top, desc, actions);
     grid.appendChild(card);
   }
 }
 
-/* ==================== PROFILE, BOUNTIES & ARMORY UI ==================== */
+/* ==================== PROFILE, CAPSULES, BOUNTIES & ARMORY UI ==================== */
 function refreshProfileChrome() {
   const rank = getRankInfo(profile.trophies);
   const lvl = getPlayerLevelInfo(profile.xp);
   const readyBounties = getClaimableBountyCount(profile);
+  const unlockedCount = getUnlockedBallIds(profile).length;
 
   if ($('topbar-rank')) $('topbar-rank').textContent = `${rank.current.icon} ${rank.current.name}`;
   if ($('topbar-sparks')) $('topbar-sparks').textContent = `✨ ${profile.sparks}`;
@@ -1899,6 +1977,7 @@ function refreshProfileChrome() {
   if ($('strip-xp-label')) $('strip-xp-label').textContent = `${lvl.currentXp} / ${lvl.nextXp} XP`;
   if ($('strip-xp-bar')) $('strip-xp-bar').style.width = `${Math.round(lvl.progress * 100)}%`;
   if ($('strip-sparks')) $('strip-sparks').textContent = `✨ ${profile.sparks}`;
+  if ($('strip-unlocked')) $('strip-unlocked').textContent = `${unlockedCount} / ${BALL_DEFS.length}`;
   if ($('strip-tower')) $('strip-tower').textContent = `Floor ${profile.bestGauntletFloor} / ${GAUNTLET_FLOORS.length}`;
   if ($('strip-bounty-summary')) {
     $('strip-bounty-summary').textContent =
@@ -1912,6 +1991,7 @@ function setProfileTab(tab) {
     c.classList.toggle('is-active', c.dataset.ptab === tab);
   });
   $('ptab-overview')?.classList.toggle('hidden', tab !== 'overview');
+  $('ptab-capsules')?.classList.toggle('hidden', tab !== 'capsules');
   $('ptab-armory')?.classList.toggle('hidden', tab !== 'armory');
   $('ptab-mastery')?.classList.toggle('hidden', tab !== 'mastery');
   renderProfileModal();
@@ -1920,6 +2000,92 @@ function setProfileTab(tab) {
 function openProfileModal(tab = 'overview') {
   setProfileTab(tab);
   $('modal-profile').classList.remove('hidden');
+}
+
+function showCapsuleReveal(ball, capsuleName) {
+  const box = $('capsule-reveal-box');
+  if (!box || !ball) return;
+  ui.lastCapsuleBallId = ball.id;
+  renderBallPreview($('capsule-reveal-canvas'), ball, {
+    masteryLevel: getBallMasteryInfo(profile, ball.id).level,
+  });
+  $('capsule-reveal-kicker').textContent = `${capsuleName.toUpperCase()} • NEW BALL UNLOCKED!`;
+  $('capsule-reveal-name').textContent = ball.name;
+  const rar = $('capsule-reveal-rarity');
+  rar.className = `rarity-pill r-${ball.rarity}`;
+  rar.textContent = `${ball.rarity} • ${ball.archetype}`;
+  $('capsule-reveal-stats').textContent = `${ball.hp} HP • ${ball.contactDmg} Contact`;
+  $('capsule-reveal-desc').textContent = ball.details;
+  box.classList.remove('hidden');
+  box.style.animation = 'none';
+  void box.offsetWidth;
+  box.style.animation = '';
+}
+
+function renderCapsulesTab() {
+  const unlockedSet = new Set(getUnlockedBallIds(profile));
+  const unlockedCount = unlockedSet.size;
+  const totalCount = BALL_DEFS.length;
+  const remainingLocked = Math.max(0, totalCount - unlockedCount);
+
+  $('capsules-sparks').textContent = `✨ ${profile.sparks}`;
+  $('capsules-progress-label').textContent = `${unlockedCount} / ${totalCount} Balls`;
+  $('capsules-progress-bar').style.width = `${Math.round((unlockedCount / totalCount) * 100)}%`;
+
+  const rarOrder = ['Rare', 'Epic', 'Legendary', 'Mythic', 'Exclusive'];
+  const breakdown = $('capsules-rarity-breakdown');
+  breakdown.innerHTML = '';
+  for (const r of rarOrder) {
+    const inR = BALL_DEFS.filter((b) => b.rarity === r);
+    const ownedR = inR.filter((b) => unlockedSet.has(b.id)).length;
+    const pill = document.createElement('span');
+    pill.className = 'rarity-count-pill';
+    pill.textContent = `${r}: ${ownedR}/${inR.length}`;
+    breakdown.appendChild(pill);
+  }
+
+  const grid = $('capsules-shop-grid');
+  grid.innerHTML = '';
+  for (const cap of CAPSULE_DEFS) {
+    const card = document.createElement('article');
+    card.className = 'capsule-card';
+    card.dataset.capsuleId = cap.id;
+    card.style.borderColor = `${cap.accent}66`;
+
+    const canAfford = profile.sparks >= cap.cost && remainingLocked > 0;
+    card.innerHTML = `
+      <div class="capsule-icon">${cap.icon}</div>
+      <h4 style="color:${cap.accent}">${cap.name}</h4>
+      <p class="capsule-desc">${cap.desc}</p>
+      <div class="capsule-odds">${cap.oddsLabel}</div>
+    `;
+
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    if (remainingLocked === 0) {
+      btn.className = 'btn btn-primary btn-sm';
+      btn.textContent = 'Collection Complete ✓';
+      btn.disabled = true;
+    } else {
+      btn.className = canAfford ? 'btn btn-gold btn-sm' : 'btn btn-ghost btn-sm';
+      btn.textContent = `Open Capsule (✨ ${cap.cost})`;
+      btn.disabled = !canAfford;
+      btn.addEventListener('click', () => {
+        soundEngine.unlock();
+        const res = openBallCapsule(profile, cap.id);
+        if (res.ok) {
+          saveProfile(profile);
+          soundEngine.playLevelUp();
+          refreshProfileChrome();
+          renderCapsulesTab();
+          renderDexGrid();
+          showCapsuleReveal(res.ball, cap.name);
+        }
+      });
+    }
+    card.appendChild(btn);
+    grid.appendChild(card);
+  }
 }
 
 function renderArmorySection(container, catalog, unlockedIds, equippedId, kind) {
@@ -1987,11 +2153,12 @@ function renderProfileModal() {
   // Tab 1: Overview & Bounties
   if (ui.profileTab === 'overview') {
     const masteredCount = Object.keys(getBallMasteryLevelMap(profile)).length;
+    const unlockedCount = getUnlockedBallIds(profile).length;
     $('profile-summary-grid').innerHTML = `
       <div class="pstat-card"><span>Rank Tier</span><strong>${rank.current.icon} ${rank.current.name} (${profile.trophies})</strong></div>
       <div class="pstat-card"><span>Player Level</span><strong>Lv. ${lvl.level} (${lvl.currentXp}/${lvl.nextXp})</strong></div>
-      <div class="pstat-card"><span>Tower Best</span><strong>Floor ${profile.bestGauntletFloor}/10 (${profile.gauntletClears} Clears)</strong></div>
-      <div class="pstat-card"><span>Record &amp; Mastery</span><strong>${profile.stats.wins}W-${profile.stats.losses}L • ${masteredCount} Mastered</strong></div>
+      <div class="pstat-card"><span>Unlocked Balls</span><strong>${unlockedCount} / ${BALL_DEFS.length} (${masteredCount} Mastered)</strong></div>
+      <div class="pstat-card"><span>Tower &amp; Record</span><strong>Floor ${profile.bestGauntletFloor}/10 • ${profile.stats.wins}W-${profile.stats.losses}L</strong></div>
     `;
 
     const bGrid = $('profile-bounties-grid');
@@ -2031,7 +2198,12 @@ function renderProfileModal() {
     }
   }
 
-  // Tab 2: Armory
+  // Tab 2: Ball Capsules
+  if (ui.profileTab === 'capsules') {
+    renderCapsulesTab();
+  }
+
+  // Tab 3: Armory
   if (ui.profileTab === 'armory') {
     $('armory-sparks').textContent = `✨ ${profile.sparks}`;
     renderArmorySection($('armory-themes-grid'), ARENA_THEMES, profile.unlockedThemes, profile.equippedTheme, 'theme');
@@ -2112,6 +2284,10 @@ function bindEvents() {
     soundEngine.unlock();
     openProfileModal('overview');
   });
+  $('btn-strip-capsules')?.addEventListener('click', () => {
+    soundEngine.unlock();
+    openProfileModal('capsules');
+  });
   $('btn-strip-armory')?.addEventListener('click', () => {
     soundEngine.unlock();
     openProfileModal('armory');
@@ -2119,6 +2295,27 @@ function bindEvents() {
   $('btn-strip-bounties')?.addEventListener('click', () => {
     soundEngine.unlock();
     openProfileModal('overview');
+  });
+  $('btn-dex-open-capsules')?.addEventListener('click', () => {
+    soundEngine.unlock();
+    $('modal-dex').classList.add('hidden');
+    openProfileModal('capsules');
+  });
+  $('btn-capsules-open-dex')?.addEventListener('click', () => {
+    soundEngine.unlock();
+    $('modal-profile').classList.add('hidden');
+    renderDexGrid();
+    $('modal-dex').classList.remove('hidden');
+  });
+  $('btn-capsule-test')?.addEventListener('click', () => {
+    if (!ui.lastCapsuleBallId) return;
+    soundEngine.unlock();
+    ui.sandboxTeams[1][ui.teamSize === 2 ? ui.sandboxSlot[1] : 0] = ui.lastCapsuleBallId;
+    ui.sandboxP1 = ui.sandboxTeams[1][0];
+    $('modal-profile').classList.add('hidden');
+    renderSandboxGrids();
+    updateSandboxPreviews();
+    showView('sandbox');
   });
   $('btn-close-profile')?.addEventListener('click', () => {
     $('modal-profile').classList.add('hidden');
@@ -2356,7 +2553,8 @@ function bindEvents() {
     soundEngine.unlock();
     ui.draftRerollsLeft -= 1;
     const prevIds = ui.draftChoices.map((c) => c.id);
-    ui.draftChoices = drawRandomBallChoices(3, Math.random, prevIds);
+    const allowedIds = usesUnlockedPool() ? getUnlockedBallIds(profile) : null;
+    ui.draftChoices = drawRandomBallChoices(3, Math.random, prevIds, allowedIds);
     renderDraftCards();
     updateRerollButton();
   });
@@ -2364,7 +2562,19 @@ function bindEvents() {
   $('btn-all-balls').addEventListener('click', () => {
     $('draft-cards').classList.add('hidden');
     $('draft-all-panel').classList.remove('hidden');
-    renderMiniBallGrid($('draft-all-grid'), null, (id) => selectDraftBall(id));
+    if (usesUnlockedPool()) {
+      const owned = new Set(getUnlockedBallIds(profile));
+      const lockedSet = new Set(BALL_DEFS.filter((b) => !owned.has(b.id)).map((b) => b.id));
+      if ($('draft-all-title')) {
+        $('draft-all-title').textContent = `Your Unlocked Balls (${owned.size} / ${BALL_DEFS.length}) — Unlock more via Capsules or Dex`;
+      }
+      renderMiniBallGrid($('draft-all-grid'), null, (id) => selectDraftBall(id), { lockedSet });
+    } else {
+      if ($('draft-all-title')) {
+        $('draft-all-title').textContent = `All ${BALL_DEFS.length} Balls — Fair PvP Pool`;
+      }
+      renderMiniBallGrid($('draft-all-grid'), null, (id) => selectDraftBall(id));
+    }
   });
   $('btn-close-all-balls').addEventListener('click', () => {
     $('draft-all-panel').classList.add('hidden');
@@ -2444,6 +2654,14 @@ function bindEvents() {
     document.querySelectorAll('#dex-rarity-chips .chip').forEach((c) => c.classList.remove('is-active'));
     chip.classList.add('is-active');
     ui.dexRarity = chip.dataset.rarity;
+    renderDexGrid();
+  });
+  $('dex-lock-chips')?.addEventListener('click', (e) => {
+    const chip = e.target.closest('.chip');
+    if (!chip) return;
+    document.querySelectorAll('#dex-lock-chips .chip').forEach((c) => c.classList.remove('is-active'));
+    chip.classList.add('is-active');
+    ui.dexLock = chip.dataset.lock;
     renderDexGrid();
   });
   $('dex-search').addEventListener('input', (e) => {

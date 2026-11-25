@@ -10,27 +10,27 @@
   <script type="importmap">
     {
       "imports": {
-        "./src/sim/constants.js": "./src/sim/constants.js?v=20261125a",
-        "./src/sim/balls.js": "./src/sim/balls.js?v=20261125a",
-        "./src/sim/physics.js": "./src/sim/physics.js?v=20261125a",
-        "./src/sim/ai.js": "./src/sim/ai.js?v=20261125a",
-        "./src/sim/abilities.js": "./src/sim/abilities.js?v=20261125a",
-        "./src/sim/abilitiesExtra.js": "./src/sim/abilitiesExtra.js?v=20261125a",
-        "./src/sim/abilitiesMeme.js": "./src/sim/abilitiesMeme.js?v=20261125a",
-        "./src/sim/balanceTuning.js": "./src/sim/balanceTuning.js?v=20261125a",
-        "./src/sim/progression.js": "./src/sim/progression.js?v=20261125a",
-        "./src/sim/gauntlet.js": "./src/sim/gauntlet.js?v=20261125a",
-        "./src/net/p2p.js": "./src/net/p2p.js?v=20261125a",
-        "./src/net/protocol.js": "./src/net/protocol.js?v=20261125a",
-        "./src/audio/soundEngine.js": "./src/audio/soundEngine.js?v=20261125a",
-        "./src/render/ballArt.js": "./src/render/ballArt.js?v=20261125a",
-        "./src/render/ballArtExtra.js": "./src/render/ballArtExtra.js?v=20261125a",
-        "./src/render/ballArtMeme.js": "./src/render/ballArtMeme.js?v=20261125a",
-        "./src/render/arenaRenderer.js": "./src/render/arenaRenderer.js?v=20261125a"
+        "./src/sim/constants.js": "./src/sim/constants.js?v=20261125b",
+        "./src/sim/balls.js": "./src/sim/balls.js?v=20261125b",
+        "./src/sim/physics.js": "./src/sim/physics.js?v=20261125b",
+        "./src/sim/ai.js": "./src/sim/ai.js?v=20261125b",
+        "./src/sim/abilities.js": "./src/sim/abilities.js?v=20261125b",
+        "./src/sim/abilitiesExtra.js": "./src/sim/abilitiesExtra.js?v=20261125b",
+        "./src/sim/abilitiesMeme.js": "./src/sim/abilitiesMeme.js?v=20261125b",
+        "./src/sim/balanceTuning.js": "./src/sim/balanceTuning.js?v=20261125b",
+        "./src/sim/progression.js": "./src/sim/progression.js?v=20261125b",
+        "./src/sim/gauntlet.js": "./src/sim/gauntlet.js?v=20261125b",
+        "./src/net/p2p.js": "./src/net/p2p.js?v=20261125b",
+        "./src/net/protocol.js": "./src/net/protocol.js?v=20261125b",
+        "./src/audio/soundEngine.js": "./src/audio/soundEngine.js?v=20261125b",
+        "./src/render/ballArt.js": "./src/render/ballArt.js?v=20261125b",
+        "./src/render/ballArtExtra.js": "./src/render/ballArtExtra.js?v=20261125b",
+        "./src/render/ballArtMeme.js": "./src/render/ballArtMeme.js?v=20261125b",
+        "./src/render/arenaRenderer.js": "./src/render/arenaRenderer.js?v=20261125b"
       }
     }
   </script>
-  <link rel="stylesheet" href="./styles/main.css?v=20261125a" />
+  <link rel="stylesheet" href="./styles/main.css?v=20261125b" />
 </head>
 <body>
   <div class="app-shell">
@@ -42,7 +42,7 @@
         <span class="brand-tag">WEB ARENA</span>
       </div>
       <div class="topbar-actions">
-        <button class="btn btn-profile-pill" id="btn-open-profile" type="button" title="Profile, Bounties & Armory">
+        <button class="btn btn-profile-pill" id="btn-open-profile" type="button" title="Profile, Capsules, Bounties & Armory">
           <span id="topbar-rank">🥉 Bronze</span>
           <span class="pill-sep">•</span>
           <span id="topbar-sparks">✨ 100</span>
@@ -59,11 +59,11 @@
     <main id="view-lobby" class="view view-lobby">
       <section class="hero-card">
         <div class="hero-copy">
-          <p class="hero-kicker" id="lobby-kicker">1v1 &amp; 2v2 Physics Auto-Battler • 120 Iconic Balls Unlocked</p>
+          <p class="hero-kicker" id="lobby-kicker">1v1 &amp; 2v2 Physics Auto-Battler • 120 Iconic Balls • PvE Unlock Progression</p>
           <h1>Pick. Aim. <span class="accent-gold">Bounce to Win!</span></h1>
           <p class="hero-sub">
-            Draft from 3 random balls or pick any matchup directly, climb the 10-Floor Roguelike Gauntlet Tower
-            with stacking Run Relics, earn Prestige Mastery Crowns, and duel online!
+            Climb the 10-Floor Roguelike Gauntlet Tower with stacking Run Relics, crack Ball Capsules &amp; Boss Drops
+            to expand your roster, earn Prestige Mastery Crowns, and duel fairly online with all 120 balls!
           </p>
           <div class="hero-cta-row">
             <button class="btn btn-purple btn-lg" id="btn-quick-gauntlet" type="button">Gauntlet Tower</button>
@@ -103,11 +103,13 @@
         </div>
         <div class="profile-strip-mid">
           <div class="strip-stat"><span>Sparks</span><strong id="strip-sparks">✨ 100</strong></div>
+          <div class="strip-stat"><span>Unlocked</span><strong id="strip-unlocked">20 / 120</strong></div>
           <div class="strip-stat"><span>Best Tower</span><strong id="strip-tower">Floor 0 / 10</strong></div>
           <div class="strip-stat"><span>Bounties</span><strong id="strip-bounty-summary">0 / 3 Ready</strong></div>
         </div>
         <div class="profile-strip-right">
-          <button class="btn btn-gold btn-sm" id="btn-strip-armory" type="button">Armory &amp; Themes</button>
+          <button class="btn btn-purple btn-sm" id="btn-strip-capsules" type="button">🎁 Ball Capsules</button>
+          <button class="btn btn-gold btn-sm" id="btn-strip-armory" type="button">Armory</button>
           <button class="btn btn-ghost btn-sm" id="btn-strip-bounties" type="button">Bounties</button>
         </div>
       </section>
@@ -116,7 +118,7 @@
         <article class="mode-card mode-card-gauntlet" data-mode="gauntlet">
           <div class="mode-badge purple">ROGUELIKE PVE • 10 FLOORS</div>
           <h2>Gauntlet Tower</h2>
-          <p>Climb 10 escalating boss floors (2v2 Boss Arenas on Floors 5, 8 &amp; 10), drafting stacking Run Relics after every clear!</p>
+          <p>Climb 10 boss floors (2v2 Boss Arenas on Floors 5, 8 &amp; 10 drop FREE new balls!), drafting stacking Run Relics after every clear!</p>
           <div class="mode-card-actions">
             <button class="btn btn-purple btn-span2" id="btn-mode-gauntlet" type="button">Enter Gauntlet Tower</button>
           </div>
@@ -446,7 +448,7 @@
 
       <div id="draft-all-panel" class="draft-all-panel hidden">
         <div class="all-panel-head">
-          <strong>All 120 Balls — Pick Any</strong>
+          <strong id="draft-all-title">All 120 Balls — Pick Any</strong>
           <button class="btn btn-ghost btn-sm" id="btn-close-all-balls" type="button">Back to 3 Choices</button>
         </div>
         <div id="draft-all-grid" class="mini-ball-grid"></div>
@@ -465,9 +467,13 @@
       <div class="modal-head">
         <div>
           <h2 id="dex-title">Ball Dex — All 120 Balls</h2>
-          <p class="muted">Every ball is unlocked from the start. Click any ball to test it in Sandbox.</p>
+          <p class="muted" id="dex-subtitle">Unlocked 20 / 120 for VS Bot &amp; Gauntlet • All 120 free in Sandbox &amp; Online PvP!</p>
         </div>
-        <button class="btn btn-ghost" id="btn-close-dex" type="button">Close</button>
+        <div class="dex-head-actions">
+          <span class="dex-sparks-pill" id="dex-sparks-pill">✨ 100</span>
+          <button class="btn btn-purple btn-sm" id="btn-dex-open-capsules" type="button">🎁 Ball Capsules</button>
+          <button class="btn btn-ghost" id="btn-close-dex" type="button">Close</button>
+        </div>
       </div>
 
       <div class="dex-filters">
@@ -479,7 +485,14 @@
           <button class="chip" data-rarity="Epic" type="button">Epic</button>
           <button class="chip" data-rarity="Rare" type="button">Rare</button>
         </div>
-        <input type="search" id="dex-search" class="search-input" placeholder="Search balls or abilities..." />
+        <div class="dex-filters-right">
+          <div class="chip-row" id="dex-lock-chips">
+            <button class="chip is-active" data-lock="ALL" type="button">All</button>
+            <button class="chip" data-lock="UNLOCKED" type="button">Unlocked</button>
+            <button class="chip" data-lock="LOCKED" type="button">Locked</button>
+          </div>
+          <input type="search" id="dex-search" class="search-input" placeholder="Search balls or abilities..." />
+        </div>
       </div>
 
       <div id="dex-grid" class="dex-grid"></div>
@@ -503,19 +516,20 @@
     </div>
   </div>
 
-  <!-- PROFILE, BOUNTIES, ARMORY & MASTERY MODAL -->
+  <!-- PROFILE, CAPSULES, BOUNTIES, ARMORY & MASTERY MODAL -->
   <div id="modal-profile" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="profile-modal-title">
     <div class="modal-card profile-modal">
       <div class="modal-head">
         <div>
-          <h2 id="profile-modal-title">Arena Profile &amp; Armory</h2>
-          <p class="muted" id="profile-modal-sub">Cosmetics &amp; Mastery Crowns apply everywhere; Online PvP stays 100% fair.</p>
+          <h2 id="profile-modal-title">Arena Profile, Capsules &amp; Armory</h2>
+          <p class="muted" id="profile-modal-sub">Unlock balls for VS Bot &amp; Gauntlet Tower; Online PvP &amp; Sandbox keep all 120 free &amp; fair.</p>
         </div>
         <button class="btn btn-ghost" id="btn-close-profile" type="button">Close</button>
       </div>
 
       <div class="chip-row profile-tabs" id="profile-tab-row">
         <button class="chip is-active" data-ptab="overview" type="button">Overview &amp; Bounties</button>
+        <button class="chip" data-ptab="capsules" type="button">🎁 Ball Capsules</button>
         <button class="chip" data-ptab="armory" type="button">Armory (Themes &amp; Trails)</button>
         <button class="chip" data-ptab="mastery" type="button">Ball Mastery</button>
       </div>
@@ -538,7 +552,41 @@
         </div>
       </div>
 
-      <!-- TAB 2: ARMORY (ARENA THEMES & BALL TRAILS) -->
+      <!-- TAB 2: BALL CAPSULES (UNLOCK NEW BALLS) -->
+      <div id="ptab-capsules" class="ptab-pane hidden">
+        <div class="armory-balance-bar">
+          <div>
+            <span>Your Balance: <strong id="capsules-sparks">✨ 100</strong></span>
+            <span class="pill-sep">•</span>
+            <span>Collection: <strong id="capsules-progress-label">20 / 120 Balls</strong></span>
+          </div>
+          <button class="btn btn-ghost btn-sm" id="btn-capsules-open-dex" type="button">Direct Unlock in Ball Dex →</button>
+        </div>
+        <div class="xp-bar-track" style="height:10px;"><div class="xp-bar-fill" id="capsules-progress-bar" style="width:17%"></div></div>
+        <div class="capsules-rarity-row" id="capsules-rarity-breakdown"></div>
+
+        <div id="capsule-reveal-box" class="capsule-reveal-box hidden">
+          <canvas id="capsule-reveal-canvas" width="96" height="96"></canvas>
+          <div class="capsule-reveal-info">
+            <span class="draft-kicker" id="capsule-reveal-kicker">NEW BALL UNLOCKED!</span>
+            <h3 id="capsule-reveal-name">Hydrogen Bomb Ball</h3>
+            <div class="capsule-reveal-pills">
+              <span class="rarity-pill" id="capsule-reveal-rarity">Exclusive</span>
+              <span class="muted" id="capsule-reveal-stats">100 HP</span>
+            </div>
+            <p id="capsule-reveal-desc"></p>
+          </div>
+          <button class="btn btn-secondary btn-sm" id="btn-capsule-test" type="button">Test in Sandbox</button>
+        </div>
+
+        <h3 class="section-subhead">Guaranteed-New Ball Capsules (Zero Duplicates!)</h3>
+        <div id="capsules-shop-grid" class="capsules-grid"></div>
+        <p class="muted" style="margin:4px 0 0; font-size:0.8rem;">
+          Tip: Clearing <strong>Gauntlet Boss Floors 5, 8 &amp; 10</strong> also drops a FREE unlocked ball! Or unlock any specific ball directly inside <strong>Ball Dex</strong>.
+        </p>
+      </div>
+
+      <!-- TAB 3: ARMORY (ARENA THEMES & BALL TRAILS) -->
       <div id="ptab-armory" class="ptab-pane hidden">
         <div class="armory-balance-bar">
           <span>Your Balance: <strong id="armory-sparks">✨ 100</strong></span>
@@ -550,7 +598,7 @@
         <div id="armory-trails-grid" class="armory-grid"></div>
       </div>
 
-      <!-- TAB 3: BALL MASTERY -->
+      <!-- TAB 4: BALL MASTERY -->
       <div id="ptab-mastery" class="ptab-pane hidden">
         <p class="muted" style="margin:0 0 10px;">
           Play &amp; win rounds with any ball to level it from <strong>Lv 1 Bronze</strong> → <strong>Lv 3 Gold Crown</strong> → <strong>Lv 5 Cosmic Ω</strong>!
@@ -561,6 +609,6 @@
   </div>
 
   <script src="./vendor/peerjs.min.js"></script>
-  <script type="module" src="./src/ui/app.js?v=20261125a"></script>
+  <script type="module" src="./src/ui/app.js?v=20261125b"></script>
 </body>
 </html>

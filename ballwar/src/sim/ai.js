@@ -2,11 +2,14 @@ import { RARITY_META } from './constants.js';
 import { BALL_DEFS, getBallDef } from './balls.js';
 
 /**
- * Draw N distinct random ball definitions from the full 100-ball pool.
+ * Draw N distinct random ball definitions from the full 120-ball pool (or an optional allowedIds subset).
  */
-export function drawRandomBallChoices(count = 3, rng = Math.random, excludeIds = []) {
-  const pool = BALL_DEFS.filter((b) => !excludeIds.includes(b.id));
-  const source = pool.length >= count ? [...pool] : [...BALL_DEFS];
+export function drawRandomBallChoices(count = 3, rng = Math.random, excludeIds = [], allowedIds = null) {
+  const allowedSet = Array.isArray(allowedIds) && allowedIds.length > 0 ? new Set(allowedIds) : null;
+  const basePool = allowedSet ? BALL_DEFS.filter((b) => allowedSet.has(b.id)) : BALL_DEFS;
+  const effectiveBase = basePool.length >= count ? basePool : BALL_DEFS;
+  const pool = effectiveBase.filter((b) => !excludeIds.includes(b.id));
+  const source = pool.length >= count ? [...pool] : [...effectiveBase];
   for (let i = source.length - 1; i > 0; i--) {
     const j = Math.floor(rng() * (i + 1));
     const tmp = source[i];

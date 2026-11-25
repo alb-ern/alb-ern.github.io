@@ -18,16 +18,22 @@ import { generateRoomCode, quickmatchRoomCode, QUICKMATCH_SLOTS, sanitizeRoomCod
 import {
   ARENA_THEMES,
   BALL_TRAILS,
+  CAPSULE_DEFS,
+  STARTER_BALL_IDS,
   claimBounty,
   createDefaultProfile,
   equipCosmetic,
   exportProfileCode,
   getBallMasteryInfo,
   getRankInfo,
+  getUnlockedBallIds,
   importProfileCode,
+  isBallUnlocked,
   loadProfile,
+  openBallCapsule,
   recordCombatProgress,
   saveProfile,
+  unlockBallDirect,
   unlockCosmetic,
 } from '../src/sim/progression.js';
 import { drawRelicChoices, GAUNTLET_FLOORS, GAUNTLET_RELICS, getGauntletFloor } from '../src/sim/gauntlet.js';
@@ -614,6 +620,77 @@ test('Gauntlet Tower 10 floors & Run Relics trigger in GAUNTLET mode and stay in
   const pvpP1 = pvp.balls.find((b) => b.owner === 1);
   const pvpP2 = pvp.balls.find((b) => b.owner === 2);
   assert(pvpP1.maxHp === 100 && pvpP2.maxHp === 100, 'Online mode must ignore all Gauntlet relics & bossHpScale');
+});
+
+test('Ball unlocking: 20 starters, Direct Unlock, Guaranteed-NEW Capsules, Gauntlet Boss Drops, and Draft pool filtering', () => {
+  const rng = createSeededRng(777);
+  const prof = createDefaultProfile(rng);
+  assert(STARTER_BALL_IDS.length === 20, `Expected 20 starter balls, got ${STARTER_BALL_IDS.length}`);
+  assert(getUnlockedBallIds(prof).length === 20, 'Fresh profile must have 20 unlocked starter balls');
+  assert(isBallUnlocked(prof, 'verity') && isBallUnlocked(prof, 'spider'), 'Verity & Spider must be starters');
+  assert(!isBallUnlocked(prof, 'hydrogenbomb'), 'Hydrogen Bomb should start locked');
+
+  // Draft pool filtering respects unlocked roster when allowedIds is provided
+  const unlockedDraft = drawRandomBallChoices(3, rng, [], getUnlockedBallIds(prof));
+  assert(
+    unlockedDraft.length === 3 && unlockedDraft.every((b) => isBallUnlocked(prof, b.id)),
+    'Filtered draft choices must all be from unlocked roster'
+  );
+
+  // Standard Capsule (75 Sparks) works on starter 100 Sparks balance and guarantees a NEW ball
+  assert(CAPSULE_DEFS.length === 3, 'Expected 3 capsule tiers');
+  const pull1 = openBallCapsule(prof, 'standard', rng);
+  assert(pull1.ok && pull1.ball && prof.sparks === 25, 'Standard Capsule should cost 75 Sparks and unlock 1 new ball');
+  assert(getUnlockedBallIds(prof).length === 21 && isBallUnlocked(prof, pull1.ball.id), 'Pulled ball must be unlocked');
+
+  // Direct Unlock in Ball Dex
+  prof.sparks = 500;
+  const direct = unlockBallDirect(prof, 'hydrogenbomb');
+  assert(direct.ok && direct.cost === 320 && prof.sparks === 180, 'Direct unlock Exclusive ball should cost 320 Sparks');
+  assert(isBallUnlocked(prof, 'hydrogenbomb'), 'Hydrogen Bomb should now be unlocked');
+
+  // Vault Capsule guarantees Mythic or Exclusive
+  prof.sparks = 300;
+  const vaultPull = openBallCapsule(prof, 'vault', rng);
+  assert(
+    vaultPull.ok && (vaultPull.ball.rarity === 'Mythic' || vaultPull.ball.rarity === 'Exclusive'),
+    `Vault Capsule must drop Mythic or Exclusive (got ${vaultPull.ball?.rarity})`
+  );
+
+  // Gauntlet Boss Floor 5 & 10 grant FREE ball unlocks
+  const beforeBoss = getUnlockedBallIds(prof).length;
+  const f5 = recordCombatProgress(prof, {
+    mode: MODES.GAUNTLET,
+    teamSize: 2,
+    usedBalls: ['verity', 'spider'],
+    wonRound: true,
+    gauntletFloor: 5,
+    rng,
+  });
+  assert(f5.bossBallUnlock && getUnlockedBallIds(prof).length === beforeBoss + 1, 'Gauntlet Floor 5 clear must drop a free ball');
+  const f10 = recordCombatProgress(prof, {
+    mode: MODES.GAUNTLET,
+    teamSize: 2,
+    usedBalls: ['verity', 'spider'],
+    wonRound: true,
+    matchEnded: true,
+    wonMatch: true,
+    gauntletFloor: 10,
+    gauntletCleared: true,
+    rng,
+  });
+  assert(
+    f10.bossBallUnlock &&
+      (f10.bossBallUnlock.rarity === 'Mythic' || f10.bossBallUnlock.rarity === 'Exclusive'),
+    'Gauntlet Floor 10 clear must drop a Mythic or Exclusive ball'
+  );
+
+  // Save code roundtrip preserves unlockedBalls
+  const roundtrip = importProfileCode(exportProfileCode(prof));
+  assert(
+    roundtrip && roundtrip.unlockedBalls.length === prof.unlockedBalls.length && isBallUnlocked(roundtrip, 'hydrogenbomb'),
+    'Save code roundtrip must preserve unlockedBalls'
+  );
 });
 
 let spiderWins = 0;

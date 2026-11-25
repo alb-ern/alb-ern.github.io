@@ -1760,11 +1760,207 @@ h1, h2, h3, .brand-title, .round-pill, .btn, .rarity-pill {
   }
 }
 
+/* ==================== BALL UNLOCKING & CAPSULES ==================== */
+.dex-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  flex-wrap: nowrap;
+}
+
+.dex-sparks-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 12px;
+  border-radius: 999px;
+  background: rgba(250, 204, 21, 0.14);
+  border: 1.5px solid rgba(250, 204, 21, 0.45);
+  color: #fde047;
+  font-weight: 900;
+  font-size: 0.85rem;
+}
+
+.dex-filters-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.dex-card.is-locked {
+  border-color: rgba(148, 163, 184, 0.2);
+  background: rgba(11, 17, 32, 0.72);
+}
+
+.dex-card.is-locked canvas {
+  filter: grayscale(0.45) brightness(0.8);
+}
+
+.dex-lock-badge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+
+.dex-lock-badge.unlocked {
+  background: rgba(34, 197, 94, 0.16);
+  border: 1px solid rgba(34, 197, 94, 0.42);
+  color: #86efac;
+}
+
+.dex-lock-badge.locked {
+  background: rgba(148, 163, 184, 0.14);
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  color: #cbd5e1;
+}
+
+.dex-card-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: auto;
+}
+
+.dex-card-actions .btn {
+  flex: 1;
+}
+
+.mini-ball-btn.is-locked {
+  opacity: 0.52;
+  border-style: dashed;
+  position: relative;
+}
+
+.mini-ball-btn.is-locked canvas {
+  filter: grayscale(0.65) brightness(0.72);
+}
+
+.mini-lock-tag {
+  font-size: 0.65rem;
+  font-weight: 800;
+  color: #fde047;
+}
+
+.capsules-rarity-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.rarity-count-pill {
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.76rem;
+  font-weight: 800;
+  background: rgba(15, 23, 42, 0.8);
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  color: #e2e8f0;
+}
+
+.capsules-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+.capsule-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px;
+  border-radius: 16px;
+  background: linear-gradient(160deg, rgba(15, 23, 42, 0.94), rgba(30, 27, 75, 0.78));
+  border: 2px solid rgba(148, 163, 184, 0.28);
+  text-align: center;
+}
+
+.capsule-card h4 {
+  margin: 0;
+  font-family: 'Fredoka', sans-serif;
+  font-size: 1.08rem;
+}
+
+.capsule-icon {
+  font-size: 2.1rem;
+  line-height: 1;
+}
+
+.capsule-desc {
+  margin: 0;
+  font-size: 0.82rem;
+  color: #cbd5e1;
+  line-height: 1.35;
+}
+
+.capsule-odds {
+  font-size: 0.72rem;
+  color: #94a3b8;
+  font-weight: 700;
+  padding: 5px 8px;
+  border-radius: 8px;
+  background: rgba(2, 6, 23, 0.45);
+}
+
+.capsule-card .btn {
+  margin-top: auto;
+}
+
+@keyframes capsulePop {
+  0% { transform: scale(0.92); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.capsule-reveal-box {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 18px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, rgba(88, 28, 135, 0.5), rgba(15, 23, 42, 0.92));
+  border: 2px solid rgba(250, 204, 21, 0.65);
+  box-shadow: 0 0 26px rgba(168, 85, 247, 0.28);
+  animation: capsulePop 0.26s ease-out;
+}
+
+.capsule-reveal-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.capsule-reveal-info h3 {
+  margin: 0;
+  font-family: 'Fredoka', sans-serif;
+  font-size: 1.25rem;
+}
+
+.capsule-reveal-info p {
+  margin: 2px 0 0;
+  font-size: 0.82rem;
+  color: #cbd5e1;
+  line-height: 1.35;
+}
+
+.capsule-reveal-pills {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 @media (max-width: 880px) {
   .hero-card {
     grid-template-columns: 1fr;
   }
-  .mode-grid, .draft-cards, .relic-cards, .bounties-grid, .armory-grid, .mastery-grid, .sandbox-columns, .online-grid {
+  .mode-grid, .draft-cards, .relic-cards, .bounties-grid, .armory-grid, .mastery-grid, .capsules-grid, .sandbox-columns, .online-grid {
     grid-template-columns: 1fr;
+  }
+  .capsule-reveal-box {
+    flex-direction: column;
+    text-align: center;
   }
 }
