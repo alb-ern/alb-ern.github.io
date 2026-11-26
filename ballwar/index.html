@@ -10,27 +10,27 @@
   <script type="importmap">
     {
       "imports": {
-        "./src/sim/constants.js": "./src/sim/constants.js?v=20261126c",
-        "./src/sim/balls.js": "./src/sim/balls.js?v=20261126c",
-        "./src/sim/physics.js": "./src/sim/physics.js?v=20261126c",
-        "./src/sim/ai.js": "./src/sim/ai.js?v=20261126c",
-        "./src/sim/abilities.js": "./src/sim/abilities.js?v=20261126c",
-        "./src/sim/abilitiesExtra.js": "./src/sim/abilitiesExtra.js?v=20261126c",
-        "./src/sim/abilitiesMeme.js": "./src/sim/abilitiesMeme.js?v=20261126c",
-        "./src/sim/balanceTuning.js": "./src/sim/balanceTuning.js?v=20261126c",
-        "./src/sim/progression.js": "./src/sim/progression.js?v=20261126c",
-        "./src/sim/gauntlet.js": "./src/sim/gauntlet.js?v=20261126c",
-        "./src/net/p2p.js": "./src/net/p2p.js?v=20261126c",
-        "./src/net/protocol.js": "./src/net/protocol.js?v=20261126c",
-        "./src/audio/soundEngine.js": "./src/audio/soundEngine.js?v=20261126c",
-        "./src/render/ballArt.js": "./src/render/ballArt.js?v=20261126c",
-        "./src/render/ballArtExtra.js": "./src/render/ballArtExtra.js?v=20261126c",
-        "./src/render/ballArtMeme.js": "./src/render/ballArtMeme.js?v=20261126c",
-        "./src/render/arenaRenderer.js": "./src/render/arenaRenderer.js?v=20261126c"
+        "./src/sim/constants.js": "./src/sim/constants.js?v=20261126d",
+        "./src/sim/balls.js": "./src/sim/balls.js?v=20261126d",
+        "./src/sim/physics.js": "./src/sim/physics.js?v=20261126d",
+        "./src/sim/ai.js": "./src/sim/ai.js?v=20261126d",
+        "./src/sim/abilities.js": "./src/sim/abilities.js?v=20261126d",
+        "./src/sim/abilitiesExtra.js": "./src/sim/abilitiesExtra.js?v=20261126d",
+        "./src/sim/abilitiesMeme.js": "./src/sim/abilitiesMeme.js?v=20261126d",
+        "./src/sim/balanceTuning.js": "./src/sim/balanceTuning.js?v=20261126d",
+        "./src/sim/progression.js": "./src/sim/progression.js?v=20261126d",
+        "./src/sim/gauntlet.js": "./src/sim/gauntlet.js?v=20261126d",
+        "./src/net/p2p.js": "./src/net/p2p.js?v=20261126d",
+        "./src/net/protocol.js": "./src/net/protocol.js?v=20261126d",
+        "./src/audio/soundEngine.js": "./src/audio/soundEngine.js?v=20261126d",
+        "./src/render/ballArt.js": "./src/render/ballArt.js?v=20261126d",
+        "./src/render/ballArtExtra.js": "./src/render/ballArtExtra.js?v=20261126d",
+        "./src/render/ballArtMeme.js": "./src/render/ballArtMeme.js?v=20261126d",
+        "./src/render/arenaRenderer.js": "./src/render/arenaRenderer.js?v=20261126d"
       }
     }
   </script>
-  <link rel="stylesheet" href="./styles/main.css?v=20261126c" />
+  <link rel="stylesheet" href="./styles/main.css?v=20261126d" />
 </head>
 <body>
   <div class="app-shell">
@@ -49,6 +49,7 @@
           <span id="topbar-bounty-dot" class="bounty-dot hidden" aria-label="Claimable Bounty"></span>
         </button>
         <button class="btn btn-ghost" id="btn-open-dex" type="button">Ball Dex (120)</button>
+        <button class="btn btn-ghost" id="btn-open-relic-dex" type="button">🔮 Relic Dex (36)</button>
         <button class="btn btn-ghost" id="btn-toggle-timer" type="button" title="Toggle Draft Countdown">Timer: ON</button>
         <button class="btn btn-ghost" id="btn-toggle-mute" type="button" aria-label="Toggle Sound">SFX: ON</button>
         <button class="btn btn-secondary hidden" id="btn-back-lobby" type="button">Lobby</button>
@@ -289,15 +290,32 @@
                 <option value="5">5 Hearts (Long Set)</option>
               </select>
             </label>
-            <label>
-              <span>Sudden Death</span>
-              <select id="sb-sd">
-                <option value="15">15s (Fast)</option>
-                <option value="30" selected>30s (Standard)</option>
-                <option value="45">45s (Late)</option>
-                <option value="0">Off</option>
-              </select>
-            </label>
+              <label>
+                <span>Sudden Death</span>
+                <select id="sb-sd">
+                  <option value="15">15s (Fast)</option>
+                  <option value="30" selected>30s (Standard)</option>
+                  <option value="45">45s (Late)</option>
+                  <option value="0">Off</option>
+                </select>
+              </label>
+            </div>
+
+          <div class="sb-modifiers-panel">
+            <div class="sb-mod-head">
+              <strong>Run Modifiers (Unlimited Toggles)</strong>
+              <button class="btn btn-ghost btn-sm" id="btn-sb-clear-relics" type="button">Clear All</button>
+            </div>
+            <div class="sb-mod-cols">
+              <div class="sb-mod-col">
+                <span class="sb-mod-team blue">Blue (<span id="sb-p1-relic-count">0</span>)</span>
+                <div id="sb-p1-relics" class="sb-relic-toggles"></div>
+              </div>
+              <div class="sb-mod-col">
+                <span class="sb-mod-team red">Red (<span id="sb-p2-relic-count">0</span>)</span>
+                <div id="sb-p2-relics" class="sb-relic-toggles"></div>
+              </div>
+            </div>
           </div>
 
           <div class="sb-actions">
@@ -347,6 +365,12 @@
         <div class="hud-center arena-side-card">
           <div class="round-pill" id="hud-round">ROUND 1</div>
           <div class="timer-pill" id="hud-timer">00:00</div>
+        </div>
+
+        <div id="round-relics-card" class="arena-side-card round-relics-card hidden">
+          <strong class="round-relics-title">Active Round Modifiers</strong>
+          <div class="round-relics-team"><span class="sb-mod-team blue">Blue:</span> <span id="hud-p1-relics" class="relic-pills-row"></span></div>
+          <div class="round-relics-team"><span class="sb-mod-team red">Red:</span> <span id="hud-p2-relics" class="relic-pills-row"></span></div>
         </div>
 
         <div id="gauntlet-hud-bar" class="gauntlet-hud-card arena-side-card hidden">
@@ -474,6 +498,7 @@
         </div>
         <div class="dex-head-actions">
           <span class="dex-sparks-pill" id="dex-sparks-pill">✨ 100</span>
+          <button class="btn btn-secondary btn-sm" id="btn-dex-open-relic-dex" type="button">🔮 Relic Dex</button>
           <button class="btn btn-purple btn-sm" id="btn-dex-open-capsules" type="button">🎁 Ball Capsules</button>
           <button class="btn btn-ghost" id="btn-close-dex" type="button">Close</button>
         </div>
@@ -502,6 +527,46 @@
     </div>
   </div>
 
+  <!-- RELIC DEX MODAL (SEPARATE RUN MODIFIER ENCYCLOPEDIA) -->
+  <div id="modal-relic-dex" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="rdex-title">
+    <div class="modal-card dex-modal">
+      <div class="modal-head">
+        <div>
+          <h2 id="rdex-title">Relic Dex — All 36 Run Modifiers</h2>
+          <p class="muted" id="rdex-subtitle">Unlocked 8 / 36 for VS Bot &amp; Gauntlet • All 36 free in Sandbox, Online PvP &amp; Local Pass &amp; Play!</p>
+        </div>
+        <div class="dex-head-actions">
+          <span class="dex-sparks-pill" id="rdex-sparks-pill">✨ 100</span>
+          <button class="btn btn-purple btn-sm" id="btn-rdex-open-capsules" type="button">🔮 Modifier Capsules</button>
+          <button class="btn btn-ghost" id="btn-close-relic-dex" type="button">Close</button>
+        </div>
+      </div>
+
+      <div class="dex-filters">
+        <div class="chip-row" id="rdex-cat-chips">
+          <button class="chip is-active" data-rdcat="ALL" type="button">All (36)</button>
+          <button class="chip" data-rdcat="Utility" type="button">Utility</button>
+          <button class="chip" data-rdcat="Skill" type="button">Skill</button>
+          <button class="chip" data-rdcat="Defense" type="button">Defense</button>
+          <button class="chip" data-rdcat="Offense" type="button">Offense</button>
+          <button class="chip" data-rdcat="Physics" type="button">Physics</button>
+          <button class="chip" data-rdcat="Chaos" type="button">Chaos</button>
+          <button class="chip" data-rdcat="Arena" type="button">Arena</button>
+        </div>
+        <div class="dex-filters-right">
+          <div class="chip-row" id="rdex-lock-chips">
+            <button class="chip is-active" data-rdlock="ALL" type="button">All</button>
+            <button class="chip" data-rdlock="UNLOCKED" type="button">Unlocked</button>
+            <button class="chip" data-rdlock="LOCKED" type="button">Locked</button>
+          </div>
+          <input type="search" id="rdex-search" class="search-input" placeholder="Search run modifiers..." />
+        </div>
+      </div>
+
+      <div id="rdex-grid" class="dex-grid"></div>
+    </div>
+  </div>
+
   <!-- GAUNTLET TOWER & CHALLENGE SELECT MODAL -->
   <div id="modal-gauntlet" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="gauntlet-select-title">
     <div class="modal-card gauntlet-select-modal">
@@ -525,7 +590,7 @@
           Tower I: Meme Apex Citadel • Challenge Lv. 1 (Standard)
         </div>
         <div class="gauntlet-footer-actions">
-          <span class="muted" id="gauntlet-relics-owned" style="font-size:0.84rem;font-weight:700;white-space:nowrap;">Relics: 8 / 24</span>
+          <span class="muted" id="gauntlet-relics-owned" style="font-size:0.84rem;font-weight:700;white-space:nowrap;">Relics: 8 / 36</span>
           <button class="btn btn-gold btn-sm" id="btn-gauntlet-open-relics" type="button" style="white-space:nowrap;">🔮 Unlock Relics</button>
           <button class="btn btn-purple btn-lg" id="btn-launch-gauntlet" type="button" style="white-space:nowrap;">Begin Climb (Floor 1/10)</button>
         </div>
@@ -533,19 +598,20 @@
     </div>
   </div>
 
-  <!-- GAUNTLET RELIC DRAFT MODAL -->
+  <!-- RUN MODIFIER / RELIC DRAFT MODAL (ALL MODES + GAUNTLET) -->
   <div id="modal-relic" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="relic-title">
     <div class="modal-card relic-modal">
       <div class="modal-head">
         <div>
-          <p class="draft-kicker" id="relic-kicker">FLOOR CLEARED • CHOOSE A RUN RELIC</p>
-          <h2 id="relic-title">Pick 1 of 3 Relics</h2>
-          <p class="muted" id="relic-sub">Relics stack for the rest of this Gauntlet Tower run (PvE only).</p>
+          <p class="draft-kicker" id="relic-kicker">CHOOSE A RUN MODIFIER</p>
+          <h2 id="relic-title">Pick 1 of 3 Modifiers</h2>
+          <p class="muted" id="relic-sub">Active for this round.</p>
         </div>
       </div>
       <div id="relic-cards" class="relic-cards"></div>
       <div class="draft-footer">
-        <button class="btn btn-ghost" id="btn-relic-skip" type="button">Skip Relic (+35 Sparks)</button>
+        <button class="btn btn-secondary" id="btn-relic-reroll" type="button">Reroll (2 left)</button>
+        <button class="btn btn-ghost" id="btn-relic-skip" type="button">Skip Modifier (+35 Sparks)</button>
       </div>
     </div>
   </div>
@@ -556,7 +622,7 @@
       <div class="modal-head">
         <div>
           <h2 id="profile-modal-title">Arena Profile, Capsules &amp; Armory</h2>
-          <p class="muted" id="profile-modal-sub">Unlock balls &amp; Run Relics for VS Bot &amp; Gauntlet Tower; Online PvP &amp; Sandbox keep all 120 free &amp; fair.</p>
+          <p class="muted" id="profile-modal-sub">Unlock balls &amp; Run Modifiers for VS Bot &amp; Gauntlet Tower; Online PvP &amp; Sandbox keep everything free &amp; fair.</p>
         </div>
         <button class="btn btn-ghost" id="btn-close-profile" type="button">Close</button>
       </div>
@@ -627,11 +693,11 @@
           <div>
             <span>Your Balance: <strong id="relics-sparks">✨ 100</strong></span>
             <span class="pill-sep">•</span>
-            <span>Modifiers: <strong id="relics-progress-label">8 / 24 Relics</strong></span>
+            <span>Modifiers: <strong id="relics-progress-label">8 / 36 Relics</strong></span>
           </div>
           <button class="btn btn-gold btn-sm" id="btn-open-relic-pod" type="button">🔮 Modifier Capsule (75 ✨)</button>
         </div>
-        <div class="xp-bar-track" style="height:10px;"><div class="xp-bar-fill" id="relics-progress-bar" style="width:33%"></div></div>
+        <div class="xp-bar-track" style="height:10px;"><div class="xp-bar-fill" id="relics-progress-bar" style="width:22%"></div></div>
         <div class="capsules-rarity-row" id="relics-rarity-breakdown" style="margin-top:8px;"></div>
 
         <div id="relic-reveal-box" class="capsule-reveal-box hidden" style="margin-top:10px;">
@@ -651,15 +717,18 @@
         <div id="relics-capsules-grid" class="capsules-grid"></div>
 
         <div class="chip-row" id="relic-cat-chips" style="margin:12px 0 8px;">
-          <button class="chip is-active" data-rcat="All" type="button">All (24)</button>
+          <button class="chip is-active" data-rcat="All" type="button">All (36)</button>
           <button class="chip" data-rcat="Utility" type="button">Utility</button>
           <button class="chip" data-rcat="Skill" type="button">Skill</button>
           <button class="chip" data-rcat="Defense" type="button">Defense</button>
           <button class="chip" data-rcat="Offense" type="button">Offense</button>
+          <button class="chip" data-rcat="Physics" type="button">Physics</button>
+          <button class="chip" data-rcat="Chaos" type="button">Chaos</button>
+          <button class="chip" data-rcat="Arena" type="button">Arena</button>
         </div>
         <div id="relics-shop-grid" class="relic-shop-grid"></div>
         <p class="muted" style="margin:6px 0 0; font-size:0.8rem;">
-          Tip: Clearing <strong>Gauntlet Bosses (Floor 5 &amp; 10)</strong> also drops a FREE Run Modifier, or unlock any specific modifier directly below!
+          Tip: Clearing <strong>Gauntlet Bosses (Floor 5 &amp; 10)</strong> also drops a FREE Run Modifier, or inspect all 36 in <strong>Relic Dex</strong>!
         </p>
       </div>
 

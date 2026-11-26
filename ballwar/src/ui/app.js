@@ -97,6 +97,8 @@ const online = {
   myDraftTeam: [],
   oppDraftTeam: [],
   seatPicks: {},
+  myRelicPick: null,
+  seatRelics: {},
   myAimLocked: false,
   oppAimLocked: false,
   oppAimAngles: [],
@@ -134,9 +136,18 @@ const ui = {
   sandboxTeams: { 1: ['verity', 'sword'], 2: ['spider', 'orbital'] },
   sandboxSlot: { 1: 0, 2: 0 },
   sandboxSearch: { 1: '', 2: '' },
+  sandboxRelics: { 1: [], 2: [] },
+  roundRelics: { 1: [], 2: [] },
+  relicContext: 'gauntlet',
+  relicDraftOwner: 1,
+  relicDraftChoices: [],
+  relicRerollsLeft: FREE_REROLLS_PER_ROUND,
   dexRarity: 'ALL',
   dexLock: 'ALL',
   dexQuery: '',
+  rdexCat: 'ALL',
+  rdexLock: 'ALL',
+  rdexQuery: '',
   profileTab: 'overview',
   relicCatFilter: 'All',
   selectedTowerId: 'citadel',
@@ -232,6 +243,8 @@ function resetOnlineState() {
   online.myDraftTeam = [];
   online.oppDraftTeam = [];
   online.seatPicks = {};
+  online.myRelicPick = null;
+  online.seatRelics = {};
   online.myAimLocked = false;
   online.oppAimLocked = false;
   online.oppAimAngles = [];
@@ -250,8 +263,10 @@ function init() {
   refreshProfileChrome();
   renderLobbyShowcases();
   renderSandboxGrids();
+  renderSandboxRelicToggles();
   updateSandboxPreviews();
   renderDexGrid();
+  renderRelicDexGrid();
   bindP2PHandlers();
   bindEvents();
 
@@ -282,13 +297,19 @@ function showView(name) {
   $('view-arena').classList.toggle('hidden', name !== 'arena');
   $('btn-back-lobby').classList.toggle('hidden', name === 'lobby');
 
+  if (name === 'sandbox') {
+    renderSandboxRelicToggles();
+  }
+
   if (name === 'lobby') {
     stopDraftTimer();
     p2p.close();
     resetOnlineState();
     setQuickmatchSearching(false);
     gauntletRun.active = false;
+    ui.roundRelics = { 1: [], 2: [] };
     $('gauntlet-hud-bar')?.classList.add('hidden');
+    $('round-relics-card')?.classList.add('hidden');
     $('modal-gauntlet')?.classList.add('hidden');
     $('modal-relic')?.classList.add('hidden');
     $('online-room-box').classList.add('hidden');
@@ -480,6 +501,37 @@ function updateSandboxPreviews() {
   }
 }
 
+function renderSandboxRelicToggles() {
+  for (const owner of [1, 2]) {
+    const container = $(`sb-p${owner}-relics`);
+    const countEl = $(`sb-p${owner}-relic-count`);
+    const selectedSet = new Set(ui.sandboxRelics[owner] || []);
+    if (countEl) countEl.textContent = `${selectedSet.size} active`;
+    if (!container) continue;
+    container.innerHTML = '';
+    for (const r of GAUNTLET_RELICS) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      const active = selectedSet.has(r.id);
+      btn.className = `sb-relic-chip${active ? ' is-active' : ''}`;
+      btn.dataset.relicId = r.id;
+      btn.dataset.owner = String(owner);
+      btn.title = `${r.name} (${r.category || 'Utility'}): ${r.desc}`;
+      btn.innerHTML = `<span>${r.icon}</span><span>${r.name}</span>`;
+      btn.addEventListener('click', () => {
+        soundEngine.unlock();
+        const list = ui.sandboxRelics[owner] || [];
+        const idx = list.indexOf(r.id);
+        if (idx >= 0) list.splice(idx, 1);
+        else list.push(r.id);
+        ui.sandboxRelics[owner] = list;
+        renderSandboxRelicToggles();
+      });
+      container.appendChild(btn);
+    }
+  }
+}
+
 function startSandboxDuel(p1Arg = null, p2Arg = null) {
   const is2v2 = Array.isArray(p1Arg) || Array.isArray(p2Arg) || ui.teamSize === 2;
   const t1 = Array.isArray(p1Arg)
@@ -513,6 +565,7 @@ function startSandboxDuel(p1Arg = null, p2Arg = null) {
     hearts,
     suddenDeathStart: Number.isFinite(sd) ? sd : SUDDEN_DEATH_START_SEC,
     skipDraft: true,
+    teamRelics: { 1: [...ui.sandboxRelics[1]], 2: [...ui.sandboxRelics[2]] },
   });
   ui.paused = false;
   ui.simSpeed = 1;
@@ -529,6 +582,7 @@ function runSandboxBatchSim(runs = 10) {
   const name2 = formatTeamNames(t2);
   const sdVal = Number($('sb-sd').value);
   const suddenDeathStart = Number.isFinite(sdVal) ? sdVal : SUDDEN_DEATH_START_SEC;
+  const teamRelics = { 1: [...ui.sandboxRelics[1]], 2: [...ui.sandboxRelics[2]] };
 
   let p1Wins = 0;
   let p2Wins = 0;
@@ -542,8 +596,9 @@ function runSandboxBatchSim(runs = 10) {
       hearts: 1,
       suddenDeathStart,
       seed: (Date.now() + i * 7919) >>> 0,
+      teamRelics,
     });
-    testSim.startMatch({ skipDraft: true, teamSize: is2v2 ? 2 : 1 });
+    testSim.startMatch({ skipDraft: true, teamSize: is2v2 ? 2 : 1, teamRelics });
     testSim.setupAimPhase(is2v2 ? t1 : t1[0], is2v2 ? t2 : t2[0]);
 
     const pickAngles = (owner) => {
@@ -796,26 +851,17 @@ function startGauntletFloor(floorNum) {
   beginRoundDraft();
 }
 
-function openRelicDraftModal() {
-  const tower = getGauntletTower(gauntletRun.towerId);
-  const ch = getChallengeDef(gauntletRun.challengeLevel);
-  const f = getGauntletFloor(gauntletRun.floor, tower.id);
-  const nextFloor = getGauntletFloor(gauntletRun.floor + 1, tower.id);
-  gauntletRun.pendingRelicChoices = drawRelicChoices(
-    gauntletRun.relics,
-    3,
-    Math.random,
-    getUnlockedRelicIds(profile)
-  );
-  $('relic-kicker').textContent = `${tower.icon} LV.${ch.level} • FLOOR ${f.floor} CLEARED → FLOOR ${nextFloor.floor} (${nextFloor.title.toUpperCase()})`;
-  $('relic-title').textContent = 'Choose 1 Stacking Run Relic';
-  $('relic-sub').textContent = nextFloor.isBoss
-    ? `⚠️ Next up is ${nextFloor.title} (${nextFloor.teamSize}v${nextFloor.teamSize} Boss Arena)!`
-    : `Relics stack for the rest of this ${tower.name} run (PvE only).`;
+function updateRelicRerollButton() {
+  const btn = $('btn-relic-reroll');
+  if (!btn) return;
+  btn.textContent = `Reroll (${ui.relicRerollsLeft})`;
+  btn.disabled = ui.relicRerollsLeft <= 0;
+}
 
+function renderRelicCards() {
   const container = $('relic-cards');
   container.innerHTML = '';
-  for (const r of gauntletRun.pendingRelicChoices) {
+  for (const r of ui.relicDraftChoices) {
     const card = document.createElement('button');
     card.type = 'button';
     card.className = `relic-card border-${r.rarity}`;
@@ -823,7 +869,7 @@ function openRelicDraftModal() {
     card.innerHTML = `
       <span class="relic-icon">${r.icon}</span>
       <h3>${r.name}</h3>
-      <span class="rarity-pill r-${r.rarity}">${r.rarity} Relic</span>
+      <span class="rarity-pill r-${r.rarity}">${r.rarity} • ${r.category || 'Utility'}</span>
       <p>${r.desc}</p>
     `;
     card.addEventListener('click', () => {
@@ -833,26 +879,187 @@ function openRelicDraftModal() {
     });
     container.appendChild(card);
   }
+}
+
+function pickBotModifier() {
+  const choices = drawRelicChoices([], 3, Math.random, null);
+  return choices[Math.floor(Math.random() * choices.length)] || GAUNTLET_RELICS[0];
+}
+
+function openRelicDraftModal(context = 'gauntlet', owner = 1) {
+  ui.relicContext = context;
+  ui.relicDraftOwner = owner;
+  const extraRerolls = context === 'gauntlet' ? getRelicExtraRerolls(gauntletRun.relics) : 0;
+  ui.relicRerollsLeft = FREE_REROLLS_PER_ROUND + extraRerolls;
+  const exclude = context === 'gauntlet' ? gauntletRun.relics : [];
+  const allowedPool =
+    context === 'gauntlet' || context === 'bot' ? getUnlockedRelicIds(profile) : null;
+  ui.relicDraftChoices = drawRelicChoices(exclude, 3, Math.random, allowedPool);
+  if (context === 'gauntlet') gauntletRun.pendingRelicChoices = ui.relicDraftChoices;
+
+  if (context === 'gauntlet') {
+    const tower = getGauntletTower(gauntletRun.towerId);
+    const ch = getChallengeDef(gauntletRun.challengeLevel);
+    const f = getGauntletFloor(gauntletRun.floor, tower.id);
+    const nextFloor = getGauntletFloor(gauntletRun.floor + 1, tower.id);
+    $('relic-kicker').textContent = `${tower.icon} LV.${ch.level} • FLOOR ${f.floor} CLEARED → FLOOR ${nextFloor.floor} (${nextFloor.title.toUpperCase()})`;
+    $('relic-title').textContent = 'Choose 1 Stacking Run Relic';
+    $('relic-sub').textContent = nextFloor.isBoss
+      ? `⚠️ Next up is ${nextFloor.title} (${nextFloor.teamSize}v${nextFloor.teamSize} Boss Arena)!`
+      : `Relics stack for the rest of this ${tower.name} run.`;
+    if ($('btn-relic-skip')) $('btn-relic-skip').textContent = 'Skip Relic (+35 Sparks)';
+  } else if (context === 'bot') {
+    $('relic-kicker').textContent = `ROUND ${sim.roundNumber} • VS BOT MODIFIER DRAFT`;
+    $('relic-title').textContent = 'Choose 1 Round Modifier';
+    $('relic-sub').textContent =
+      'Applies for this round only (from your unlocked Relic Vault). Bot drafts 1 opponent modifier too!';
+    if ($('btn-relic-skip')) $('btn-relic-skip').textContent = 'No Modifier (Vanilla)';
+  } else if (context === 'online') {
+    const teamTag = online.myOwner === 1 ? 'BLUE TEAM' : 'RED TEAM';
+    $('relic-kicker').textContent = `ROUND ${sim.roundNumber} • ONLINE PvP • ${teamTag}`;
+    $('relic-title').textContent = 'Choose 1 Round Modifier';
+    $('relic-sub').textContent = 'Fair full-pool modifier for this round only — does not carry over!';
+    if ($('btn-relic-skip')) $('btn-relic-skip').textContent = 'No Modifier (Vanilla)';
+  } else {
+    const is2v2 = sim.teamSize === 2;
+    const seatMeta = is2v2 ? getSeatMeta(ui.localTurn, 2) : null;
+    const who = seatMeta ? seatMeta.label.toUpperCase() : owner === 1 ? 'PLAYER 1 (BLUE)' : 'PLAYER 2 (RED)';
+    $('relic-kicker').textContent = `ROUND ${sim.roundNumber} • LOCAL MODIFIER DRAFT • ${who}`;
+    $('relic-title').textContent = `${who}: Choose 1 Round Modifier`;
+    $('relic-sub').textContent = 'Active for this round only — does not carry to the next round.';
+    if ($('btn-relic-skip')) $('btn-relic-skip').textContent = 'No Modifier (Vanilla)';
+  }
+
+  renderRelicCards();
+  updateRelicRerollButton();
   $('modal-relic').classList.remove('hidden');
 }
 
 function chooseGauntletRelic(relicId) {
   $('modal-relic').classList.add('hidden');
-  if (relicId) {
-    gauntletRun.relics.push(relicId);
-  } else {
-    profile.sparks += 35;
-    saveProfile(profile);
-    refreshProfileChrome();
+  const ctx = ui.relicContext || 'gauntlet';
+  const is2v2 = sim.teamSize === 2;
+
+  if (ctx === 'gauntlet') {
+    if (relicId) {
+      gauntletRun.relics.push(relicId);
+    } else {
+      profile.sparks += 35;
+      saveProfile(profile);
+      refreshProfileChrome();
+    }
+    startGauntletFloor(gauntletRun.floor + 1);
+    return;
   }
-  startGauntletFloor(gauntletRun.floor + 1);
+
+  if (ctx === 'bot') {
+    const botRelic = pickBotModifier();
+    ui.roundRelics = { 1: relicId ? [relicId] : [], 2: botRelic ? [botRelic.id] : [] };
+    sim.setTeamRelics(ui.roundRelics);
+    enterAimPhase(
+      is2v2 ? ui.draftTeams[1] : ui.draftTeams[1][0],
+      is2v2 ? ui.draftTeams[2] : ui.draftTeams[2][0]
+    );
+    return;
+  }
+
+  if (ctx === 'online') {
+    online.myRelicPick = relicId || null;
+    online.seatRelics[online.mySeat] = online.myRelicPick;
+    online.seatPicks[online.mySeat] = online.myDraftPick;
+    const modeTag = is2v2 ? 'ONLINE 2v2 (4P)' : 'ONLINE 1v1';
+    if (online.role === 'host') {
+      const count = Object.keys(online.seatPicks).length;
+      if (count >= online.totalPlayers) {
+        hostEnterOnlineAim();
+      } else {
+        p2p.send({ type: 'draft_progress', count, total: online.totalPlayers });
+        showWaitingShield(
+          modeTag,
+          'Draft & Modifier Locked!',
+          is2v2
+            ? `Waiting for other players to draft (${count}/${online.totalPlayers} ready)...`
+            : 'Waiting for Player 2 (Red) to pick their ball & modifier...'
+        );
+      }
+    } else {
+      p2p.send({
+        type: 'draft_pick',
+        ballId: online.myDraftPick,
+        relicId: online.myRelicPick,
+        seat: online.mySeat,
+        team: [online.myDraftPick],
+      });
+      showWaitingShield(
+        modeTag,
+        'Draft & Modifier Locked!',
+        is2v2 ? 'Waiting for other players to draft...' : 'Waiting for Player 1 (Blue) to pick their ball & modifier...'
+      );
+    }
+    return;
+  }
+
+  // Local Pass & Play (1v1 or 2v2)
+  if (relicId) {
+    ui.roundRelics[ui.relicDraftOwner].push(relicId);
+  }
+  if (!is2v2) {
+    if (ui.relicDraftOwner === 1) {
+      ui.localTurn = 1;
+      showPassShield(
+        'Pass to Player 2 (Red)',
+        'Player 1 picked secretly. Hand over the device so Player 2 can draft.',
+        () => openDraftForPlayer(2, 0)
+      );
+    } else {
+      sim.setTeamRelics(ui.roundRelics);
+      enterAimPhase(ui.draftTeams[1][0], ui.draftTeams[2][0]);
+    }
+    return;
+  }
+
+  if (ui.localTurn < 3) {
+    const curMeta = getSeatMeta(ui.localTurn, 2);
+    ui.localTurn += 1;
+    const nextMeta = getSeatMeta(ui.localTurn, 2);
+    showPassShield(
+      `Pass to ${nextMeta.label}`,
+      `${curMeta.label} picked secretly. Hand over the device so ${nextMeta.label} can draft.`,
+      () => openDraftForPlayer(nextMeta.owner, nextMeta.slot),
+      "I'm Ready",
+      'LOCAL 4-PLAYER (2v2)'
+    );
+  } else {
+    sim.setTeamRelics(ui.roundRelics);
+    enterAimPhase([...ui.draftTeams[1]], [...ui.draftTeams[2]]);
+    showPassShield(
+      'Pass to Player 1 (Blue #1)',
+      'All 4 players drafted secretly! Hand over the device so Player 1 (Blue #1) can Lock Aim.',
+      () => {
+        ui.localTurn = 0;
+        ui.aimingPlayer = 1;
+        ui.aimSlot = 0;
+        syncAimSlotTabs();
+        updateAimPrompt();
+      },
+      "I'm Ready",
+      'LOCAL 4-PLAYER (2v2)'
+    );
+  }
 }
 
 function startArenaMode(mode, teamSize = ui.teamSize) {
   gauntletRun.active = false;
   $('gauntlet-hud-bar')?.classList.add('hidden');
   setTeamFormat(teamSize);
-  sim.startMatch({ mode, teamSize: ui.teamSize, hearts: 3, suddenDeathStart: SUDDEN_DEATH_START_SEC });
+  ui.roundRelics = { 1: [], 2: [] };
+  sim.startMatch({
+    mode,
+    teamSize: ui.teamSize,
+    hearts: 3,
+    suddenDeathStart: SUDDEN_DEATH_START_SEC,
+    teamRelics: { 1: [], 2: [] },
+  });
   ui.paused = false;
   ui.simSpeed = 1;
   updateFightButtons();
@@ -864,6 +1071,10 @@ function beginRoundDraft() {
   ui.draftPicks = { 1: null, 2: null };
   ui.draftTeams = { 1: [], 2: [] };
   ui.localTurn = 0;
+  if (sim.mode !== MODES.GAUNTLET) {
+    ui.roundRelics = { 1: [], 2: [] };
+    sim.setTeamRelics({ 1: [], 2: [] });
+  }
   openDraftForPlayer(1, 0);
 }
 
@@ -1020,31 +1231,8 @@ function selectDraftBall(ballId) {
 
   if (sim.mode === MODES.ONLINE) {
     online.myDraftPick = ballId;
-    online.seatPicks[online.mySeat] = ballId;
     if (!is2v2) online.myDraftTeam = [ballId];
-    const modeTag = is2v2 ? 'ONLINE 2v2 (4P)' : 'ONLINE 1v1';
-    if (online.role === 'host') {
-      const count = Object.keys(online.seatPicks).length;
-      if (count >= online.totalPlayers) {
-        hostEnterOnlineAim();
-      } else {
-        p2p.send({ type: 'draft_progress', count, total: online.totalPlayers });
-        showWaitingShield(
-          modeTag,
-          'Ball Locked In!',
-          is2v2
-            ? `Waiting for other players to draft (${count}/${online.totalPlayers} ready)...`
-            : 'Waiting for Player 2 (Red) to pick their ball...'
-        );
-      }
-    } else {
-      p2p.send({ type: 'draft_pick', ballId, seat: online.mySeat, team: [ballId] });
-      showWaitingShield(
-        modeTag,
-        'Ball Locked In!',
-        is2v2 ? 'Waiting for other players to draft...' : 'Waiting for Player 1 (Blue) to pick their ball...'
-      );
-    }
+    openRelicDraftModal('online', online.myOwner);
     return;
   }
 
@@ -1056,52 +1244,9 @@ function selectDraftBall(ballId) {
     }
     ui.draftTeams[2] = botTeam;
     ui.draftPicks[2] = botTeam[0];
-    enterAimPhase(
-      is2v2 ? ui.draftTeams[1] : ui.draftTeams[1][0],
-      is2v2 ? ui.draftTeams[2] : ui.draftTeams[2][0]
-    );
+    openRelicDraftModal('bot', 1);
   } else if (sim.mode === MODES.LOCAL_2P) {
-    if (!is2v2) {
-      if (ui.draftPlayer === 1) {
-        ui.localTurn = 1;
-        showPassShield(
-          'Pass to Player 2 (Red)',
-          'Player 1 picked secretly. Hand over the device so Player 2 can draft.',
-          () => openDraftForPlayer(2, 0)
-        );
-      } else {
-        enterAimPhase(ui.draftTeams[1][0], ui.draftTeams[2][0]);
-      }
-      return;
-    }
-
-    if (ui.localTurn < 3) {
-      const curMeta = getSeatMeta(ui.localTurn, 2);
-      ui.localTurn += 1;
-      const nextMeta = getSeatMeta(ui.localTurn, 2);
-      showPassShield(
-        `Pass to ${nextMeta.label}`,
-        `${curMeta.label} picked secretly. Hand over the device so ${nextMeta.label} can draft.`,
-        () => openDraftForPlayer(nextMeta.owner, nextMeta.slot),
-        "I'm Ready",
-        'LOCAL 4-PLAYER (2v2)'
-      );
-    } else {
-      enterAimPhase([...ui.draftTeams[1]], [...ui.draftTeams[2]]);
-      showPassShield(
-        'Pass to Player 1 (Blue #1)',
-        'All 4 players drafted secretly! Hand over the device so Player 1 (Blue #1) can Lock Aim.',
-        () => {
-          ui.localTurn = 0;
-          ui.aimingPlayer = 1;
-          ui.aimSlot = 0;
-          syncAimSlotTabs();
-          updateAimPrompt();
-        },
-        "I'm Ready",
-        'LOCAL 4-PLAYER (2v2)'
-      );
-    }
+    openRelicDraftModal('local', ui.draftPlayer);
   }
 }
 
@@ -1722,6 +1867,7 @@ function bindP2PHandlers() {
           const pickId = msg.ballId || (Array.isArray(msg.team) ? msg.team[0] : null);
           if (!pickId) return;
           online.seatPicks[senderSeat] = pickId;
+          online.seatRelics[senderSeat] = msg.relicId || null;
           if (sim.teamSize === 1) {
             online.oppDraftPick = pickId;
             online.oppDraftTeam = [pickId];
@@ -1787,6 +1933,9 @@ function bindP2PHandlers() {
         sim.resetRoundEntities();
         sim.phase = PHASES.DRAFT;
         online.myDraftPick = null;
+        online.myRelicPick = null;
+        online.seatRelics = {};
+        sim.setTeamRelics({ 1: [], 2: [] });
         online.myDraftTeam = [];
         online.myAimLocked = false;
         online.aimLockedCount = 0;
@@ -1852,6 +2001,12 @@ function hostEnterOnlineAim() {
   online.pendingEvents = [];
   const team1 = sim.teamSize === 2 ? [online.seatPicks[0], online.seatPicks[1]] : online.seatPicks[0] || online.myDraftPick;
   const team2 = sim.teamSize === 2 ? [online.seatPicks[2], online.seatPicks[3]] : online.seatPicks[1] || online.oppDraftPick;
+  const seatsT1 = sim.teamSize === 2 ? [0, 1] : [0];
+  const seatsT2 = sim.teamSize === 2 ? [2, 3] : [1];
+  const relics1 = seatsT1.map((s) => online.seatRelics[s]).filter(Boolean);
+  const relics2 = seatsT2.map((s) => online.seatRelics[s]).filter(Boolean);
+  ui.roundRelics = { 1: relics1, 2: relics2 };
+  sim.setTeamRelics({ 1: relics1, 2: relics2 });
   enterAimPhase(team1, team2);
   p2p.send(encodeSnapshot(sim, [], online.fxWatermark));
 }
@@ -1884,6 +2039,10 @@ function hostAdvanceOnlineRound() {
   online.myDraftTeam = [];
   online.oppDraftTeam = [];
   online.seatPicks = {};
+  online.seatRelics = {};
+  online.myRelicPick = null;
+  ui.roundRelics = { 1: [], 2: [] };
+  sim.setTeamRelics({ 1: [], 2: [] });
   online.oppAimAngles = [];
   online.seatAngles = {};
   online.aimLockedCount = 0;
@@ -1946,6 +2105,35 @@ function renderTeamRows(container, owner, teamIds, colorClass) {
   });
 }
 
+function renderRoundRelicsHud() {
+  const card = $('round-relics-card');
+  if (!card) return;
+  const r1 = sim.teamRelics?.[1] || [];
+  const r2 = sim.teamRelics?.[2] || [];
+  const show = sim.mode !== MODES.GAUNTLET && (r1.length > 0 || r2.length > 0);
+  card.classList.toggle('hidden', !show);
+  if (!show) return;
+  const fill = (el, ids) => {
+    if (!el) return;
+    el.innerHTML = '';
+    if (!ids.length) {
+      el.textContent = '— none —';
+      return;
+    }
+    for (const id of ids) {
+      const def = getRelicDef(id);
+      if (!def) continue;
+      const pill = document.createElement('span');
+      pill.className = `rarity-pill r-${def.rarity}`;
+      pill.title = def.desc;
+      pill.textContent = `${def.icon} ${def.name}`;
+      el.appendChild(pill);
+    }
+  };
+  fill($('hud-p1-relics'), r1);
+  fill($('hud-p2-relics'), r2);
+}
+
 function updateHud() {
   if (sim.mode === MODES.ONLINE) {
     if (sim.teamSize === 2) {
@@ -1999,6 +2187,7 @@ function updateHud() {
 
   renderTeamRows($('hud-p1-rows'), 1, team1, 'blue');
   renderTeamRows($('hud-p2-rows'), 2, team2, 'red');
+  renderRoundRelicsHud();
 
   $('hud-round').textContent =
     sim.mode === MODES.GAUNTLET
@@ -2195,6 +2384,92 @@ function renderDexGrid() {
   }
 }
 
+/* ==================== RELIC DEX ==================== */
+function renderRelicDexGrid() {
+  const grid = $('rdex-grid');
+  if (!grid) return;
+  grid.innerHTML = '';
+  const ownedSet = new Set(getUnlockedRelicIds(profile));
+  if ($('rdex-subtitle')) {
+    $('rdex-subtitle').textContent = `Unlocked ${ownedSet.size} / ${GAUNTLET_RELICS.length} for VS Bot & Gauntlet • All ${GAUNTLET_RELICS.length} free in Sandbox, Online PvP & Local Pass & Play!`;
+  }
+  if ($('rdex-sparks-pill')) $('rdex-sparks-pill').textContent = `✨ ${profile.sparks}`;
+  document.querySelectorAll('#rdex-cat-chips .chip').forEach((c) => {
+    c.classList.toggle('is-active', c.dataset.rdcat === ui.rdexCat);
+  });
+  document.querySelectorAll('#rdex-lock-chips .chip').forEach((c) => {
+    c.classList.toggle('is-active', c.dataset.rdlock === ui.rdexLock);
+  });
+
+  const q = ui.rdexQuery.trim().toLowerCase();
+  const filtered = GAUNTLET_RELICS.filter((r) => {
+    if (ui.rdexCat !== 'ALL' && (r.category || 'Utility') !== ui.rdexCat) return false;
+    if (ui.rdexLock === 'UNLOCKED' && !ownedSet.has(r.id)) return false;
+    if (ui.rdexLock === 'LOCKED' && ownedSet.has(r.id)) return false;
+    if (!q) return true;
+    return (
+      r.name.toLowerCase().includes(q) ||
+      r.desc.toLowerCase().includes(q) ||
+      (r.category || '').toLowerCase().includes(q)
+    );
+  });
+
+  for (const r of filtered) {
+    const owned = ownedSet.has(r.id);
+    const cost = getRelicUnlockCost(r);
+    const card = document.createElement('article');
+    card.className = `dex-card${owned ? '' : ' is-locked'}`;
+    card.dataset.relicId = r.id;
+
+    const top = document.createElement('div');
+    top.className = 'dex-card-top';
+    const icon = document.createElement('div');
+    icon.className = 'relic-dex-icon';
+    icon.textContent = r.icon;
+    const lockBadge = owned
+      ? '<span class="dex-lock-badge unlocked">✓ Unlocked</span>'
+      : '<span class="dex-lock-badge locked">🔒 Locked</span>';
+    const meta = document.createElement('div');
+    meta.innerHTML = `
+      <h3>${r.name}</h3>
+      <span class="rarity-pill r-${r.rarity}">${r.rarity}</span>
+      <span class="muted" style="font-size:0.75rem; margin-left:6px;">${r.category || 'Utility'}</span>
+      ${lockBadge}
+    `;
+    top.append(icon, meta);
+
+    const desc = document.createElement('p');
+    desc.textContent = r.desc;
+    card.append(top, desc);
+
+    if (!owned) {
+      const actions = document.createElement('div');
+      actions.className = 'dex-card-actions';
+      const canAfford = profile.sparks >= cost;
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = canAfford ? 'btn btn-gold btn-sm' : 'btn btn-ghost btn-sm';
+      btn.textContent = `Unlock (✨ ${cost})`;
+      btn.disabled = !canAfford;
+      btn.addEventListener('click', () => {
+        soundEngine.unlock();
+        const res = unlockRelicDirect(profile, r.id);
+        if (res.ok) {
+          saveProfile(profile);
+          soundEngine.playLevelUp();
+          refreshProfileChrome();
+          renderRelicDexGrid();
+          if (ui.profileTab === 'relics') renderRelicsTab();
+          renderGauntletModal();
+        }
+      });
+      actions.appendChild(btn);
+      card.appendChild(actions);
+    }
+    grid.appendChild(card);
+  }
+}
+
 /* ==================== PROFILE, CAPSULES, BOUNTIES & ARMORY UI ==================== */
 function refreshProfileChrome() {
   const rank = getRankInfo(profile.trophies);
@@ -2282,7 +2557,7 @@ function renderRelicsTab() {
   const podBtn = $('btn-open-relic-pod');
   if (podBtn) {
     if (remainingLocked === 0) {
-      podBtn.textContent = 'All 24 Modifiers Unlocked ✓';
+      podBtn.textContent = `All ${totalCount} Modifiers Unlocked ✓`;
       podBtn.disabled = true;
     } else {
       podBtn.textContent = `${RELIC_POD_DEF.icon} Modifier Capsule (${RELIC_POD_DEF.cost} ✨)`;
@@ -2767,6 +3042,64 @@ function bindEvents() {
     soundEngine.unlock();
     soundEngine.playReward();
     chooseGauntletRelic(null);
+  });
+
+  $('btn-relic-reroll')?.addEventListener('click', () => {
+    if (ui.relicRerollsLeft <= 0) return;
+    soundEngine.unlock();
+    ui.relicRerollsLeft -= 1;
+    const ctx = ui.relicContext;
+    const exclude = [
+      ...ui.relicDraftChoices.map((c) => c.id),
+      ...(ctx === 'gauntlet' ? gauntletRun.relics : []),
+    ];
+    const allowedPool = ctx === 'gauntlet' || ctx === 'bot' ? getUnlockedRelicIds(profile) : null;
+    let next = drawRelicChoices(exclude, 3, Math.random, allowedPool);
+    if (!next.length) next = drawRelicChoices(ctx === 'gauntlet' ? gauntletRun.relics : [], 3, Math.random, allowedPool);
+    ui.relicDraftChoices = next;
+    if (ctx === 'gauntlet') gauntletRun.pendingRelicChoices = next;
+    renderRelicCards();
+    updateRelicRerollButton();
+  });
+
+  $('btn-sb-clear-relics')?.addEventListener('click', () => {
+    ui.sandboxRelics = { 1: [], 2: [] };
+    renderSandboxRelicToggles();
+  });
+
+  const openRelicDex = () => {
+    soundEngine.unlock();
+    renderRelicDexGrid();
+    $('modal-relic-dex')?.classList.remove('hidden');
+  };
+  $('btn-open-relic-dex')?.addEventListener('click', openRelicDex);
+  $('btn-dex-open-relic-dex')?.addEventListener('click', () => {
+    $('modal-dex')?.classList.add('hidden');
+    openRelicDex();
+  });
+  $('btn-close-relic-dex')?.addEventListener('click', () => {
+    $('modal-relic-dex')?.classList.add('hidden');
+  });
+  $('btn-rdex-open-capsules')?.addEventListener('click', () => {
+    soundEngine.unlock();
+    $('modal-relic-dex')?.classList.add('hidden');
+    openProfileModal('relics');
+  });
+  $('rdex-cat-chips')?.addEventListener('click', (e) => {
+    const chip = e.target.closest('.chip');
+    if (!chip) return;
+    ui.rdexCat = chip.dataset.rdcat || 'ALL';
+    renderRelicDexGrid();
+  });
+  $('rdex-lock-chips')?.addEventListener('click', (e) => {
+    const chip = e.target.closest('.chip');
+    if (!chip) return;
+    ui.rdexLock = chip.dataset.rdlock || 'ALL';
+    renderRelicDexGrid();
+  });
+  $('rdex-search')?.addEventListener('input', (e) => {
+    ui.rdexQuery = e.target.value;
+    renderRelicDexGrid();
   });
 
   $('btn-gauntlet-open-relics')?.addEventListener('click', () => {

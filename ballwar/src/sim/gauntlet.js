@@ -26,14 +26,14 @@ export const CHALLENGE_LEVELS = Object.freeze([
     badge: 'LV 2',
     color: '#4ade80',
     hearts: 3,
-    enemyHpMult: 1.06,
-    enemyDmgMult: 1.04,
-    enemyRateMult: 1.02,
-    suddenDeathSec: 28,
+    enemyHpMult: 1.03,
+    enemyDmgMult: 1.02,
+    enemyRateMult: 1.01,
+    suddenDeathSec: 29,
     rewardMult: 1.35,
     clearTrophies: 65,
     firstClearSparks: 175,
-    summary: '+6% Boss HP • +4% DMG • 3 ♥ • 28s SD • 1.35× Rewards',
+    summary: '+3% Boss HP • +2% DMG • 3 ♥ • 29s SD • 1.35× Rewards',
   },
   {
     level: 3,
@@ -41,14 +41,14 @@ export const CHALLENGE_LEVELS = Object.freeze([
     badge: 'LV 3',
     color: '#facc15',
     hearts: 3,
-    enemyHpMult: 1.13,
-    enemyDmgMult: 1.09,
-    enemyRateMult: 1.05,
-    suddenDeathSec: 26,
+    enemyHpMult: 1.07,
+    enemyDmgMult: 1.05,
+    enemyRateMult: 1.03,
+    suddenDeathSec: 27,
     rewardMult: 1.75,
     clearTrophies: 90,
     firstClearSparks: 260,
-    summary: '+13% Boss HP • +9% DMG • 3 ♥ • 26s SD • 1.75× Rewards',
+    summary: '+7% Boss HP • +5% DMG • 3 ♥ • 27s SD • 1.75× Rewards',
   },
   {
     level: 4,
@@ -56,14 +56,14 @@ export const CHALLENGE_LEVELS = Object.freeze([
     badge: 'LV 4',
     color: '#fb923c',
     hearts: 2,
-    enemyHpMult: 1.21,
-    enemyDmgMult: 1.15,
-    enemyRateMult: 1.08,
-    suddenDeathSec: 23,
+    enemyHpMult: 1.11,
+    enemyDmgMult: 1.08,
+    enemyRateMult: 1.05,
+    suddenDeathSec: 25,
     rewardMult: 2.3,
     clearTrophies: 120,
     firstClearSparks: 375,
-    summary: '+21% Boss HP • +15% DMG • 2 ♥ • 23s SD • 2.3× Rewards',
+    summary: '+11% Boss HP • +8% DMG • 2 ♥ • 25s SD • 2.3× Rewards',
   },
   {
     level: 5,
@@ -71,14 +71,14 @@ export const CHALLENGE_LEVELS = Object.freeze([
     badge: 'LV 5',
     color: '#e879f9',
     hearts: 2,
-    enemyHpMult: 1.3,
-    enemyDmgMult: 1.22,
-    enemyRateMult: 1.12,
-    suddenDeathSec: 20,
+    enemyHpMult: 1.16,
+    enemyDmgMult: 1.12,
+    enemyRateMult: 1.07,
+    suddenDeathSec: 22,
     rewardMult: 3.1,
     clearTrophies: 160,
     firstClearSparks: 500,
-    summary: '+30% Boss HP • +22% DMG • 2 ♥ • 20s SD • 3.1× Rewards',
+    summary: '+16% Boss HP • +12% DMG • 2 ♥ • 22s SD • 3.1× Rewards',
   },
 ]);
 
@@ -89,9 +89,9 @@ export const GAUNTLET_FLOORS = Object.freeze([
     subtitle: 'Watch your step on the slippery opener.',
     teamSize: 1,
     bossTeam: ['banana'],
-    bossHpScale: 0.85,
-    bossDmgScale: 0.92,
-    bossRateScale: 0.94,
+    bossHpScale: 0.72,
+    bossDmgScale: 0.85,
+    bossRateScale: 0.9,
     sparksReward: 30,
   },
   {
@@ -100,9 +100,9 @@ export const GAUNTLET_FLOORS = Object.freeze([
     subtitle: 'Dodge the sizzling rotary Doner blades.',
     teamSize: 1,
     bossTeam: ['kebab'],
-    bossHpScale: 0.94,
-    bossDmgScale: 0.96,
-    bossRateScale: 0.96,
+    bossHpScale: 0.86,
+    bossDmgScale: 0.92,
+    bossRateScale: 0.94,
     sparksReward: 35,
   },
   {
@@ -111,9 +111,9 @@ export const GAUNTLET_FLOORS = Object.freeze([
     subtitle: 'Hallucinated clones flood the court.',
     teamSize: 1,
     bossTeam: ['chatgpt'],
-    bossHpScale: 1.0,
-    bossDmgScale: 0.98,
-    bossRateScale: 0.98,
+    bossHpScale: 0.92,
+    bossDmgScale: 0.95,
+    bossRateScale: 0.96,
     sparksReward: 40,
   },
   {
@@ -122,9 +122,9 @@ export const GAUNTLET_FLOORS = Object.freeze([
     subtitle: 'Heavy armor and wall-cracking ringtones.',
     teamSize: 1,
     bossTeam: ['nokia'],
-    bossHpScale: 1.02,
-    bossDmgScale: 1.0,
-    bossRateScale: 1.0,
+    bossHpScale: 0.95,
+    bossDmgScale: 0.97,
+    bossRateScale: 0.98,
     sparksReward: 45,
   },
   {
@@ -133,9 +133,9 @@ export const GAUNTLET_FLOORS = Object.freeze([
     subtitle: '2v2 Boss Arena! Draft a teammate vs Hydrogen Bomb & Coughing Baby.',
     teamSize: 2,
     bossTeam: ['hydrogenbomb', 'coughingbaby'],
-    bossHpScale: 0.88,
-    bossDmgScale: 0.9,
-    bossRateScale: 0.94,
+    bossHpScale: 0.82,
+    bossDmgScale: 0.86,
+    bossRateScale: 0.92,
     isBoss: true,
     sparksReward: 80,
   },
@@ -145,9 +145,9 @@ export const GAUNTLET_FLOORS = Object.freeze([
     subtitle: 'Active radar shoots down projectiles mid-flight.',
     teamSize: 1,
     bossTeam: ['israel'],
-    bossHpScale: 1.08,
-    bossDmgScale: 1.04,
-    bossRateScale: 1.02,
+    bossHpScale: 1.0,
+    bossDmgScale: 1.0,
+    bossRateScale: 1.0,
     sparksReward: 55,
   },
   {
@@ -156,9 +156,9 @@ export const GAUNTLET_FLOORS = Object.freeze([
     subtitle: 'Avoid the swinging Hypergamy Chart pole.',
     teamSize: 1,
     bossTeam: ['hypergamy'],
-    bossHpScale: 1.14,
-    bossDmgScale: 1.06,
-    bossRateScale: 1.04,
+    bossHpScale: 1.04,
+    bossDmgScale: 1.02,
+    bossRateScale: 1.01,
     sparksReward: 60,
   },
   {
@@ -167,9 +167,9 @@ export const GAUNTLET_FLOORS = Object.freeze([
     subtitle: '2v2 Boss Arena! Claude & Gemini team up with refusal shields & beams.',
     teamSize: 2,
     bossTeam: ['claude', 'gemini'],
-    bossHpScale: 1.24,
-    bossDmgScale: 1.08,
-    bossRateScale: 1.04,
+    bossHpScale: 1.08,
+    bossDmgScale: 1.02,
+    bossRateScale: 1.02,
     isBoss: true,
     sparksReward: 100,
   },
@@ -179,9 +179,9 @@ export const GAUNTLET_FLOORS = Object.freeze([
     subtitle: 'Fanum Tax, Ohio chaos orbs, and 67 split-beams.',
     teamSize: 1,
     bossTeam: ['brainrot'],
-    bossHpScale: 1.3,
-    bossDmgScale: 1.12,
-    bossRateScale: 1.06,
+    bossHpScale: 1.15,
+    bossDmgScale: 1.05,
+    bossRateScale: 1.03,
     sparksReward: 75,
   },
   {
@@ -190,9 +190,9 @@ export const GAUNTLET_FLOORS = Object.freeze([
     subtitle: '2v2 Grand Finale! Defeat Omega & Aura to unlock Cosmic Void Ω & Tower II.',
     teamSize: 2,
     bossTeam: ['omega', 'aura'],
-    bossHpScale: 1.5,
-    bossDmgScale: 1.15,
-    bossRateScale: 1.08,
+    bossHpScale: 1.32,
+    bossDmgScale: 1.06,
+    bossRateScale: 1.04,
     isBoss: true,
     sparksReward: 200,
   },
@@ -205,9 +205,9 @@ export const SPIRE_FLOORS = Object.freeze([
     subtitle: 'Crimson silk tripwires lace the obsidian entrance.',
     teamSize: 1,
     bossTeam: ['blackspider'],
-    bossHpScale: 0.78,
-    bossDmgScale: 0.87,
-    bossRateScale: 0.92,
+    bossHpScale: 0.66,
+    bossDmgScale: 0.82,
+    bossRateScale: 0.88,
     sparksReward: 40,
   },
   {
@@ -216,9 +216,9 @@ export const SPIRE_FLOORS = Object.freeze([
     subtitle: 'Volatile brews splash toxic & healing zones across the floor.',
     teamSize: 1,
     bossTeam: ['alchemist'],
-    bossHpScale: 0.96,
-    bossDmgScale: 0.96,
-    bossRateScale: 0.96,
+    bossHpScale: 0.88,
+    bossDmgScale: 0.92,
+    bossRateScale: 0.94,
     sparksReward: 45,
   },
   {
@@ -227,9 +227,9 @@ export const SPIRE_FLOORS = Object.freeze([
     subtitle: 'Vent ambushes and sabotage strikes from the shadows.',
     teamSize: 1,
     bossTeam: ['impostor'],
-    bossHpScale: 1.04,
-    bossDmgScale: 1.0,
-    bossRateScale: 1.0,
+    bossHpScale: 0.95,
+    bossDmgScale: 0.96,
+    bossRateScale: 0.97,
     sparksReward: 50,
   },
   {
@@ -238,9 +238,9 @@ export const SPIRE_FLOORS = Object.freeze([
     subtitle: 'Time-dilation freezes projectiles and bends arena tempo.',
     teamSize: 1,
     bossTeam: ['chronos'],
-    bossHpScale: 1.1,
-    bossDmgScale: 1.04,
-    bossRateScale: 1.02,
+    bossHpScale: 1.0,
+    bossDmgScale: 0.99,
+    bossRateScale: 0.99,
     sparksReward: 55,
   },
   {
@@ -249,9 +249,9 @@ export const SPIRE_FLOORS = Object.freeze([
     subtitle: '2v2 Boss Arena! Overwhelm Duplicator swarms & regenerating Hydra.',
     teamSize: 2,
     bossTeam: ['duplicator', 'hydra'],
-    bossHpScale: 1.42,
-    bossDmgScale: 1.18,
-    bossRateScale: 1.09,
+    bossHpScale: 1.22,
+    bossDmgScale: 1.06,
+    bossRateScale: 1.04,
     isBoss: true,
     sparksReward: 105,
   },
@@ -261,9 +261,9 @@ export const SPIRE_FLOORS = Object.freeze([
     subtitle: 'Gravity wells crush everything toward the abyssal core.',
     teamSize: 1,
     bossTeam: ['gravity'],
-    bossHpScale: 1.2,
-    bossDmgScale: 1.08,
-    bossRateScale: 1.04,
+    bossHpScale: 1.08,
+    bossDmgScale: 1.02,
+    bossRateScale: 1.01,
     sparksReward: 65,
   },
   {
@@ -272,9 +272,9 @@ export const SPIRE_FLOORS = Object.freeze([
     subtitle: 'Risen skeletons swarm while soul siphons drain your vitality.',
     teamSize: 1,
     bossTeam: ['necromancer'],
-    bossHpScale: 1.26,
-    bossDmgScale: 1.1,
-    bossRateScale: 1.05,
+    bossHpScale: 1.12,
+    bossDmgScale: 1.04,
+    bossRateScale: 1.02,
     sparksReward: 70,
   },
   {
@@ -283,9 +283,9 @@ export const SPIRE_FLOORS = Object.freeze([
     subtitle: '2v2 Boss Arena! Blazing Solar flares paired with immortal Phoenix rebirth.',
     teamSize: 2,
     bossTeam: ['solar', 'phoenix'],
-    bossHpScale: 1.44,
-    bossDmgScale: 1.14,
-    bossRateScale: 1.07,
+    bossHpScale: 1.24,
+    bossDmgScale: 1.06,
+    bossRateScale: 1.04,
     isBoss: true,
     sparksReward: 130,
   },
@@ -295,9 +295,9 @@ export const SPIRE_FLOORS = Object.freeze([
     subtitle: 'Rigged jackpots and wild crit spikes decide every bounce.',
     teamSize: 1,
     bossTeam: ['gambler'],
-    bossHpScale: 1.36,
-    bossDmgScale: 1.16,
-    bossRateScale: 1.08,
+    bossHpScale: 1.2,
+    bossDmgScale: 1.08,
+    bossRateScale: 1.04,
     sparksReward: 85,
   },
   {
@@ -306,9 +306,9 @@ export const SPIRE_FLOORS = Object.freeze([
     subtitle: '2v2 Grand Finale! Mirror mimics your kit while Hacker corrupts the arena!',
     teamSize: 2,
     bossTeam: ['mirror', 'hacker'],
-    bossHpScale: 1.63,
-    bossDmgScale: 1.19,
-    bossRateScale: 1.1,
+    bossHpScale: 1.38,
+    bossDmgScale: 1.1,
+    bossRateScale: 1.05,
     isBoss: true,
     sparksReward: 260,
   },
@@ -538,8 +538,115 @@ export const GAUNTLET_RELICS = Object.freeze([
     icon: '⚡',
     rarity: 'Mythic',
     category: 'Skill',
-    desc: 'Dropping below 30% HP once per floor triggers a 0.5s phase dash & +5 HP.',
+    desc: 'Dropping below 30% HP once per round triggers a 0.5s phase dash & +5 HP.',
   },
+  // 12 Complex Chaos, Physics & Arena Modifiers
+  {
+    id: 'titan_growth',
+    name: 'Growth Core',
+    icon: '🪐',
+    rarity: 'Epic',
+    category: 'Chaos',
+    desc: 'Steadily grow +3% larger, +2% heavier & gain +1 contact DMG every 2.2s.',
+  },
+  {
+    id: 'homing_ricochet',
+    name: 'Ricochet Guide',
+    icon: '📐',
+    rarity: 'Rare',
+    category: 'Physics',
+    desc: 'Wall bounces subtly tilt your trajectory ~5° toward the nearest opponent.',
+  },
+  {
+    id: 'sudden_crush',
+    name: 'Collapse Engine',
+    icon: '🧱',
+    rarity: 'Epic',
+    category: 'Arena',
+    desc: 'Sudden Death starts 8s earlier and arena walls shrink 2.2× faster!',
+  },
+  {
+    id: 'ricochet_accel',
+    name: 'Momentum Engine',
+    icon: '💨',
+    rarity: 'Rare',
+    category: 'Physics',
+    desc: 'Each wall bounce grants a +7% speed burst (stacking up to +45%).',
+  },
+  {
+    id: 'split_shot',
+    name: 'Prism Splitter',
+    icon: '🔱',
+    rarity: 'Legendary',
+    category: 'Chaos',
+    desc: 'Every 3rd projectile fired splits an extra twin bolt angled ±11°.',
+  },
+  {
+    id: 'execute_protocol',
+    name: 'Executioner Edge',
+    icon: '🗡️',
+    rarity: 'Legendary',
+    category: 'Offense',
+    desc: 'Deal +35% bonus damage against enemies below 40% Max HP.',
+  },
+  {
+    id: 'nova_reactor',
+    name: 'Supernova Core',
+    icon: '🌟',
+    rarity: 'Mythic',
+    category: 'Chaos',
+    desc: 'Once per round at <50% HP, erupt for 12 AoE DMG & a +35% speed surge.',
+  },
+  {
+    id: 'pinball_frenzy',
+    name: 'Pinball Bumper',
+    icon: '🪀',
+    rarity: 'Rare',
+    category: 'Physics',
+    desc: '1.22× bouncier ball-to-ball collisions & +10% faster cooldown recovery on wall hits.',
+  },
+  {
+    id: 'blizzard_aura',
+    name: 'Blizzard Domain',
+    icon: '🌨️',
+    rarity: 'Epic',
+    category: 'Arena',
+    desc: 'Every 3.5s summon a freezing frost zone beneath your closest opponent.',
+  },
+  {
+    id: 'wall_curse',
+    name: 'Phantom Hex',
+    icon: '👻',
+    rarity: 'Epic',
+    category: 'Chaos',
+    desc: 'Cursed walls: opponents take 1.5 hex damage every time they hit an arena wall.',
+  },
+  {
+    id: 'echo_strike',
+    name: 'Echo Dash',
+    icon: '🌠',
+    rarity: 'Legendary',
+    category: 'Skill',
+    desc: 'Every 4.5s fire a fast piercing 5-DMG echo bolt toward the closest foe.',
+  },
+  {
+    id: 'gravity_anchor',
+    name: 'Gravity Well',
+    icon: '🕳️',
+    rarity: 'Mythic',
+    category: 'Arena',
+    desc: 'Every 2.6s emits a gravitational pulse that deflects incoming enemy projectiles.',
+  },
+]);
+
+export const MODIFIER_CATEGORIES = Object.freeze([
+  'Utility',
+  'Skill',
+  'Defense',
+  'Offense',
+  'Physics',
+  'Chaos',
+  'Arena',
 ]);
 
 export function getGauntletTower(towerId = 'citadel') {
@@ -566,7 +673,6 @@ export function drawRelicChoices(ownedIds = [], count = 3, rng = Math.random, al
   const allowedSet = Array.isArray(allowedRelicIds) && allowedRelicIds.length > 0 ? new Set(allowedRelicIds) : null;
   const eligible = allowedSet ? GAUNTLET_RELICS.filter((r) => allowedSet.has(r.id)) : [...GAUNTLET_RELICS];
   const basePool = eligible.length >= count ? eligible : [...GAUNTLET_RELICS];
-  // Prefer unowned unlocked relics first; allow stacking copies only if fewer than count remain
   let pool = basePool.filter((r) => !owned.has(r.id));
   if (pool.length < count) pool = [...basePool];
   const copy = [...pool];
@@ -580,7 +686,7 @@ export function drawRelicChoices(ownedIds = [], count = 3, rng = Math.random, al
 
 function countRelic(relicIds, id) {
   let c = 0;
-  for (const r of relicIds) if (r === id) c++;
+  for (const r of relicIds || []) if (r === id) c++;
   return c;
 }
 
@@ -596,6 +702,12 @@ export function getRelicDmgMult(relicIds = []) {
   return 1 + countRelic(relicIds, 'glass_cannon') * 0.14;
 }
 
+export function getRelicExecuteMult(relicIds = [], targetBall = null) {
+  const ex = countRelic(relicIds, 'execute_protocol');
+  if (ex <= 0 || !targetBall || targetBall.maxHp <= 0) return 1;
+  return targetBall.hp <= targetBall.maxHp * 0.4 ? 1 + 0.35 * ex : 1;
+}
+
 export function getRelicRadiusMult(relicIds = []) {
   const f = countRelic(relicIds, 'featherweight_dash');
   return f > 0 ? Math.max(0.68, Math.pow(0.85, f)) : 1;
@@ -606,25 +718,51 @@ export function getRelicEnemyProjSpeedMult(relicIds = []) {
   return c > 0 ? Math.max(0.55, Math.pow(0.74, c)) : 1;
 }
 
+export function getRelicShrinkConfig(relicIds1 = [], relicIds2 = []) {
+  const crush = countRelic(relicIds1, 'sudden_crush') + countRelic(relicIds2, 'sudden_crush');
+  return {
+    earlierSec: Math.min(18, crush * 8),
+    rateMult: crush > 0 ? Math.min(4.0, Math.pow(2.2, crush)) : 1,
+  };
+}
+
+export function getRelicCollisionImpulseMult(relicIds = []) {
+  const p = countRelic(relicIds, 'pinball_frenzy');
+  return p > 0 ? Math.min(1.6, Math.pow(1.22, p)) : 1;
+}
+
+export function hasSplitShotRelic(relicIds = []) {
+  return countRelic(relicIds, 'split_shot') > 0;
+}
+
 export function applyRelicsOnInit(sim, ball, relicIds = []) {
-  if (!relicIds || relicIds.length === 0 || ball.owner !== 1) return;
+  if (!relicIds || relicIds.length === 0) return;
   const bumperCount = countRelic(relicIds, 'bumper_shield');
+  ball._baseRadius = ball.radius;
   ball._relicState = {
     vampCd: 0,
     siphonCd: 0,
     wallCount: 0,
     tempoWallCount: 0,
     tempoTimer: 0,
+    pinballCdTimer: 0,
     poisonCd: 1.8,
     cleanseCd: 2.8,
     magnetCd: 3.2,
+    growthCd: 2.2,
+    blizzardCd: 3.5,
+    echoCd: 4.2,
+    gravityCd: 2.6,
     parryCd: 0,
+    projCount: 0,
+    ricochetStacks: 0,
     wardHp: bumperCount * 4,
     wardMax: bumperCount * 4,
     wardCd: 9.5,
     aegisLeft: countRelic(relicIds, 'aegis_start'),
     secondWindLeft: countRelic(relicIds, 'second_wind'),
     stasisLeft: countRelic(relicIds, 'stasis_failsafe'),
+    novaLeft: countRelic(relicIds, 'nova_reactor'),
   };
 
   // Only Titan Plating (armor) and Glass Cannon (fragility trade-off) alter Max HP
@@ -665,7 +803,7 @@ export function applyRelicsOnInit(sim, ball, relicIds = []) {
 }
 
 export function applyRelicsOnUpdate(sim, ball, dt, relicIds = []) {
-  if (!ball._relicState || ball.owner !== 1) return;
+  if (!ball._relicState || !relicIds || relicIds.length === 0) return;
   const rs = ball._relicState;
   if (rs.vampCd > 0) rs.vampCd = Math.max(0, rs.vampCd - dt);
   if (rs.siphonCd > 0) rs.siphonCd = Math.max(0, rs.siphonCd - dt);
@@ -676,6 +814,31 @@ export function applyRelicsOnUpdate(sim, ball, dt, relicIds = []) {
     if (rs.tempoTimer === 0 && rs.tempoActive) {
       rs.tempoActive = false;
       ball.rateMult = (ball.rateMult || 1) / 1.24;
+    }
+  }
+
+  if (rs.pinballCdTimer > 0) {
+    rs.pinballCdTimer = Math.max(0, rs.pinballCdTimer - dt);
+    if (rs.pinballCdTimer === 0 && rs.pinballRateActive) {
+      rs.pinballRateActive = false;
+      ball.rateMult = (ball.rateMult || 1) / 1.12;
+    }
+  }
+
+  // Growth Core: steadily grow bigger, heavier & hit harder as the round goes on
+  const growthCount = countRelic(relicIds, 'titan_growth');
+  if (growthCount > 0) {
+    rs.growthCd -= dt;
+    if (rs.growthCd <= 0) {
+      rs.growthCd = 2.2;
+      const baseR = ball._baseRadius || 26;
+      const capR = Math.round(baseR * 1.85);
+      if (ball.radius < capR) {
+        ball.radius = Math.min(capR, Math.round((ball.radius * (1 + 0.03 * growthCount) + 0.5) * 10) / 10);
+      }
+      ball.mass = (ball.mass || 1) + 0.02 * growthCount;
+      ball.contactDmg = (ball.contactDmg || 0) + 1 * growthCount;
+      sim.emitText(ball.x, ball.y - ball.radius - 8, 'GROW+', '#c084fc');
     }
   }
 
@@ -708,7 +871,7 @@ export function applyRelicsOnUpdate(sim, ball, dt, relicIds = []) {
     }
   }
 
-  // Magnetic Disruptor periodic enemy slow/chill pulse (never pulls melee into you)
+  // Magnetic Disruptor periodic enemy slow/chill pulse
   const magnetCount = countRelic(relicIds, 'magnetic_core');
   if (magnetCount > 0) {
     rs.magnetCd -= dt;
@@ -722,12 +885,88 @@ export function applyRelicsOnUpdate(sim, ball, dt, relicIds = []) {
     }
   }
 
-  // Chrono Dampener enemy rate slow
+  // Blizzard Domain periodic frost zone under nearest enemy
+  const blizCount = countRelic(relicIds, 'blizzard_aura');
+  if (blizCount > 0) {
+    rs.blizzardCd -= dt;
+    if (rs.blizzardCd <= 0) {
+      rs.blizzardCd = 3.5;
+      const enemy = sim.getClosestEnemy(ball);
+      if (enemy) {
+        sim.addHazard(
+          {
+            kind: 'freeze_zone',
+            owner: ball.owner,
+            x: enemy.x,
+            y: enemy.y,
+            radius: 36 + blizCount * 6,
+            ttl: 2.2,
+          },
+          4
+        );
+        sim.emitText(enemy.x, enemy.y - enemy.radius - 10, 'BLIZZARD!', '#7dd3fc');
+      }
+    }
+  }
+
+  // Echo Dash periodic piercing echo bolt toward closest opponent
+  const echoCount = countRelic(relicIds, 'echo_strike');
+  if (echoCount > 0) {
+    rs.echoCd -= dt;
+    if (rs.echoCd <= 0) {
+      rs.echoCd = 4.5;
+      const enemy = sim.getClosestEnemy(ball);
+      if (enemy) {
+        const ang = Math.atan2(enemy.y - ball.y, enemy.x - ball.x);
+        sim.addProjectile({
+          kind: 'echo_bolt',
+          owner: ball.owner,
+          parentId: ball.id,
+          x: ball.x + Math.cos(ang) * (ball.radius + 6),
+          y: ball.y + Math.sin(ang) * (ball.radius + 6),
+          vx: Math.cos(ang) * 510,
+          vy: Math.sin(ang) * 510,
+          radius: 7,
+          dmg: 5 * echoCount,
+          bouncesLeft: 1,
+          ttl: 1.5,
+          color: '#38bdf8',
+        });
+      }
+    }
+  }
+
+  // Gravity Well projectile deflector pulse
+  const gravCount = countRelic(relicIds, 'gravity_anchor');
+  if (gravCount > 0) {
+    rs.gravityCd -= dt;
+    if (rs.gravityCd <= 0) {
+      rs.gravityCd = 2.6;
+      let deflected = 0;
+      for (const p of sim.projectiles) {
+        if (p.owner === ball.owner) continue;
+        const d = Math.hypot(p.x - ball.x, p.y - ball.y);
+        if (d < 130 + gravCount * 20) {
+          const ang = Math.atan2(p.y - ball.y, p.x - ball.x);
+          const sp = Math.hypot(p.vx, p.vy) || 320;
+          p.vx = Math.cos(ang) * sp;
+          p.vy = Math.sin(ang) * sp;
+          deflected += 1;
+        }
+      }
+      sim.addParticleBurst(ball.x, ball.y, '#a855f7', deflected > 0 ? 10 : 5);
+    }
+  }
+
+  // Chrono Dampener enemy rate slow (applied once per enemy entity)
   const chronoCount = countRelic(relicIds, 'chrono_dampener');
-  if (chronoCount > 0 && !ball._chronoApplied) {
-    ball._chronoApplied = true;
+  if (chronoCount > 0) {
+    const key = `_chrono_${ball.owner}`;
     for (const enemy of sim.getEnemyBalls(ball.owner)) {
-      enemy.rateMult = Math.max(0.58, (enemy.rateMult || 1) * Math.pow(0.86, chronoCount));
+      if (!enemy[key]) {
+        enemy[key] = true;
+        enemy.rateMult = Math.max(0.58, (enemy.rateMult || 1) * Math.pow(0.86, chronoCount));
+      }
     }
   }
 
@@ -757,14 +996,57 @@ export function applyRelicsOnUpdate(sim, ball, dt, relicIds = []) {
   }
 }
 
-export function applyRelicsOnWallHit(sim, ball, relicIds = []) {
-  if (!ball._relicState || ball.owner !== 1) return;
+export function applyRelicsOnWallHit(sim, ball, relicIds = [], enemyRelicIds = []) {
+  // Opponents cursed by Phantom Hex take wall bounce damage even if this ball has no relics of its own
+  const hexCount = countRelic(enemyRelicIds, 'wall_curse');
+  if (hexCount > 0 && ball.hp > 0) {
+    const enemyOwner = ball.owner === 1 ? 2 : 1;
+    sim.dealDamage(ball, 1.5 * hexCount, enemyOwner, 'relic_hex', ball.ballId);
+    sim.emitText(ball.x, ball.y - ball.radius - 8, 'HEX!', '#e879f9');
+  }
+
+  if (!ball._relicState || !relicIds || relicIds.length === 0) return;
   const rs = ball._relicState;
 
   const vampCount = countRelic(relicIds, 'vampiric_walls');
   if (vampCount > 0 && rs.vampCd <= 0) {
     rs.vampCd = 1.8;
     sim.healBall(ball, 1 * vampCount);
+  }
+
+  // Ricochet Guide: ~5 degree (0.087 rad) bias toward closest opponent on every wall bounce
+  const homingCount = countRelic(relicIds, 'homing_ricochet');
+  if (homingCount > 0) {
+    const enemy = sim.getClosestEnemy(ball);
+    const sp = Math.hypot(ball.vx, ball.vy);
+    if (enemy && sp > 20) {
+      const cur = Math.atan2(ball.vy, ball.vx);
+      const desired = Math.atan2(enemy.y - ball.y, enemy.x - ball.x);
+      let diff = desired - cur;
+      while (diff > Math.PI) diff -= Math.PI * 2;
+      while (diff < -Math.PI) diff += Math.PI * 2;
+      const maxTilt = 0.0873 * homingCount; // 5 deg * stack
+      const tilt = Math.max(-maxTilt, Math.min(maxTilt, diff));
+      const nextAngle = cur + tilt;
+      ball.vx = Math.cos(nextAngle) * sp;
+      ball.vy = Math.sin(nextAngle) * sp;
+    }
+  }
+
+  // Momentum Engine: +7% speed burst per wall bounce up to +45% cap
+  const accelCount = countRelic(relicIds, 'ricochet_accel');
+  if (accelCount > 0 && rs.ricochetStacks < 6 * accelCount) {
+    rs.ricochetStacks += 1;
+    ball.customSpeedCap = Math.max(ball.customSpeedCap || 720, Math.round((ball.baseSpeed || 320) * 1.45));
+    sim.scaleBallSpeed(ball, 1.07);
+  }
+
+  // Pinball Bumper temporary cadence surge on bounce
+  const pinballCount = countRelic(relicIds, 'pinball_frenzy');
+  if (pinballCount > 0 && !rs.pinballRateActive) {
+    rs.pinballRateActive = true;
+    rs.pinballCdTimer = 1.4;
+    ball.rateMult = (ball.rateMult || 1) * 1.12;
   }
 
   // Gyro Stabilizer stabilizes bounce away from shallow wall-hugging angles
@@ -827,7 +1109,7 @@ export function applyRelicsOnWallHit(sim, ball, relicIds = []) {
 }
 
 export function applyRelicsOnBallHit(sim, ball, enemy, relicIds = []) {
-  if (ball.owner !== 1 || !relicIds || relicIds.length === 0) return;
+  if (!relicIds || relicIds.length === 0) return;
   const frostCount = countRelic(relicIds, 'frost_touch');
   if (frostCount > 0) {
     sim.applyChill(enemy, 2 * frostCount, ball.owner, ball.ballId);
@@ -840,7 +1122,7 @@ export function applyRelicsOnBallHit(sim, ball, enemy, relicIds = []) {
 }
 
 export function applyRelicsOnDamagePrevent(sim, ball, amount, relicIds = [], reason = 'hit') {
-  if (!ball._relicState || ball.owner !== 1) return amount;
+  if (!ball._relicState || !relicIds || relicIds.length === 0) return amount;
   let rem = amount;
 
   // Kinetic Cushion trims Wall Slam, Sudden Death & hazard damage by 35% and absorbs -1 DMG on heavy hits
@@ -878,7 +1160,7 @@ export function applyRelicsOnDamagePrevent(sim, ball, amount, relicIds = [], rea
 }
 
 export function applyRelicsOnTakeDamage(sim, ball, dmg, sourceOwner, relicIds = [], reason = 'hit') {
-  if (ball.owner !== 1 || sourceOwner === 1 || reason === 'relic_thorns' || reason === 'relic_parry') return;
+  if (!relicIds || relicIds.length === 0 || sourceOwner === ball.owner || reason === 'relic_thorns' || reason === 'relic_parry' || reason === 'relic_nova' || reason === 'relic_hex') return;
   const rs = ball._relicState;
 
   const thornsCount = countRelic(relicIds, 'thorns_shell');
@@ -886,7 +1168,7 @@ export function applyRelicsOnTakeDamage(sim, ball, dmg, sourceOwner, relicIds = 
     const enemy = sim.getClosestEnemy(ball);
     if (enemy) {
       const refl = Math.max(1, Math.round(dmg * 0.11 * thornsCount));
-      sim.dealDamage(enemy, refl, 1, 'relic_thorns', ball.ballId);
+      sim.dealDamage(enemy, refl, ball.owner, 'relic_thorns', ball.ballId);
     }
   }
 
@@ -912,7 +1194,30 @@ export function applyRelicsOnTakeDamage(sim, ball, dmg, sourceOwner, relicIds = 
     sim.emitText(ball.x, ball.y - ball.radius - 12, 'PARRY!', '#facc15');
   }
 
-  // Emergency Blink stasis below 30% HP once per floor
+  // Supernova Core triggers once below 50% HP
+  if (rs && rs.novaLeft > 0 && ball.hp > 0 && ball.hp <= ball.maxHp * 0.5) {
+    rs.novaLeft -= 1;
+    sim.addHazard(
+      {
+        kind: 'ring_wave',
+        variant: 'dome',
+        owner: ball.owner,
+        x: ball.x,
+        y: ball.y,
+        currentRadius: ball.radius,
+        expandSpeed: 420,
+        dmg: 12,
+        knockback: 320,
+        ttl: 0.6,
+      },
+      3
+    );
+    sim.scaleBallSpeed(ball, 1.35);
+    sim.emitText(ball.x, ball.y - ball.radius - 14, 'SUPERNOVA!', '#facc15');
+    sim.triggerShake(7, 0.18);
+  }
+
+  // Emergency Blink stasis below 30% HP once per round
   if (rs && rs.stasisLeft > 0 && ball.hp > 0 && ball.hp <= ball.maxHp * 0.3) {
     rs.stasisLeft -= 1;
     ball.phaseTimer = Math.max(ball.phaseTimer, 0.5);
@@ -930,7 +1235,7 @@ export function applyRelicsOnTakeDamage(sim, ball, dmg, sourceOwner, relicIds = 
 }
 
 export function applyRelicsOnBeforeDeath(sim, ball) {
-  if (!ball._relicState || ball.owner !== 1) return false;
+  if (!ball._relicState) return false;
   if (ball._relicState.secondWindLeft > 0) {
     ball._relicState.secondWindLeft -= 1;
     ball.hp = Math.min(ball.maxHp, 10);

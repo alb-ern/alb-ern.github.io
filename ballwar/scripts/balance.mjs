@@ -21,21 +21,23 @@ function resolveTuningFilePath() {
 
 function parseArgs(args) {
   const opts = {
-    matches: 4,
+    matches: 6,
     sampleOpps: 24,
     iters: 1,
-    nerfThreshold: 0.70,
-    buffThreshold: 0.35,
-    buffMatchWinFloor: 0.38,
+    nerfThreshold: 0.68,
+    buffThreshold: 0.32,
+    buffMatchWinFloor: 0.32,
+    targetStdDev: 0.36,
+    varianceMode: true,
     dryRun: false,
     reset: false,
   };
   for (let i = 0; i < args.length; i++) {
     const a = args[i];
     if (a === '--matches' && args[i + 1]) {
-      opts.matches = Math.max(2, parseInt(args[++i], 10) || 4);
+      opts.matches = Math.max(2, parseInt(args[++i], 10) || 6);
     } else if (a.startsWith('--matches=')) {
-      opts.matches = Math.max(2, parseInt(a.split('=')[1], 10) || 4);
+      opts.matches = Math.max(2, parseInt(a.split('=')[1], 10) || 6);
     } else if (a === '--sample-opps' && args[i + 1]) {
       opts.sampleOpps = Math.max(4, parseInt(args[++i], 10) || 24);
     } else if (a === '--all-pairs') {
@@ -46,11 +48,13 @@ function parseArgs(args) {
     } else if (a.startsWith('--iters=')) {
       opts.iters = Math.max(1, parseInt(a.split('=')[1], 10) || 1);
     } else if (a === '--auto') {
-      opts.iters = 6;
+      opts.iters = 5;
     } else if (a === '--nerf-threshold' && args[i + 1]) {
-      opts.nerfThreshold = parseFloat(args[++i]) || 0.70;
+      opts.nerfThreshold = parseFloat(args[++i]) || 0.68;
     } else if (a === '--buff-threshold' && args[i + 1]) {
-      opts.buffThreshold = parseFloat(args[++i]) || 0.35;
+      opts.buffThreshold = parseFloat(args[++i]) || 0.32;
+    } else if (a === '--no-variance') {
+      opts.varianceMode = false;
     } else if (a === '--dry-run') {
       opts.dryRun = true;
     } else if (a === '--reset') {
@@ -60,11 +64,12 @@ function parseArgs(args) {
         'Usage: gjs -m scripts/balance.mjs [options]\n' +
           '  --sample-opps N      Sampled opponents per ball (default: 24; 0 = all pairs)\n' +
           '  --all-pairs          Full round-robin all pairs (7,140 pairs x 10 matches)\n' +
-          '  --matches N          Matches simulated per pair (default: 4)\n' +
+          '  --matches N          Matches simulated per pair (default: 6)\n' +
           '  --iters N            Max balance iterations in this run (default: 1)\n' +
-          '  --auto               Run up to 6 fast iterations (~90s total)\n' +
-          '  --nerf-threshold F   Nerf balls winning > F share of opponents (default: 0.70)\n' +
-          '  --buff-threshold F   Buff balls beating < F share of opponents (default: 0.35)\n' +
+          '  --auto               Run up to 5 fast variance+bounds iterations\n' +
+          '  --nerf-threshold F   Nerf balls above F mean/oppShare (default: 0.68)\n' +
+          '  --buff-threshold F   Buff balls below F mean/oppShare (default: 0.32)\n' +
+          '  --no-variance        Disable pairwise variance polarization\n' +
           '  --dry-run            Simulate and print report without writing balanceTuning.js\n' +
           '  --reset              Reset all ball multipliers back to 1.0'
       );
@@ -114,8 +119,6 @@ function buildPairs(n, sampleOpps, iterIndex) {
     }
     return pairs;
   }
-  // Symmetric ring graph: each ball i connects to k = sampleOpps/2 forward chords
-  // spaced across the full 120-ball roster, giving every ball ~sampleOpps distinct opponents.
   const halfK = Math.max(2, Math.floor(sampleOpps / 2));
   const seen = new Set();
   const pairs = [];
@@ -140,6 +143,7 @@ function buildPairs(n, sampleOpps, iterIndex) {
 function simulateAllPairs(matchesPerPair, iterIndex, sampleOpps = 0) {
   const n = BALL_DEFS.length;
   const pairWins = Array.from({ length: n }, () => new Float64Array(n));
+  const pairScores = Array.from({ length: n }, () => new Float64Array(n));
   const playedMask = Array.from({ length: n }, () => new Uint8Array(n));
   const totalWins = new Float64Array(n);
   const totalLosses = new Float64Array(n);
@@ -156,7 +160,6 @@ function simulateAllPairs(matchesPerPair, iterIndex, sampleOpps = 0) {
     playedMask[j][i] = 1;
 
     for (let m = 0; m < matchesPerPair; m++) {
-      // Alternate P1 (Blue) vs P2 (Red) halves so side bias cancels out cleanly
       const swap = m >= Math.floor(matchesPerPair / 2);
       const p1Idx = swap ? j : i;
       const p2Idx = swap ? i : j;
@@ -186,13 +189,17 @@ function simulateAllPairs(matchesPerPair, iterIndex, sampleOpps = 0) {
         totalWins[p1Idx]++;
         totalLosses[p2Idx]++;
         pairWins[p1Idx][p2Idx]++;
+        pairScores[p1Idx][p2Idx] += 1;
       } else if (sim.roundWinner === 2) {
         totalWins[p2Idx]++;
         totalLosses[p1Idx]++;
         pairWins[p2Idx][p1Idx]++;
+        pairScores[p2Idx][p1Idx] += 1;
       } else {
         totalDraws[p1Idx]++;
         totalDraws[p2Idx]++;
+        pairScores[p1Idx][p2Idx] += 0.5;
+        pairScores[p2Idx][p1Idx] += 0.5;
       }
     }
   }
@@ -210,12 +217,24 @@ function simulateAllPairs(matchesPerPair, iterIndex, sampleOpps = 0) {
     const totalMatchesForBall = Math.max(1, oppCount * matchesPerPair);
     const oppBeatShare = beaten / Math.max(1, oppCount);
     const matchWinRate = (totalWins[i] + 0.5 * totalDraws[i]) / totalMatchesForBall;
+
+    // Pairwise matchup variance / stdDev across opponents
+    let sumSq = 0;
+    for (let j = 0; j < n; j++) {
+      if (i === j || !playedMask[i][j]) continue;
+      const pij = pairScores[i][j] / matchesPerPair;
+      sumSq += (pij - matchWinRate) ** 2;
+    }
+    const matchupStdDev = Math.sqrt(sumSq / Math.max(1, oppCount));
+
     rows.push({
       id: BALL_DEFS[i].id,
+      archetype: BALL_DEFS[i].archetype,
       beaten,
       opponents: oppCount,
       oppBeatShare,
       matchWinRate,
+      matchupStdDev,
       wins: totalWins[i],
       losses: totalLosses[i],
       draws: totalDraws[i],
@@ -223,13 +242,16 @@ function simulateAllPairs(matchesPerPair, iterIndex, sampleOpps = 0) {
     });
   }
 
-  rows.sort((x, y) => y.oppBeatShare - x.oppBeatShare || y.matchWinRate - x.matchWinRate);
+  rows.sort((x, y) => y.matchWinRate - x.matchWinRate || y.oppBeatShare - x.oppBeatShare);
   return { rows, pairCount: pairs.length };
 }
+
+const SPIKE_ARCHETYPES = new Set(['Brawler', 'Berserker', 'Juggernaut', 'Sniper', 'Bombard', 'Counter', 'Titan', 'Assassin']);
 
 function applyAdjustments(rows, opts, prevActionMap) {
   let nerfed = 0;
   let buffed = 0;
+  let polarized = 0;
   const actions = new Map();
 
   for (const r of rows) {
@@ -238,40 +260,55 @@ function applyAdjustments(rows, opts, prevActionMap) {
       BALANCE_TUNING[r.id] = { ...t };
     }
     const entry = BALANCE_TUNING[r.id];
-    // Keep all base HPs at 100 (Cell at 15) and cooldown rates intact; balance via damage only
+    // Preserve 100-HP base invariant while polarizing DMG vs Rate for RPS matchup variance
     entry.hpMult = 1;
-    entry.rateMult = 1;
 
-    const isOverpowered = r.oppBeatShare > opts.nerfThreshold;
-    const isUnderpowered =
-      r.oppBeatShare < opts.buffThreshold || r.matchWinRate < opts.buffMatchWinFloor;
-
+    const isOverpowered = r.matchWinRate > opts.nerfThreshold || r.oppBeatShare > opts.nerfThreshold + 0.04;
+    const isUnderpowered = r.matchWinRate < opts.buffMatchWinFloor || r.oppBeatShare < opts.buffThreshold;
     const prevAct = prevActionMap.get(r.id);
     const minDmg = r.id === 'vampire' ? 1 : 0.45;
 
     if (isOverpowered) {
-      const damp = prevAct === 'BUFF' ? 0.55 : 1.0;
-      const excess = clamp(r.oppBeatShare - 0.55, 0.04, 0.45) * damp;
-      const dmgNext = clamp(entry.dmgMult * (1 - 0.34 * excess), minDmg, 2.25);
-
-      entry.dmgMult = round3(dmgNext);
+      const damp = prevAct === 'BUFF' ? 0.6 : 1.0;
+      const excess = clamp(Math.max(r.matchWinRate, r.oppBeatShare) - 0.56, 0.05, 0.45) * damp;
+      entry.dmgMult = round3(clamp(entry.dmgMult * (1 - 0.42 * excess), minDmg, 2.5));
+      entry.rateMult = round3(clamp(entry.rateMult * (1 - 0.2 * excess), 0.72, 1.38));
       nerfed++;
       actions.set(r.id, 'NERF');
     } else if (isUnderpowered) {
-      const damp = prevAct === 'NERF' ? 0.55 : 1.0;
-      const floorGap = 0.50 - Math.min(r.oppBeatShare, r.matchWinRate);
-      const deficit = clamp(floorGap, 0.05, 0.45) * damp;
-      const dmgNext = clamp(entry.dmgMult * (1 + 0.38 * deficit), minDmg, 2.25);
-
-      entry.dmgMult = round3(dmgNext);
+      const damp = prevAct === 'NERF' ? 0.6 : 1.0;
+      const deficit = clamp(0.48 - Math.min(r.matchWinRate, r.oppBeatShare), 0.05, 0.45) * damp;
+      entry.dmgMult = round3(clamp(entry.dmgMult * (1 + 0.48 * deficit), minDmg, 2.5));
+      entry.rateMult = round3(clamp(entry.rateMult * (1 + 0.16 * deficit), 0.72, 1.38));
       buffed++;
       actions.set(r.id, 'BUFF');
+    } else if (
+      opts.varianceMode &&
+      r.matchupStdDev < opts.targetStdDev &&
+      r.matchWinRate >= 0.4 &&
+      r.matchWinRate <= 0.6
+    ) {
+      // Polarize safe-mid low-variance balls inversely within bounded [0.76, 1.35] cadence range
+      const spikeBias = SPIKE_ARCHETYPES.has(r.archetype);
+      if (spikeBias && entry.rateMult > 0.78) {
+        entry.dmgMult = round3(clamp(entry.dmgMult * 1.08, minDmg, 2.4));
+        entry.rateMult = round3(clamp(entry.rateMult * 0.92, 0.76, 1.35));
+        polarized++;
+        actions.set(r.id, 'POLARIZE');
+      } else if (!spikeBias && entry.rateMult < 1.32) {
+        entry.dmgMult = round3(clamp(entry.dmgMult * 0.92, minDmg, 2.4));
+        entry.rateMult = round3(clamp(entry.rateMult * 1.08, 0.76, 1.35));
+        polarized++;
+        actions.set(r.id, 'POLARIZE');
+      } else {
+        actions.set(r.id, 'OK');
+      }
     } else {
       actions.set(r.id, 'OK');
     }
   }
 
-  return { nerfed, buffed, actions };
+  return { nerfed, buffed, polarized, actions };
 }
 
 function main() {
@@ -289,35 +326,33 @@ function main() {
     }
   }
 
-  const totalPairs = (BALL_DEFS.length * (BALL_DEFS.length - 1)) / 2;
   let balanced = false;
   let prevActionMap = new Map();
 
   for (let iter = 0; iter < opts.iters; iter++) {
     const { rows, pairCount } = simulateAllPairs(opts.matches, iter, opts.sampleOpps);
-    const { nerfed, buffed, actions } = opts.dryRun
+    const { nerfed, buffed, polarized, actions } = opts.dryRun
       ? {
-          nerfed: rows.filter((r) => r.oppBeatShare > opts.nerfThreshold).length,
-          buffed: rows.filter(
-            (r) => r.oppBeatShare < opts.buffThreshold || r.matchWinRate < opts.buffMatchWinFloor
-          ).length,
+          nerfed: rows.filter((r) => r.matchWinRate > opts.nerfThreshold || r.oppBeatShare > opts.nerfThreshold + 0.04).length,
+          buffed: rows.filter((r) => r.matchWinRate < opts.buffMatchWinFloor || r.oppBeatShare < opts.buffThreshold).length,
+          polarized: 0,
           actions: new Map(),
         }
       : applyAdjustments(rows, opts, prevActionMap);
     prevActionMap = actions;
 
+    const avgStd = rows.reduce((s, r) => s + r.matchupStdDev, 0) / Math.max(1, rows.length);
     print(
       `\n=== Balance Iteration ${iter + 1} (${pairCount} pairs x ${opts.matches} matches = ${
         pairCount * opts.matches
-      } fights) ===`
+      } fights; mean StdDev=${avgStd.toFixed(3)}) ===`
     );
     print(
       'Ball'.padEnd(13),
-      'OppBeat%'.padStart(8),
       'Win%'.padStart(7),
+      'OppBeat%'.padStart(8),
+      'StdDev'.padStart(7),
       'W-L-D'.padStart(11),
-      'AvgT'.padStart(6),
-      'HPx'.padStart(6),
       'DMGx'.padStart(6),
       'Ratex'.padStart(6),
       'Status'
@@ -325,21 +360,14 @@ function main() {
 
     for (const r of rows) {
       const t = getBallTuning(r.id);
-      const tag = opts.dryRun
-        ? r.oppBeatShare > opts.nerfThreshold
-          ? 'OVER(>70%)'
-          : r.oppBeatShare < opts.buffThreshold || r.matchWinRate < opts.buffMatchWinFloor
-          ? 'WEAK'
-          : 'OK'
-        : actions.get(r.id);
+      const tag = opts.dryRun ? (r.matchWinRate > opts.nerfThreshold ? 'OVER' : r.matchWinRate < opts.buffMatchWinFloor ? 'WEAK' : 'OK') : actions.get(r.id);
       const rec = `${r.wins}-${r.losses}-${r.draws}`;
       print(
         r.id.padEnd(13),
-        `${(r.oppBeatShare * 100).toFixed(1)}%`.padStart(8),
         `${(r.matchWinRate * 100).toFixed(1)}%`.padStart(7),
+        `${(r.oppBeatShare * 100).toFixed(1)}%`.padStart(8),
+        r.matchupStdDev.toFixed(2).padStart(7),
         rec.padStart(11),
-        `${r.avgTime.toFixed(1)}s`.padStart(6),
-        t.hpMult.toFixed(2).padStart(6),
         t.dmgMult.toFixed(2).padStart(6),
         t.rateMult.toFixed(2).padStart(6),
         tag
@@ -350,17 +378,21 @@ function main() {
       writeTuningFile(tuningPath);
     }
 
-    print(`\nSummary: nerfed=${nerfed} (>${(opts.nerfThreshold * 100).toFixed(0)}%), buffed=${buffed} (<${(opts.buffThreshold * 100).toFixed(0)}% opp or <${(opts.buffMatchWinFloor * 100).toFixed(0)}% win)`);
+    print(
+      `\nSummary: nerfed=${nerfed} (>${(opts.nerfThreshold * 100).toFixed(0)}%), buffed=${buffed} (<${(
+        opts.buffMatchWinFloor * 100
+      ).toFixed(0)}%), polarized=${polarized} | mean StdDev=${avgStd.toFixed(3)}`
+    );
 
-    if (nerfed === 0 && buffed === 0) {
+    if (nerfed === 0 && buffed === 0 && polarized <= 8) {
       balanced = true;
-      print('ALL BALLS BALANCED! Zero balls win against >70% of opponents and no weak outliers remain.');
+      print('ALL BALLS IN 30-70% WINDOW WITH HIGH MATCHUP VARIANCE!');
       break;
     }
   }
 
   if (!balanced && !opts.dryRun) {
-    print('Updated src/sim/balanceTuning.js — re-run `gjs -m scripts/balance.mjs` (or add `--auto`) for the next balance pass.');
+    print('Updated src/sim/balanceTuning.js — re-run `gjs -m scripts/balance.mjs` (or add `--auto`) for the next pass.');
   }
 }
 

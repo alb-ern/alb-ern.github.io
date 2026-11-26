@@ -55,6 +55,10 @@ export function encodeSnapshot(sim, pendingEvents = [], fxWatermark = { lastId: 
       2: [...(sim.selectedTeams?.[2] || [sim.selectedBallIds[2]])],
     },
     selectedBallIds: { ...sim.selectedBallIds },
+    teamRelics: {
+      1: [...(sim.teamRelics?.[1] || [])],
+      2: [...(sim.teamRelics?.[2] || [])],
+    },
     bounds: { ...sim.bounds },
     shakeTimer: sim.shakeTimer,
     shakeIntensity: sim.shakeIntensity,
@@ -182,6 +186,9 @@ export function applySnapshot(mirrorSim, snap) {
     };
   }
   mirrorSim.selectedBallIds = { ...snap.selectedBallIds };
+  if (snap.teamRelics && typeof mirrorSim.setTeamRelics === 'function') {
+    mirrorSim.setTeamRelics(snap.teamRelics);
+  }
   mirrorSim.bounds = { ...snap.bounds };
   mirrorSim.shakeTimer = Math.max(mirrorSim.shakeTimer || 0, snap.shakeTimer || 0);
   mirrorSim.shakeIntensity = Math.max(mirrorSim.shakeIntensity || 0, snap.shakeIntensity || 0);

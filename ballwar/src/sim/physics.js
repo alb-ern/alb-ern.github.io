@@ -26,9 +26,13 @@ import {
   applyRelicsOnTakeDamage,
   applyRelicsOnUpdate,
   applyRelicsOnWallHit,
+  getRelicCollisionImpulseMult,
   getRelicDmgMult,
   getRelicEnemyProjSpeedMult,
+  getRelicExecuteMult,
   getRelicRadiusMult,
+  getRelicShrinkConfig,
+  hasSplitShotRelic,
 } from './gauntlet.js';
 
 export function createSeededRng(seed = Date.now()) {
@@ -77,12 +81,43 @@ export class ArenaSimulation {
     this.aimAngles = { 1: 0, 2: Math.PI };
     this._actingBallId = null;
     this._actingEntityId = null;
-    this.runRelics = Array.isArray(options.runRelics) ? [...options.runRelics] : [];
+    this.teamRelics = {
+      1: Array.isArray(options.teamRelics?.[1])
+        ? [...options.teamRelics[1]]
+        : Array.isArray(options.runRelics)
+        ? [...options.runRelics]
+        : [],
+      2: Array.isArray(options.teamRelics?.[2]) ? [...options.teamRelics[2]] : [],
+    };
     this.bossHpScale = options.bossHpScale ?? 1;
     this.bossDmgScale = options.bossDmgScale ?? 1;
     this.bossRateScale = options.bossRateScale ?? 1;
 
     this.resetRoundEntities();
+  }
+
+  get runRelics() {
+    return this.teamRelics[1];
+  }
+
+  set runRelics(list) {
+    this.teamRelics[1] = Array.isArray(list) ? [...list] : [];
+  }
+
+  getRelicsForOwner(owner) {
+    if (owner === 1 || owner === 2) return this.teamRelics[owner] || [];
+    return [];
+  }
+
+  setTeamRelics(teamRelics) {
+    if (!teamRelics || typeof teamRelics !== 'object') {
+      this.teamRelics = { 1: [], 2: [] };
+      return;
+    }
+    this.teamRelics = {
+      1: Array.isArray(teamRelics[1]) ? [...teamRelics[1]] : [],
+      2: Array.isArray(teamRelics[2]) ? [...teamRelics[2]] : [],
+    };
   }
 
   setTeamSize(teamSize) {
@@ -96,6 +131,7 @@ export class ArenaSimulation {
     this.roundTime = 0;
     this.suddenDeathActive = false;
     this.nextEntityId = 1;
+    this._projShotCounts = { 1: 0, 2: 0 };
     this.balls = [];
     this.hazards = [];
     this.projectiles = [];
@@ -117,8 +153,13 @@ export class ArenaSimulation {
     if (options.hearts != null) this.heartsToWin = options.hearts;
     if (options.suddenDeathStart != null) this.suddenDeathStart = options.suddenDeathStart;
     if (options.speedMultiplier != null) this.speedMultiplier = options.speedMultiplier;
-    this.runRelics =
-      this.mode === MODES.GAUNTLET && Array.isArray(options.runRelics) ? [...options.runRelics] : [];
+    if (options.teamRelics) {
+      this.setTeamRelics(options.teamRelics);
+    } else if (Array.isArray(options.runRelics)) {
+      this.teamRelics = { 1: [...options.runRelics], 2: [] };
+    } else {
+      this.teamRelics = { 1: [], 2: [] };
+    }
     this.bossHpScale = this.mode === MODES.GAUNTLET && options.bossHpScale != null ? options.bossHpScale : 1;
     this.bossDmgScale = this.mode === MODES.GAUNTLET && options.bossDmgScale != null ? options.bossDmgScale : 1;
     this.bossRateScale = this.mode === MODES.GAUNTLET && options.bossRateScale != null ? options.bossRateScale : 1;
@@ -192,10 +233,8 @@ export class ArenaSimulation {
       this.mode === MODES.GAUNTLET && owner === 2 && !isSplitChild && this.bossHpScale !== 1
         ? Math.max(15, Math.round(baseHp * this.bossHpScale))
         : baseHp;
-    const radiusScale =
-      this.mode === MODES.GAUNTLET && owner === 1 && !radiusOverride && this.runRelics.length > 0
-        ? getRelicRadiusMult(this.runRelics)
-        : 1;
+    const ownerRelics = this.getRelicsForOwner(owner);
+    const radiusScale = !radiusOverride && ownerRelics.length > 0 ? getRelicRadiusMult(ownerRelics) : 1;
     const radius = radiusOverride ?? Math.max(12, Math.round(def.radius * radiusScale));
     return {
       id: this.nextEntityId++,
@@ -292,8 +331,9 @@ export class ArenaSimulation {
           this._actingEntityId = null;
         }
       }
-      if (this.mode === MODES.GAUNTLET && this.runRelics.length > 0 && ball.owner === 1) {
-        applyRelicsOnInit(this, ball, this.runRelics);
+      const ballRelics = this.getRelicsForOwner(ball.owner);
+      if (ballRelics.length > 0) {
+        applyRelicsOnInit(this, ball, ballRelics);
       }
       if (this.mode === MODES.GAUNTLET && ball.owner === 2 && this.bossRateScale !== 1) {
         ball.rateMult = (ball.rateMult || 1) * this.bossRateScale;
@@ -400,16 +440,49 @@ export class ArenaSimulation {
   addProjectile(proj) {
     if (!proj.sourceBallId && this._actingBallId) proj.sourceBallId = this._actingBallId;
     if (!proj.sourceEntityId && this._actingEntityId) proj.sourceEntityId = this._actingEntityId;
-    if (this.mode === MODES.GAUNTLET && proj.owner === 2 && this.runRelics.length > 0) {
-      const pMult = getRelicEnemyProjSpeedMult(this.runRelics);
-      if (pMult !== 1) {
-        if (proj.vx != null) proj.vx *= pMult;
-        if (proj.vy != null) proj.vy *= pMult;
-        if (proj.speed != null) proj.speed *= pMult;
+    if (proj.owner === 1 || proj.owner === 2) {
+      const oppOwner = proj.owner === 1 ? 2 : 1;
+      const oppRelics = this.getRelicsForOwner(oppOwner);
+      if (oppRelics.length > 0) {
+        const pMult = getRelicEnemyProjSpeedMult(oppRelics);
+        if (pMult !== 1) {
+          if (proj.vx != null) proj.vx *= pMult;
+          if (proj.vy != null) proj.vy *= pMult;
+          if (proj.speed != null) proj.speed *= pMult;
+        }
       }
     }
     proj.id = this.nextEntityId++;
     this.projectiles.push(proj);
+
+    // Prism Splitter: every 3rd projectile splits twin ±11° bolts
+    if (
+      !proj._isSplitChild &&
+      (proj.owner === 1 || proj.owner === 2) &&
+      proj.vx != null &&
+      proj.vy != null &&
+      hasSplitShotRelic(this.getRelicsForOwner(proj.owner))
+    ) {
+      this._projShotCounts[proj.owner] = (this._projShotCounts[proj.owner] || 0) + 1;
+      if (this._projShotCounts[proj.owner] % 3 === 0) {
+        const sp = Math.hypot(proj.vx, proj.vy);
+        if (sp > 20) {
+          const baseAng = Math.atan2(proj.vy, proj.vx);
+          for (const offset of [-0.192, 0.192]) {
+            const ang = baseAng + offset;
+            this.projectiles.push({
+              ...proj,
+              id: this.nextEntityId++,
+              _isSplitChild: true,
+              vx: Math.cos(ang) * sp,
+              vy: Math.sin(ang) * sp,
+              radius: Math.max(4, Math.round((proj.radius || 7) * 0.78)),
+              dmg: Math.max(1, Math.round((proj.dmg || 4) * 0.55)),
+            });
+          }
+        }
+      }
+    }
   }
 
   addHelper(helper) {
@@ -472,8 +545,9 @@ export class ArenaSimulation {
         const dmgMult = getBallTuning(resolvedBallId).dmgMult;
         amount *= resolvedBallId === 'vampire' ? Math.max(1, dmgMult) : dmgMult;
       }
-      if (this.mode === MODES.GAUNTLET && sourceOwner === 1 && this.runRelics.length > 0) {
-        amount *= getRelicDmgMult(this.runRelics);
+      const sourceRelics = this.getRelicsForOwner(sourceOwner);
+      if (sourceRelics.length > 0) {
+        amount *= getRelicDmgMult(sourceRelics) * getRelicExecuteMult(sourceRelics, target);
       }
       if (this.mode === MODES.GAUNTLET && sourceOwner === 2 && this.bossDmgScale !== 1) {
         amount *= this.bossDmgScale;
@@ -484,8 +558,9 @@ export class ArenaSimulation {
       amount = targetHandler.onDamagePrevent(this, target, amount, sourceOwner, reason);
       if (!(amount > 0)) return 0;
     }
-    if (this.mode === MODES.GAUNTLET && target.owner === 1 && this.runRelics.length > 0) {
-      amount = applyRelicsOnDamagePrevent(this, target, amount, this.runRelics, reason);
+    const targetRelics = this.getRelicsForOwner(target.owner);
+    if (targetRelics.length > 0) {
+      amount = applyRelicsOnDamagePrevent(this, target, amount, targetRelics, reason);
       if (!(amount > 0)) return 0;
     }
 
@@ -517,19 +592,14 @@ export class ArenaSimulation {
       if (target.hp > 0 && targetHandler && targetHandler.onTakeDamage) {
         targetHandler.onTakeDamage(this, target, dmg, sourceOwner);
       }
-      if (target.hp > 0 && this.mode === MODES.GAUNTLET && target.owner === 1 && this.runRelics.length > 0) {
-        applyRelicsOnTakeDamage(this, target, dmg, sourceOwner, this.runRelics, reason);
+      if (target.hp > 0 && targetRelics.length > 0) {
+        applyRelicsOnTakeDamage(this, target, dmg, sourceOwner, targetRelics, reason);
       }
       if (target.hp <= 0 && !target._deathHandled) {
         if (targetHandler && targetHandler.onBeforeDeath && targetHandler.onBeforeDeath(this, target)) {
           return dmg;
         }
-        if (
-          this.mode === MODES.GAUNTLET &&
-          target.owner === 1 &&
-          this.runRelics.length > 0 &&
-          applyRelicsOnBeforeDeath(this, target)
-        ) {
+        if (targetRelics.length > 0 && applyRelicsOnBeforeDeath(this, target)) {
           return dmg;
         }
         target._deathHandled = true;
@@ -599,8 +669,11 @@ export class ArenaSimulation {
     const simDt = dt;
     this.roundTime += simDt;
 
-    // Sudden Death shrinking arena walls
-    if (this.suddenDeathStart > 0 && this.roundTime >= this.suddenDeathStart) {
+    // Sudden Death shrinking arena walls (Collapse Engine makes SD start earlier & shrink faster)
+    const shrinkCfg = getRelicShrinkConfig(this.teamRelics[1], this.teamRelics[2]);
+    const effSdStart =
+      this.suddenDeathStart > 0 ? Math.max(4, this.suddenDeathStart - shrinkCfg.earlierSec) : 0;
+    if (effSdStart > 0 && this.roundTime >= effSdStart) {
       if (!this.suddenDeathActive) {
         this.suddenDeathActive = true;
         this.emitText(this.arenaSize * 0.5, this.arenaSize * 0.22, 'SUDDEN DEATH!', '#f43f5e');
@@ -609,7 +682,7 @@ export class ArenaSimulation {
       const curWidth = this.bounds.right - this.bounds.left;
       if (curWidth > this.minArenaSize) {
         const delta = Math.min(
-          SUDDEN_DEATH_SHRINK_RATE * simDt,
+          SUDDEN_DEATH_SHRINK_RATE * shrinkCfg.rateMult * simDt,
           (curWidth - this.minArenaSize) * 0.5
         );
         this.bounds.left += delta;
@@ -636,8 +709,9 @@ export class ArenaSimulation {
           this._actingEntityId = null;
         }
       }
-      if (this.mode === MODES.GAUNTLET && this.runRelics.length > 0 && ball.owner === 1) {
-        applyRelicsOnUpdate(this, ball, simDt, this.runRelics);
+      const ballRelics = this.getRelicsForOwner(ball.owner);
+      if (ballRelics.length > 0) {
+        applyRelicsOnUpdate(this, ball, simDt, ballRelics);
       }
     }
 
@@ -852,8 +926,10 @@ export class ArenaSimulation {
           this._actingEntityId = null;
         }
       }
-      if (this.mode === MODES.GAUNTLET && this.runRelics.length > 0 && ball.owner === 1) {
-        applyRelicsOnWallHit(this, ball, this.runRelics);
+      const ballRelics = this.getRelicsForOwner(ball.owner);
+      const oppRelics = this.getRelicsForOwner(ball.owner === 1 ? 2 : 1);
+      if (ballRelics.length > 0 || oppRelics.length > 0) {
+        applyRelicsOnWallHit(this, ball, ballRelics, oppRelics);
       }
     }
   }
@@ -897,7 +973,11 @@ export class ArenaSimulation {
         const rvy = b.vy - a.vy;
         const velAlongNormal = rvx * nx + rvy * ny;
         if (velAlongNormal < 0) {
-          const jImp = -(2 * velAlongNormal) / invSum;
+          const impBoost = Math.max(
+            getRelicCollisionImpulseMult(this.getRelicsForOwner(a.owner)),
+            getRelicCollisionImpulseMult(this.getRelicsForOwner(b.owner))
+          );
+          const jImp = (-(2 * velAlongNormal) / invSum) * impBoost;
           a.vx -= jImp * invA * nx;
           a.vy -= jImp * invA * ny;
           b.vx += jImp * invB * nx;
@@ -945,9 +1025,11 @@ export class ArenaSimulation {
               this._actingEntityId = null;
             }
           }
-          if (this.mode === MODES.GAUNTLET && this.runRelics.length > 0 && a.hp > 0 && b.hp > 0) {
-            if (a.owner === 1) applyRelicsOnBallHit(this, a, b, this.runRelics);
-            else if (b.owner === 1) applyRelicsOnBallHit(this, b, a, this.runRelics);
+          if (a.hp > 0 && b.hp > 0) {
+            const relA = this.getRelicsForOwner(a.owner);
+            const relB = this.getRelicsForOwner(b.owner);
+            if (relA.length > 0) applyRelicsOnBallHit(this, a, b, relA);
+            if (relB.length > 0) applyRelicsOnBallHit(this, b, a, relB);
           }
         }
       }
