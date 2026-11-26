@@ -10,27 +10,27 @@
   <script type="importmap">
     {
       "imports": {
-        "./src/sim/constants.js": "./src/sim/constants.js?v=20261125b",
-        "./src/sim/balls.js": "./src/sim/balls.js?v=20261125b",
-        "./src/sim/physics.js": "./src/sim/physics.js?v=20261125b",
-        "./src/sim/ai.js": "./src/sim/ai.js?v=20261125b",
-        "./src/sim/abilities.js": "./src/sim/abilities.js?v=20261125b",
-        "./src/sim/abilitiesExtra.js": "./src/sim/abilitiesExtra.js?v=20261125b",
-        "./src/sim/abilitiesMeme.js": "./src/sim/abilitiesMeme.js?v=20261125b",
-        "./src/sim/balanceTuning.js": "./src/sim/balanceTuning.js?v=20261125b",
-        "./src/sim/progression.js": "./src/sim/progression.js?v=20261125b",
-        "./src/sim/gauntlet.js": "./src/sim/gauntlet.js?v=20261125b",
-        "./src/net/p2p.js": "./src/net/p2p.js?v=20261125b",
-        "./src/net/protocol.js": "./src/net/protocol.js?v=20261125b",
-        "./src/audio/soundEngine.js": "./src/audio/soundEngine.js?v=20261125b",
-        "./src/render/ballArt.js": "./src/render/ballArt.js?v=20261125b",
-        "./src/render/ballArtExtra.js": "./src/render/ballArtExtra.js?v=20261125b",
-        "./src/render/ballArtMeme.js": "./src/render/ballArtMeme.js?v=20261125b",
-        "./src/render/arenaRenderer.js": "./src/render/arenaRenderer.js?v=20261125b"
+        "./src/sim/constants.js": "./src/sim/constants.js?v=20261126a",
+        "./src/sim/balls.js": "./src/sim/balls.js?v=20261126a",
+        "./src/sim/physics.js": "./src/sim/physics.js?v=20261126a",
+        "./src/sim/ai.js": "./src/sim/ai.js?v=20261126a",
+        "./src/sim/abilities.js": "./src/sim/abilities.js?v=20261126a",
+        "./src/sim/abilitiesExtra.js": "./src/sim/abilitiesExtra.js?v=20261126a",
+        "./src/sim/abilitiesMeme.js": "./src/sim/abilitiesMeme.js?v=20261126a",
+        "./src/sim/balanceTuning.js": "./src/sim/balanceTuning.js?v=20261126a",
+        "./src/sim/progression.js": "./src/sim/progression.js?v=20261126a",
+        "./src/sim/gauntlet.js": "./src/sim/gauntlet.js?v=20261126a",
+        "./src/net/p2p.js": "./src/net/p2p.js?v=20261126a",
+        "./src/net/protocol.js": "./src/net/protocol.js?v=20261126a",
+        "./src/audio/soundEngine.js": "./src/audio/soundEngine.js?v=20261126a",
+        "./src/render/ballArt.js": "./src/render/ballArt.js?v=20261126a",
+        "./src/render/ballArtExtra.js": "./src/render/ballArtExtra.js?v=20261126a",
+        "./src/render/ballArtMeme.js": "./src/render/ballArtMeme.js?v=20261126a",
+        "./src/render/arenaRenderer.js": "./src/render/arenaRenderer.js?v=20261126a"
       }
     }
   </script>
-  <link rel="stylesheet" href="./styles/main.css?v=20261125b" />
+  <link rel="stylesheet" href="./styles/main.css?v=20261126a" />
 </head>
 <body>
   <div class="app-shell">
@@ -62,11 +62,11 @@
           <p class="hero-kicker" id="lobby-kicker">1v1 &amp; 2v2 Physics Auto-Battler • 120 Iconic Balls • PvE Unlock Progression</p>
           <h1>Pick. Aim. <span class="accent-gold">Bounce to Win!</span></h1>
           <p class="hero-sub">
-            Climb the 10-Floor Roguelike Gauntlet Tower with stacking Run Relics, crack Ball Capsules &amp; Boss Drops
-            to expand your roster, earn Prestige Mastery Crowns, and duel fairly online with all 120 balls!
+            Conquer 2 themed 10-Floor Gauntlet Towers across 5 escalating Challenge Levels with stacking Run Relics,
+            crack Ball Capsules &amp; Boss Drops, and duel fairly online with all 120 balls!
           </p>
           <div class="hero-cta-row">
-            <button class="btn btn-purple btn-lg" id="btn-quick-gauntlet" type="button">Gauntlet Tower</button>
+            <button class="btn btn-purple btn-lg" id="btn-quick-gauntlet" type="button">Gauntlet Towers</button>
             <button class="btn btn-primary btn-lg" id="btn-quick-bot" type="button">Play 1v1 Bot</button>
             <button class="btn btn-gold btn-lg" id="btn-quick-bot-2v2" type="button">Play 2v2 Bot (740 Arena)</button>
             <button class="btn btn-secondary btn-lg" id="btn-quick-online" type="button">Online P2P</button>
@@ -104,7 +104,7 @@
         <div class="profile-strip-mid">
           <div class="strip-stat"><span>Sparks</span><strong id="strip-sparks">✨ 100</strong></div>
           <div class="strip-stat"><span>Unlocked</span><strong id="strip-unlocked">20 / 120</strong></div>
-          <div class="strip-stat"><span>Best Tower</span><strong id="strip-tower">Floor 0 / 10</strong></div>
+          <div class="strip-stat"><span>Towers</span><strong id="strip-tower">Citadel 0/10 • T2 🔒</strong></div>
           <div class="strip-stat"><span>Bounties</span><strong id="strip-bounty-summary">0 / 3 Ready</strong></div>
         </div>
         <div class="profile-strip-right">
@@ -116,11 +116,11 @@
 
       <section class="mode-grid" aria-label="Game Modes">
         <article class="mode-card mode-card-gauntlet" data-mode="gauntlet">
-          <div class="mode-badge purple">ROGUELIKE PVE • 10 FLOORS</div>
-          <h2>Gauntlet Tower</h2>
-          <p>Climb 10 boss floors (2v2 Boss Arenas on Floors 5, 8 &amp; 10 drop FREE new balls!), drafting stacking Run Relics after every clear!</p>
+          <div class="mode-badge purple">ROGUELIKE PVE • 2 TOWERS × 5 CHALLENGE LVS</div>
+          <h2>Gauntlet Towers</h2>
+          <p>Climb 10-floor themed Boss Towers (2v2 Bosses on F5/F8/F10 drop FREE balls!). Clear Tower I to unlock Abyssal Void Spire + Challenge Lv 1–5!</p>
           <div class="mode-card-actions">
-            <button class="btn btn-purple btn-span2" id="btn-mode-gauntlet" type="button">Enter Gauntlet Tower</button>
+            <button class="btn btn-purple btn-span2" id="btn-mode-gauntlet" type="button">Enter Gauntlet Towers</button>
           </div>
         </article>
 
@@ -351,7 +351,10 @@
 
         <div id="gauntlet-hud-bar" class="gauntlet-hud-card arena-side-card hidden">
           <div class="gauntlet-hud-head">
-            <span class="mode-badge purple" id="gauntlet-floor-badge">FLOOR 1 / 10</span>
+            <div class="gauntlet-hud-badges">
+              <span class="mode-badge gold" id="gauntlet-tower-badge">🗼 CITADEL • LV 1</span>
+              <span class="mode-badge purple" id="gauntlet-floor-badge">FLOOR 1 / 10</span>
+            </div>
             <strong id="gauntlet-floor-title">Warmup Street</strong>
           </div>
           <p class="muted gauntlet-floor-sub" id="gauntlet-floor-sub"></p>
@@ -499,6 +502,33 @@
     </div>
   </div>
 
+  <!-- GAUNTLET TOWER & CHALLENGE SELECT MODAL -->
+  <div id="modal-gauntlet" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="gauntlet-select-title">
+    <div class="modal-card gauntlet-select-modal">
+      <div class="modal-head">
+        <div>
+          <p class="draft-kicker">ROGUELIKE PVE • 10 FLOORS PER TOWER</p>
+          <h2 id="gauntlet-select-title">Select Gauntlet Tower &amp; Challenge Level</h2>
+          <p class="muted">Clear any run to unlock the next Challenge Level (1–5) with higher Boss stats &amp; up to 3.2× Sparks/XP!</p>
+        </div>
+        <button class="btn btn-ghost" id="btn-close-gauntlet" type="button">Close</button>
+      </div>
+
+      <h3 class="section-subhead">1. Choose Your Tower</h3>
+      <div id="gauntlet-towers-grid" class="gauntlet-towers-grid"></div>
+
+      <h3 class="section-subhead">2. Choose Challenge Level (Clear Lv N to Unlock Lv N+1)</h3>
+      <div id="gauntlet-challenge-grid" class="challenge-grid"></div>
+
+      <div class="gauntlet-select-footer">
+        <div class="gauntlet-select-summary" id="gauntlet-select-summary">
+          Tower I: Meme Apex Citadel • Challenge Lv. 1 (Standard)
+        </div>
+        <button class="btn btn-purple btn-lg" id="btn-launch-gauntlet" type="button">Begin Climb (Floor 1/10)</button>
+      </div>
+    </div>
+  </div>
+
   <!-- GAUNTLET RELIC DRAFT MODAL -->
   <div id="modal-relic" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="relic-title">
     <div class="modal-card relic-modal">
@@ -609,6 +639,6 @@
   </div>
 
   <script src="./vendor/peerjs.min.js"></script>
-  <script type="module" src="./src/ui/app.js?v=20261125b"></script>
+  <script type="module" src="./src/ui/app.js?v=20261126a"></script>
 </body>
 </html>

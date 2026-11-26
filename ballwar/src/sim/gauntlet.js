@@ -1,7 +1,86 @@
 /**
- * Roguelike Gauntlet Tower (10 Escalating Boss Floors) & 12 Stacking PvE Run Relics.
- * Relics ONLY activate inside MODES.GAUNTLET — Online P2P, Quickmatch, Bot, Local, and Sandbox stay 100% untouched.
+ * Roguelike Gauntlet Towers (2 Themed 10-Floor Boss Towers x 5 Escalating Challenge Levels)
+ * & 12 Stacking PvE Run Relics.
+ * Relics & Boss Modifiers ONLY activate inside MODES.GAUNTLET — Online P2P, Quickmatch, Bot, Local, and Sandbox stay 100% untouched.
  */
+
+export const CHALLENGE_LEVELS = Object.freeze([
+  {
+    level: 1,
+    name: 'Standard',
+    badge: 'LV 1',
+    color: '#38bdf8',
+    hearts: 3,
+    enemyHpMult: 1.0,
+    enemyDmgMult: 1.0,
+    enemyRateMult: 1.0,
+    suddenDeathSec: 30,
+    rewardMult: 1.0,
+    clearTrophies: 45,
+    firstClearSparks: 100,
+    summary: 'Base Tower • 3 ♥ • 30s SD • 1.0× Rewards',
+  },
+  {
+    level: 2,
+    name: 'Hardened',
+    badge: 'LV 2',
+    color: '#4ade80',
+    hearts: 3,
+    enemyHpMult: 1.15,
+    enemyDmgMult: 1.12,
+    enemyRateMult: 1.06,
+    suddenDeathSec: 26,
+    rewardMult: 1.4,
+    clearTrophies: 65,
+    firstClearSparks: 200,
+    summary: '+15% Boss HP • +12% DMG • 26s SD • 1.4× Rewards',
+  },
+  {
+    level: 3,
+    name: 'Brutal',
+    badge: 'LV 3',
+    color: '#facc15',
+    hearts: 2,
+    enemyHpMult: 1.3,
+    enemyDmgMult: 1.25,
+    enemyRateMult: 1.12,
+    suddenDeathSec: 22,
+    rewardMult: 1.85,
+    clearTrophies: 90,
+    firstClearSparks: 300,
+    summary: '+30% Boss HP • +25% DMG • 2 ♥ • 22s SD • 1.85× Rewards',
+  },
+  {
+    level: 4,
+    name: 'Nightmare',
+    badge: 'LV 4',
+    color: '#fb923c',
+    hearts: 2,
+    enemyHpMult: 1.48,
+    enemyDmgMult: 1.4,
+    enemyRateMult: 1.18,
+    suddenDeathSec: 19,
+    rewardMult: 2.4,
+    clearTrophies: 120,
+    firstClearSparks: 400,
+    summary: '+48% Boss HP • +40% DMG • 2 ♥ • 19s SD • 2.4× Rewards',
+  },
+  {
+    level: 5,
+    name: 'Omega Ascension',
+    badge: 'LV 5',
+    color: '#e879f9',
+    hearts: 1,
+    enemyHpMult: 1.7,
+    enemyDmgMult: 1.58,
+    enemyRateMult: 1.25,
+    suddenDeathSec: 16,
+    rewardMult: 3.2,
+    clearTrophies: 160,
+    firstClearSparks: 500,
+    summary: '+70% Boss HP • +58% DMG • 1 ♥ • 16s SD • 3.2× Rewards',
+  },
+]);
 
 export const GAUNTLET_FLOORS = Object.freeze([
   {
@@ -90,12 +169,139 @@ export const GAUNTLET_FLOORS = Object.freeze([
   {
     floor: 10,
     title: 'FINAL BOSS: Omega Singularity',
-    subtitle: '2v2 Grand Finale! Defeat Omega & Aura to unlock Cosmic Void Ω.',
+    subtitle: '2v2 Grand Finale! Defeat Omega & Aura to unlock Cosmic Void Ω & Tower II.',
     teamSize: 2,
     bossTeam: ['omega', 'aura'],
     bossHpScale: 1.2,
     isBoss: true,
     sparksReward: 200,
+  },
+]);
+
+export const SPIRE_FLOORS = Object.freeze([
+  {
+    floor: 1,
+    title: 'Webbed Catacombs',
+    subtitle: 'Crimson silk tripwires lace the obsidian entrance.',
+    teamSize: 1,
+    bossTeam: ['blackspider'],
+    bossHpScale: 0.96,
+    sparksReward: 40,
+  },
+  {
+    floor: 2,
+    title: 'Alchemical Vault',
+    subtitle: 'Volatile brews splash toxic & healing zones across the floor.',
+    teamSize: 1,
+    bossTeam: ['alchemist'],
+    bossHpScale: 1.0,
+    sparksReward: 45,
+  },
+  {
+    floor: 3,
+    title: 'Sus Emergency',
+    subtitle: 'Vent ambushes and sabotage strikes from the shadows.',
+    teamSize: 1,
+    bossTeam: ['impostor'],
+    bossHpScale: 1.04,
+    sparksReward: 50,
+  },
+  {
+    floor: 4,
+    title: 'Chrono Fracture',
+    subtitle: 'Time-dilation freezes projectiles and bends arena tempo.',
+    teamSize: 1,
+    bossTeam: ['chronos'],
+    bossHpScale: 1.08,
+    sparksReward: 55,
+  },
+  {
+    floor: 5,
+    title: 'MID-BOSS: Twin Apocalypse',
+    subtitle: '2v2 Boss Arena! Overwhelm Duplicator swarms & regenerating Hydra.',
+    teamSize: 2,
+    bossTeam: ['duplicator', 'hydra'],
+    bossHpScale: 1.1,
+    isBoss: true,
+    sparksReward: 105,
+  },
+  {
+    floor: 6,
+    title: 'Event Horizon',
+    subtitle: 'Gravity wells crush everything toward the abyssal core.',
+    teamSize: 1,
+    bossTeam: ['gravity'],
+    bossHpScale: 1.12,
+    sparksReward: 65,
+  },
+  {
+    floor: 7,
+    title: 'Blood Covenant',
+    subtitle: 'Risen skeletons swarm while soul siphons drain your vitality.',
+    teamSize: 1,
+    bossTeam: ['necromancer'],
+    bossHpScale: 1.14,
+    sparksReward: 70,
+  },
+  {
+    floor: 8,
+    title: 'ELITE DUO: Solar Pantheon',
+    subtitle: '2v2 Boss Arena! Blazing Solar flares paired with immortal Phoenix rebirth.',
+    teamSize: 2,
+    bossTeam: ['solar', 'phoenix'],
+    bossHpScale: 1.16,
+    isBoss: true,
+    sparksReward: 130,
+  },
+  {
+    floor: 9,
+    title: 'High-Roller Anomaly',
+    subtitle: 'Rigged jackpots and wild crit spikes decide every bounce.',
+    teamSize: 1,
+    bossTeam: ['gambler'],
+    bossHpScale: 1.2,
+    sparksReward: 85,
+  },
+  {
+    floor: 10,
+    title: 'FINAL BOSS: Void Sovereign',
+    subtitle: '2v2 Grand Finale! Mirror mimics your kit while Hacker corrupts the arena!',
+    teamSize: 2,
+    bossTeam: ['mirror', 'hacker'],
+    bossHpScale: 1.26,
+    isBoss: true,
+    sparksReward: 260,
+  },
+]);
+
+export const GAUNTLET_TOWERS = Object.freeze([
+  {
+    id: 'citadel',
+    order: 1,
+    name: 'Meme Apex Citadel',
+    badge: 'TOWER I • MEME & AI LEGENDS',
+    icon: '🗼',
+    accent: '#a855f7',
+    desc: '10 escalating floors of viral icons, AI juggernauts (Claude & Gemini), and the Omega Singularity finale.',
+    bossSummary: 'Bosses: H-Bomb & Baby (F5) • Claude & Gemini (F8) • Omega & Aura (F10)',
+    clearRewardHint: 'First Clear unlocks Cosmic Void Ω Theme + Tower II!',
+    towerRewardMult: 1.0,
+    requiresTowerId: null,
+    floors: GAUNTLET_FLOORS,
+  },
+  {
+    id: 'spire',
+    order: 2,
+    name: 'Abyssal Void Spire',
+    badge: 'TOWER II • MYTHIC & EXCLUSIVE',
+    icon: '🌑',
+    accent: '#22d3ee',
+    desc: 'A darker, higher-stakes 10-floor crucible starring Mythic & Exclusive titans — +25% bonus Sparks & XP on every floor!',
+    bossSummary: 'Bosses: Duplicator & Hydra (F5) • Solar & Phoenix (F8) • Mirror & Hacker (F10)',
+    clearRewardHint: 'First Clear auto-unlocks Cyber Glitch Trail (+250 ✨ if owned)!',
+    towerRewardMult: 1.25,
+    requiresTowerId: 'citadel',
+    floors: SPIRE_FLOORS,
   },
 ]);
 
@@ -186,9 +392,19 @@ export const GAUNTLET_RELICS = Object.freeze([
   },
 ]);
 
-export function getGauntletFloor(floorNum) {
-  const idx = Math.max(0, Math.min(GAUNTLET_FLOORS.length - 1, (floorNum || 1) - 1));
-  return GAUNTLET_FLOORS[idx];
+export function getGauntletTower(towerId = 'citadel') {
+  return GAUNTLET_TOWERS.find((t) => t.id === towerId) || GAUNTLET_TOWERS[0];
+}
+
+export function getChallengeDef(level = 1) {
+  const lv = Math.max(1, Math.min(CHALLENGE_LEVELS.length, Math.floor(Number(level) || 1)));
+  return CHALLENGE_LEVELS[lv - 1];
+}
+
+export function getGauntletFloor(floorNum, towerId = 'citadel') {
+  const tower = getGauntletTower(towerId);
+  const idx = Math.max(0, Math.min(tower.floors.length - 1, (floorNum || 1) - 1));
+  return tower.floors[idx];
 }
 
 export function getRelicDef(id) {

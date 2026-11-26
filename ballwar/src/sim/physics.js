@@ -77,6 +77,8 @@ export class ArenaSimulation {
     this._actingEntityId = null;
     this.runRelics = Array.isArray(options.runRelics) ? [...options.runRelics] : [];
     this.bossHpScale = options.bossHpScale ?? 1;
+    this.bossDmgScale = options.bossDmgScale ?? 1;
+    this.bossRateScale = options.bossRateScale ?? 1;
 
     this.resetRoundEntities();
   }
@@ -116,6 +118,8 @@ export class ArenaSimulation {
     this.runRelics =
       this.mode === MODES.GAUNTLET && Array.isArray(options.runRelics) ? [...options.runRelics] : [];
     this.bossHpScale = this.mode === MODES.GAUNTLET && options.bossHpScale != null ? options.bossHpScale : 1;
+    this.bossDmgScale = this.mode === MODES.GAUNTLET && options.bossDmgScale != null ? options.bossDmgScale : 1;
+    this.bossRateScale = this.mode === MODES.GAUNTLET && options.bossRateScale != null ? options.bossRateScale : 1;
 
     this.roundNumber = 1;
     this.hearts = { 1: this.heartsToWin, 2: this.heartsToWin };
@@ -283,6 +287,9 @@ export class ArenaSimulation {
       }
       if (this.mode === MODES.GAUNTLET && this.runRelics.length > 0 && ball.owner === 1) {
         applyRelicsOnInit(this, ball, this.runRelics);
+      }
+      if (this.mode === MODES.GAUNTLET && ball.owner === 2 && this.bossRateScale !== 1) {
+        ball.rateMult = (ball.rateMult || 1) * this.bossRateScale;
       }
     }
     this.phase = PHASES.FIGHT;
@@ -452,6 +459,9 @@ export class ArenaSimulation {
       }
       if (this.mode === MODES.GAUNTLET && sourceOwner === 1 && this.runRelics.length > 0) {
         amount *= getRelicDmgMult(this.runRelics);
+      }
+      if (this.mode === MODES.GAUNTLET && sourceOwner === 2 && this.bossDmgScale !== 1) {
+        amount *= this.bossDmgScale;
       }
     }
     const targetHandler = ABILITY_HANDLERS[target.ballId];

@@ -25,10 +25,13 @@ import {
   equipCosmetic,
   exportProfileCode,
   getBallMasteryInfo,
+  getMaxUnlockedChallenge,
   getRankInfo,
+  getTowerProgress,
   getUnlockedBallIds,
   importProfileCode,
   isBallUnlocked,
+  isTowerUnlocked,
   loadProfile,
   openBallCapsule,
   recordCombatProgress,
@@ -36,7 +39,17 @@ import {
   unlockBallDirect,
   unlockCosmetic,
 } from '../src/sim/progression.js';
-import { drawRelicChoices, GAUNTLET_FLOORS, GAUNTLET_RELICS, getGauntletFloor } from '../src/sim/gauntlet.js';
+import {
+  CHALLENGE_LEVELS,
+  GAUNTLET_FLOORS,
+  GAUNTLET_RELICS,
+  GAUNTLET_TOWERS,
+  SPIRE_FLOORS,
+  drawRelicChoices,
+  getChallengeDef,
+  getGauntletFloor,
+  getGauntletTower,
+} from '../src/sim/gauntlet.js';
 
 function assert(cond, msg) {
   if (!cond) throw new Error(`ASSERTION FAILED: ${msg}`);
@@ -690,6 +703,114 @@ test('Ball unlocking: 20 starters, Direct Unlock, Guaranteed-NEW Capsules, Gaunt
   assert(
     roundtrip && roundtrip.unlockedBalls.length === prof.unlockedBalls.length && isBallUnlocked(roundtrip, 'hydrogenbomb'),
     'Save code roundtrip must preserve unlockedBalls'
+  );
+});
+
+test('Gauntlet Towers (Citadel & Abyssal Void Spire) and 5 escalating Challenge Levels unlock progressively', () => {
+  assert(GAUNTLET_TOWERS.length === 2, 'Expected 2 Gauntlet towers');
+  assert(SPIRE_FLOORS.length === 10 && SPIRE_FLOORS[9].isBoss && SPIRE_FLOORS[9].teamSize === 2, 'Tower II must have 10 floors with 2v2 final boss');
+  assert(CHALLENGE_LEVELS.length === 5, 'Expected 5 Challenge levels per tower');
+  assert(getGauntletTower('spire').towerRewardMult > 1, 'Tower II should give higher reward multiplier');
+
+  const rng = createSeededRng(2026);
+  const prof = createDefaultProfile(rng);
+  assert(isTowerUnlocked(prof, 'citadel') && !isTowerUnlocked(prof, 'spire'), 'Tower II must start locked until Tower I is cleared once');
+  assert(getMaxUnlockedChallenge(prof, 'citadel') === 1 && getMaxUnlockedChallenge(prof, 'spire') === 0, 'Fresh profile should only allow Citadel Lv 1');
+
+  // Clearing Citadel Lv 1 unlocks Challenge Lv 2 AND unlocks Abyssal Void Spire (Tower II) + First-Clear Sparks!
+  const clearT1Lv1 = recordCombatProgress(prof, {
+    mode: MODES.GAUNTLET,
+    teamSize: 2,
+    usedBalls: ['verity', 'spider'],
+    wonRound: true,
+    matchEnded: true,
+    wonMatch: true,
+    gauntletFloor: 10,
+    gauntletCleared: true,
+    towerId: 'citadel',
+    challengeLevel: 1,
+    rng,
+  });
+  assert(clearT1Lv1.towerUnlocked?.id === 'spire' && isTowerUnlocked(prof, 'spire'), 'Clearing Tower I Lv 1 must unlock Tower II (Spire)');
+  assert(clearT1Lv1.challengeUnlocked?.level === 2 && getMaxUnlockedChallenge(prof, 'citadel') === 2, 'Clearing Citadel Lv 1 must unlock Lv 2');
+  assert(clearT1Lv1.firstClearBonus === 100, `Expected 100 Sparks first-clear bonus on Citadel Lv 1 (got ${clearT1Lv1.firstClearBonus})`);
+  assert(getMaxUnlockedChallenge(prof, 'spire') === 1, 'Newly unlocked Tower II must start at Challenge Lv 1');
+
+  // Clearing Tower II progressively through Lv 1..5 unlocks Cyber Glitch trail & Lv 2..5
+  for (let lv = 1; lv <= 5; lv++) {
+    const res = recordCombatProgress(prof, {
+      mode: MODES.GAUNTLET,
+      teamSize: 2,
+      usedBalls: ['verity', 'spider'],
+      wonRound: true,
+      matchEnded: true,
+      wonMatch: true,
+      gauntletFloor: 10,
+      gauntletCleared: true,
+      towerId: 'spire',
+      challengeLevel: lv,
+      rng,
+    });
+    assert(getTowerProgress(prof, 'spire').maxChallengeCleared === lv, `Spire maxChallengeCleared should advance to ${lv}`);
+    if (lv < 5) assert(res.challengeUnlocked?.level === lv + 1, `Clearing Spire Lv ${lv} should unlock Lv ${lv + 1}`);
+  }
+  assert(prof.unlockedTrails.includes('glitch'), 'Clearing Tower II must unlock Cyber Glitch ball trail');
+
+  // Physics bossDmgScale & bossRateScale apply strictly in MODES.GAUNTLET and are ignored in MODES.ONLINE
+  const ch5 = getChallengeDef(5);
+  const gSim = new ArenaSimulation({
+    mode: MODES.GAUNTLET,
+    hearts: 1,
+    seed: 555,
+    bossHpScale: ch5.enemyHpMult,
+    bossDmgScale: ch5.enemyDmgMult,
+    bossRateScale: ch5.enemyRateMult,
+  });
+  gSim.startMatch({
+    mode: MODES.GAUNTLET,
+    hearts: 1,
+    bossHpScale: ch5.enemyHpMult,
+    bossDmgScale: ch5.enemyDmgMult,
+    bossRateScale: ch5.enemyRateMult,
+    skipDraft: true,
+  });
+  gSim.setupAimPhase('verity', 'banana');
+  gSim.launchRound(0, Math.PI);
+  const gP1 = gSim.balls.find((b) => b.owner === 1);
+  const gBoss = gSim.balls.find((b) => b.owner === 2);
+  assert(gBoss.maxHp === 170, `Challenge Lv 5 boss should have 170 HP (got ${gBoss.maxHp})`);
+  assert(Math.abs(gBoss.rateMult - ch5.enemyRateMult) < 1e-6, 'Challenge Lv 5 boss should scale rateMult');
+  const dmgTaken = gSim.dealDamage(gP1, 10, 2, 'boss_test');
+  assert(dmgTaken === 11, `Challenge Lv 5 boss (10 * 0.701 * 1.58) should deal 11 dmg (got ${dmgTaken})`);
+
+  const oSim = new ArenaSimulation({
+    mode: MODES.ONLINE,
+    hearts: 1,
+    seed: 556,
+    bossHpScale: 2,
+    bossDmgScale: 2,
+    bossRateScale: 2,
+  });
+  oSim.startMatch({
+    mode: MODES.ONLINE,
+    hearts: 1,
+    bossHpScale: 2,
+    bossDmgScale: 2,
+    bossRateScale: 2,
+    skipDraft: true,
+  });
+  oSim.setupAimPhase('verity', 'banana');
+  oSim.launchRound(0, Math.PI);
+  const oP1 = oSim.balls.find((b) => b.owner === 1);
+  const oP2 = oSim.balls.find((b) => b.owner === 2);
+  const onlineDmg = oSim.dealDamage(oP1, 10, 2, 'pvp_test');
+  assert(oP2.maxHp === 100 && oP2.rateMult === 1 && onlineDmg === 7, `ONLINE mode must ignore all Challenge scaling (hp=${oP2.maxHp}, dmg=${onlineDmg})`);
+
+  // Save code roundtrip preserves towerProgress
+  const imported = importProfileCode(exportProfileCode(prof));
+  assert(
+    imported && getTowerProgress(imported, 'spire').maxChallengeCleared === 5 && getTowerProgress(imported, 'citadel').maxChallengeCleared === 1,
+    'Save code roundtrip must preserve towerProgress across both towers'
   );
 });
 

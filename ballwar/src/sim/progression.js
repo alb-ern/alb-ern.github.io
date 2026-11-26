@@ -6,6 +6,7 @@
 
 import { BALL_DEFS, getBallDef } from './balls.js';
 import { MODES } from './constants.js';
+import { CHALLENGE_LEVELS, GAUNTLET_TOWERS, getChallengeDef, getGauntletTower } from './gauntlet.js';
 
 export const PROFILE_STORAGE_KEY = 'ballwar_profile_v1';
 
@@ -317,6 +318,7 @@ export function createDefaultProfile(rng = Math.random) {
     unlockedThemes: ['classic'],
     unlockedTrails: ['default'],
     unlockedBalls: [...STARTER_BALL_IDS],
+    towerProgress: createDefaultTowerProgress(),
     ballMastery: {},
     bounties: rollBounties([], 3, rng),
     stats: {
@@ -397,7 +399,62 @@ export function sanitizeProfile(raw) {
     );
     p.bounties.push(...extra);
   }
+
+  // Per-tower challenge progress (+ migrate pre-tower saves: an old Gauntlet clear = Citadel Lv 1 cleared)
+  p.towerProgress = createDefaultTowerProgress();
+  const rawTp = raw.towerProgress && typeof raw.towerProgress === 'object' ? raw.towerProgress : null;
+  for (const t of GAUNTLET_TOWERS) {
+    const src = rawTp?.[t.id];
+    if (!src || typeof src !== 'object') continue;
+    p.towerProgress[t.id] = sanitizeTowerRecord(src);
+  }
+  if (!rawTp && p.gauntletClears > 0) {
+    p.towerProgress.citadel.maxChallengeCleared = 1;
+    p.towerProgress.citadel.bestChallengeReached = 1;
+    p.towerProgress.citadel.clears = p.gauntletClears;
+  }
+  if (!rawTp) p.towerProgress.citadel.bestFloor = p.bestGauntletFloor;
   return p;
+}
+
+function createDefaultTowerProgress() {
+  const out = {};
+  for (const t of GAUNTLET_TOWERS) {
+    out[t.id] = { maxChallengeCleared: 0, bestChallengeReached: 0, bestFloor: 0, clears: 0 };
+  }
+  return out;
+}
+
+function sanitizeTowerRecord(src) {
+  const maxLv = CHALLENGE_LEVELS.length;
+  return {
+    maxChallengeCleared: Math.max(0, Math.min(maxLv, Math.floor(Number(src.maxChallengeCleared) || 0))),
+    bestChallengeReached: Math.max(0, Math.min(maxLv, Math.floor(Number(src.bestChallengeReached) || 0))),
+    bestFloor: Math.max(0, Math.min(10, Math.floor(Number(src.bestFloor) || 0))),
+    clears: Math.max(0, Math.floor(Number(src.clears) || 0)),
+  };
+}
+
+export function getTowerProgress(profile, towerId = 'citadel') {
+  if (!profile.towerProgress || typeof profile.towerProgress !== 'object') {
+    profile.towerProgress = createDefaultTowerProgress();
+  }
+  if (!profile.towerProgress[towerId]) {
+    profile.towerProgress[towerId] = { maxChallengeCleared: 0, bestChallengeReached: 0, bestFloor: 0, clears: 0 };
+  }
+  return profile.towerProgress[towerId];
+}
+
+export function isTowerUnlocked(profile, towerId = 'citadel') {
+  const tower = getGauntletTower(towerId);
+  if (!tower.requiresTowerId) return true;
+  return getTowerProgress(profile, tower.requiresTowerId).maxChallengeCleared >= 1;
+}
+
+/** Highest challenge level the player may start on this tower (clear Lv N to unlock Lv N+1). */
+export function getMaxUnlockedChallenge(profile, towerId = 'citadel') {
+  if (!isTowerUnlocked(profile, towerId)) return 0;
+  return Math.min(CHALLENGE_LEVELS.length, getTowerProgress(profile, towerId).maxChallengeCleared + 1);
 }
 
 export function loadProfile(storage = getDefaultStorage()) {
@@ -680,20 +737,32 @@ export function recordCombatProgress(profile, opts = {}) {
     wallHits = 0,
     gauntletFloor = 0,
     gauntletCleared = false,
-    rewardMult = 1,
+    towerId = 'citadel',
+    challengeLevel = 1,
+    rewardMult: baseRewardMult = 1,
     rng = Math.random,
   } = opts;
 
   const isSandbox = mode === MODES.SANDBOX;
   const isLocal = mode === MODES.LOCAL_2P;
+  const isGauntlet = mode === MODES.GAUNTLET;
   const prevLevel = getPlayerLevelInfo(profile.xp).level;
   const prevRank = getRankInfo(profile.trophies).current.id;
+
+  const tower = getGauntletTower(towerId);
+  const challenge = getChallengeDef(challengeLevel);
+  const rewardMult = isGauntlet ? baseRewardMult * challenge.rewardMult * tower.towerRewardMult : baseRewardMult;
 
   let sparksEarned = 0;
   let xpEarned = 0;
   let trophiesDelta = 0;
   const masteryUps = [];
   let bossBallUnlock = null;
+  let challengeCleared = null;
+  let challengeUnlocked = null;
+  let towerUnlocked = null;
+  let firstClearBonus = 0;
+  const towerMilestones = [];
 
   if (isSandbox) {
     // Light practice Mastery XP only (no currency/rank farming in Sandbox)
@@ -702,17 +771,46 @@ export function recordCombatProgress(profile, opts = {}) {
     sparksEarned = wonRound ? 22 : isDraw ? 10 : 8;
     xpEarned = wonRound ? 25 : 12;
 
-    if (mode === MODES.GAUNTLET && wonRound) {
+    if (isGauntlet && wonRound) {
       sparksEarned += 20 + gauntletFloor * 5;
       xpEarned += 20 + gauntletFloor * 4;
       if (gauntletFloor > profile.bestGauntletFloor) {
         profile.bestGauntletFloor = gauntletFloor;
       }
+      const tp = getTowerProgress(profile, tower.id);
+      if (gauntletFloor > tp.bestFloor) tp.bestFloor = gauntletFloor;
+      if (challenge.level > tp.bestChallengeReached) tp.bestChallengeReached = challenge.level;
+
       if (gauntletCleared) {
         profile.gauntletClears += 1;
+        tp.clears += 1;
         sparksEarned += 200;
         xpEarned += 150;
-        trophiesDelta += 45;
+        trophiesDelta += challenge.clearTrophies;
+        challengeCleared = challenge;
+
+        // First clear of this challenge level → flat bonus + unlock next challenge level
+        if (challenge.level > tp.maxChallengeCleared) {
+          const wasTowerFirstClear = tp.maxChallengeCleared === 0;
+          tp.maxChallengeCleared = challenge.level;
+          firstClearBonus = Math.round(challenge.firstClearSparks * tower.towerRewardMult);
+          if (challenge.level < CHALLENGE_LEVELS.length) {
+            challengeUnlocked = getChallengeDef(challenge.level + 1);
+          }
+          if (wasTowerFirstClear) {
+            for (const t of GAUNTLET_TOWERS) {
+              if (t.requiresTowerId === tower.id) towerUnlocked = t;
+            }
+            if (tower.id === 'spire') {
+              if (!profile.unlockedTrails.includes('glitch')) {
+                profile.unlockedTrails.push('glitch');
+                towerMilestones.push('Ball Trail: Cyber Glitch');
+              } else {
+                firstClearBonus += 250;
+              }
+            }
+          }
+        }
       }
     }
 
@@ -741,7 +839,7 @@ export function recordCombatProgress(profile, opts = {}) {
   }
 
   profile.stats.totalDamage += Math.max(0, Math.round(dmgDealt));
-  sparksEarned = Math.round(sparksEarned * rewardMult);
+  sparksEarned = Math.round(sparksEarned * rewardMult) + firstClearBonus;
   xpEarned = Math.round(xpEarned * rewardMult);
 
   profile.sparks += sparksEarned;
@@ -796,7 +894,7 @@ export function recordCombatProgress(profile, opts = {}) {
         wallHits,
       });
 
-  const milestoneUnlocks = checkMilestoneUnlocks(profile);
+  const milestoneUnlocks = [...towerMilestones, ...checkMilestoneUnlocks(profile)];
   const nextLevel = getPlayerLevelInfo(profile.xp).level;
   const nextRank = getRankInfo(profile.trophies).current;
 
@@ -811,6 +909,10 @@ export function recordCombatProgress(profile, opts = {}) {
     completedBounties,
     milestoneUnlocks,
     bossBallUnlock,
+    challengeCleared,
+    challengeUnlocked,
+    towerUnlocked,
+    firstClearBonus,
   };
 }
 

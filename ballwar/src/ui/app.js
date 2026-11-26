@@ -28,11 +28,14 @@ import {
   getBallUnlockCost,
   getBountyDef,
   getClaimableBountyCount,
+  getMaxUnlockedChallenge,
   getPlayerLevelInfo,
   getRankInfo,
+  getTowerProgress,
   getUnlockedBallIds,
   importProfileCode,
   isBallUnlocked,
+  isTowerUnlocked,
   loadProfile,
   openBallCapsule,
   recordCombatProgress,
@@ -41,9 +44,13 @@ import {
   unlockCosmetic,
 } from '../sim/progression.js';
 import {
+  CHALLENGE_LEVELS,
   drawRelicChoices,
   GAUNTLET_FLOORS,
+  GAUNTLET_TOWERS,
+  getChallengeDef,
   getGauntletFloor,
+  getGauntletTower,
   getRelicDef,
   getRelicRewardMult,
 } from '../sim/gauntlet.js';
@@ -56,11 +63,15 @@ let profile = loadProfile();
 
 const gauntletRun = {
   active: false,
+  towerId: 'citadel',
+  challengeLevel: 1,
   floor: 1,
   hearts: 3,
   relics: [],
   pendingRelicChoices: [],
   floorWon: false,
+  nextUnlockedTowerId: null,
+  nextChallengeLevel: null,
 };
 
 const online = {
@@ -117,6 +128,8 @@ const ui = {
   dexLock: 'ALL',
   dexQuery: '',
   profileTab: 'overview',
+  selectedTowerId: 'citadel',
+  selectedChallengeLevel: 1,
   lastCapsuleBallId: null,
   pendingShieldCallback: null,
 };
@@ -265,6 +278,7 @@ function showView(name) {
     setQuickmatchSearching(false);
     gauntletRun.active = false;
     $('gauntlet-hud-bar')?.classList.add('hidden');
+    $('modal-gauntlet')?.classList.add('hidden');
     $('modal-relic')?.classList.add('hidden');
     $('online-room-box').classList.add('hidden');
     $('online-seat-roster')?.classList.add('hidden');
@@ -550,6 +564,133 @@ function runSandboxBatchSim(runs = 10) {
 }
 
 /* ==================== DRAFT FLOW ==================== */
+function openGauntletModal() {
+  if (!isTowerUnlocked(profile, ui.selectedTowerId)) {
+    ui.selectedTowerId = 'citadel';
+  }
+  const maxCh = getMaxUnlockedChallenge(profile, ui.selectedTowerId);
+  if (ui.selectedChallengeLevel > maxCh || ui.selectedChallengeLevel < 1) {
+    ui.selectedChallengeLevel = Math.max(1, maxCh);
+  }
+  renderGauntletModal();
+  $('modal-gauntlet')?.classList.remove('hidden');
+}
+
+function renderGauntletModal() {
+  const towersGrid = $('gauntlet-towers-grid');
+  const chGrid = $('gauntlet-challenge-grid');
+  if (!towersGrid || !chGrid) return;
+
+  if (!isTowerUnlocked(profile, ui.selectedTowerId)) {
+    ui.selectedTowerId = 'citadel';
+  }
+  const maxUnlockedCh = getMaxUnlockedChallenge(profile, ui.selectedTowerId);
+  if (ui.selectedChallengeLevel < 1 || ui.selectedChallengeLevel > maxUnlockedCh) {
+    ui.selectedChallengeLevel = Math.max(1, maxUnlockedCh);
+  }
+
+  towersGrid.innerHTML = '';
+  for (const t of GAUNTLET_TOWERS) {
+    const unlocked = isTowerUnlocked(profile, t.id);
+    const tp = getTowerProgress(profile, t.id);
+    const selected = ui.selectedTowerId === t.id;
+    const card = document.createElement('button');
+    card.type = 'button';
+    card.className = `tower-card${selected ? ' is-selected' : ''}${unlocked ? '' : ' is-locked'}`;
+    card.dataset.towerId = t.id;
+    card.disabled = !unlocked;
+
+    const reqTower = t.requiresTowerId ? getGauntletTower(t.requiresTowerId) : null;
+    const statusPill = unlocked
+      ? tp.maxChallengeCleared > 0
+        ? `<span class="dex-lock-badge unlocked">Cleared Lv.${tp.maxChallengeCleared}/5</span>`
+        : `<span class="dex-lock-badge unlocked">Unlocked</span>`
+      : `<span class="dex-lock-badge locked">🔒 Clear ${reqTower?.name || 'Tower I'} Once</span>`;
+
+    card.innerHTML = `
+      <div class="tower-card-top">
+        <div class="tower-title-row">
+          <span class="tower-icon">${t.icon}</span>
+          <div>
+            <span class="mode-badge" style="border-color:${t.accent}88; color:${t.accent};">${t.badge}</span>
+            <h4>${t.name}</h4>
+          </div>
+        </div>
+        ${statusPill}
+      </div>
+      <p class="tower-desc">${t.desc}</p>
+      <p class="tower-bosses">${t.bossSummary}</p>
+      <p class="tower-hint">${unlocked ? t.clearRewardHint : `🔒 Unlock by clearing ${reqTower?.name || 'Tower I'} on Challenge Lv. 1!`}</p>
+      <div class="tower-meta-row">
+        <span class="tower-stat-pill">Best Floor: ${tp.bestFloor}/${t.floors.length}</span>
+        <span class="tower-stat-pill">Challenges: ${tp.maxChallengeCleared}/${CHALLENGE_LEVELS.length}</span>
+        <span class="tower-stat-pill">Rewards: ${t.towerRewardMult}×</span>
+      </div>
+    `;
+
+    if (unlocked) {
+      card.addEventListener('click', () => {
+        soundEngine.unlock();
+        ui.selectedTowerId = t.id;
+        const maxC = getMaxUnlockedChallenge(profile, t.id);
+        if (ui.selectedChallengeLevel > maxC) ui.selectedChallengeLevel = Math.max(1, maxC);
+        renderGauntletModal();
+      });
+    }
+    towersGrid.appendChild(card);
+  }
+
+  const activeTower = getGauntletTower(ui.selectedTowerId);
+  const activeTp = getTowerProgress(profile, activeTower.id);
+  chGrid.innerHTML = '';
+
+  for (const ch of CHALLENGE_LEVELS) {
+    const unlocked = ch.level <= maxUnlockedCh;
+    const cleared = ch.level <= activeTp.maxChallengeCleared;
+    const selected = ui.selectedChallengeLevel === ch.level;
+    const firstSparks = Math.round(ch.firstClearSparks * activeTower.towerRewardMult);
+    const card = document.createElement('button');
+    card.type = 'button';
+    card.className = `challenge-card${selected ? ' is-selected' : ''}${cleared ? ' is-cleared' : ''}${unlocked ? '' : ' is-locked'}`;
+    card.dataset.challengeLevel = String(ch.level);
+    card.disabled = !unlocked;
+
+    const statusTag = !unlocked ? '🔒' : cleared ? '✓' : 'NEW';
+    card.innerHTML = `
+      <div class="challenge-head">
+        <span class="challenge-badge" style="color:${ch.color}; border:1px solid ${ch.color}66;">${ch.badge}</span>
+        <span style="font-size:0.78rem; font-weight:900; color:${cleared ? '#86efac' : unlocked ? '#fde047' : '#94a3b8'};">${statusTag}</span>
+      </div>
+      <h4 class="challenge-name" style="color:${ch.color};">${ch.name}</h4>
+      <p class="challenge-stats">
+        HP ${Math.round(ch.enemyHpMult * 100)}% • DMG ${Math.round(ch.enemyDmgMult * 100)}%<br/>
+        Rate ${Math.round(ch.enemyRateMult * 100)}% • ${ch.hearts} ♥ • ${ch.suddenDeathSec}s SD
+      </p>
+      <div class="challenge-bonus">
+        ${(ch.rewardMult * activeTower.towerRewardMult).toFixed(2).replace(/\.00$/, '')}× Rewards<br/>
+        ${cleared ? 'Cleared ✓' : `1st Clear: +${firstSparks} ✨`}
+      </div>
+    `;
+
+    if (unlocked) {
+      card.addEventListener('click', () => {
+        soundEngine.unlock();
+        ui.selectedChallengeLevel = ch.level;
+        renderGauntletModal();
+      });
+    }
+    chGrid.appendChild(card);
+  }
+
+  const selCh = getChallengeDef(ui.selectedChallengeLevel);
+  if ($('gauntlet-select-summary')) {
+    $('gauntlet-select-summary').textContent = `${activeTower.icon} ${activeTower.name} • Lv.${selCh.level} ${selCh.name} (${selCh.hearts} ♥ • ${selCh.suddenDeathSec}s SD • ${(selCh.rewardMult * activeTower.towerRewardMult).toFixed(2).replace(/\.00$/, '')}× Sparks & XP)`;
+  }
+  if ($('btn-launch-gauntlet')) {
+    $('btn-launch-gauntlet').textContent = `Enter ${activeTower.name} (Lv.${selCh.level})`;
+  }
+}
+
 function updateGauntletHud() {
   const bar = $('gauntlet-hud-bar');
   if (!bar) return;
@@ -557,11 +698,16 @@ function updateGauntletHud() {
     bar.classList.add('hidden');
     return;
   }
-  const f = getGauntletFloor(gauntletRun.floor);
+  const tower = getGauntletTower(gauntletRun.towerId);
+  const ch = getChallengeDef(gauntletRun.challengeLevel);
+  const f = getGauntletFloor(gauntletRun.floor, tower.id);
   bar.classList.remove('hidden');
-  $('gauntlet-floor-badge').textContent = `FLOOR ${f.floor} / ${GAUNTLET_FLOORS.length}${f.isBoss ? ' • BOSS' : ''}`;
+  if ($('gauntlet-tower-badge')) {
+    $('gauntlet-tower-badge').textContent = `${tower.icon} ${tower.id === 'spire' ? 'SPIRE' : 'CITADEL'} • LV ${ch.level}`;
+  }
+  $('gauntlet-floor-badge').textContent = `FLOOR ${f.floor} / ${tower.floors.length}${f.isBoss ? ' • BOSS' : ''}`;
   $('gauntlet-floor-title').textContent = f.title;
-  $('gauntlet-floor-sub').textContent = f.subtitle;
+  $('gauntlet-floor-sub').textContent = `${f.subtitle} (${ch.name}: ${Math.round(f.bossHpScale * ch.enemyHpMult * 100)}% Boss HP)`;
 
   const row = $('gauntlet-relics-row');
   row.innerHTML = '';
@@ -583,13 +729,24 @@ function updateGauntletHud() {
   }
 }
 
-function startGauntletRun() {
+function startGauntletRun(towerId = ui.selectedTowerId, challengeLevel = ui.selectedChallengeLevel) {
+  const safeTowerId = isTowerUnlocked(profile, towerId) ? towerId : 'citadel';
+  const maxCh = Math.max(1, getMaxUnlockedChallenge(profile, safeTowerId));
+  const safeChallenge = Math.max(1, Math.min(maxCh, Number(challengeLevel) || 1));
+  const ch = getChallengeDef(safeChallenge);
+
+  ui.selectedTowerId = safeTowerId;
+  ui.selectedChallengeLevel = safeChallenge;
   gauntletRun.active = true;
+  gauntletRun.towerId = safeTowerId;
+  gauntletRun.challengeLevel = safeChallenge;
   gauntletRun.floor = 1;
-  gauntletRun.hearts = 3;
+  gauntletRun.hearts = ch.hearts;
   gauntletRun.relics = [];
   gauntletRun.pendingRelicChoices = [];
   gauntletRun.floorWon = false;
+  gauntletRun.nextUnlockedTowerId = null;
+  gauntletRun.nextChallengeLevel = null;
   startGauntletFloor(1);
 }
 
@@ -597,18 +754,21 @@ function startGauntletFloor(floorNum) {
   gauntletRun.active = true;
   gauntletRun.floor = floorNum;
   gauntletRun.floorWon = false;
-  const f = getGauntletFloor(floorNum);
+  const ch = getChallengeDef(gauntletRun.challengeLevel);
+  const f = getGauntletFloor(floorNum, gauntletRun.towerId);
   setTeamFormat(f.teamSize);
   sim.startMatch({
     mode: MODES.GAUNTLET,
     teamSize: f.teamSize,
     hearts: 1,
-    suddenDeathStart: SUDDEN_DEATH_START_SEC,
+    suddenDeathStart: ch.suddenDeathSec,
     runRelics: [...gauntletRun.relics],
-    bossHpScale: f.bossHpScale,
+    bossHpScale: f.bossHpScale * ch.enemyHpMult,
+    bossDmgScale: ch.enemyDmgMult,
+    bossRateScale: ch.enemyRateMult,
   });
   sim.hearts = { 1: gauntletRun.hearts, 2: 1 };
-  sim.heartsToWin = 3;
+  sim.heartsToWin = ch.hearts;
   sim.roundNumber = floorNum;
   ui.paused = false;
   ui.simSpeed = 1;
@@ -619,14 +779,16 @@ function startGauntletFloor(floorNum) {
 }
 
 function openRelicDraftModal() {
-  const f = getGauntletFloor(gauntletRun.floor);
-  const nextFloor = getGauntletFloor(gauntletRun.floor + 1);
+  const tower = getGauntletTower(gauntletRun.towerId);
+  const ch = getChallengeDef(gauntletRun.challengeLevel);
+  const f = getGauntletFloor(gauntletRun.floor, tower.id);
+  const nextFloor = getGauntletFloor(gauntletRun.floor + 1, tower.id);
   gauntletRun.pendingRelicChoices = drawRelicChoices(gauntletRun.relics, 3);
-  $('relic-kicker').textContent = `FLOOR ${f.floor} CLEARED • NEXT: FLOOR ${nextFloor.floor} (${nextFloor.title.toUpperCase()})`;
+  $('relic-kicker').textContent = `${tower.icon} LV.${ch.level} • FLOOR ${f.floor} CLEARED → FLOOR ${nextFloor.floor} (${nextFloor.title.toUpperCase()})`;
   $('relic-title').textContent = 'Choose 1 Stacking Run Relic';
   $('relic-sub').textContent = nextFloor.isBoss
     ? `⚠️ Next up is ${nextFloor.title} (${nextFloor.teamSize}v${nextFloor.teamSize} Boss Arena)!`
-    : 'Relics stack for the rest of this Gauntlet Tower run (PvE only).';
+    : `Relics stack for the rest of this ${tower.name} run (PvE only).`;
 
   const container = $('relic-cards');
   container.innerHTML = '';
@@ -701,7 +863,7 @@ function openDraftForPlayer(playerNum, slotIdx = 0) {
     $('draft-title').textContent = 'Choose Your Ball';
   } else {
     const label = sim.mode === MODES.GAUNTLET
-      ? `GAUNTLET FLOOR ${gauntletRun.floor}/${GAUNTLET_FLOORS.length} • ${getGauntletFloor(gauntletRun.floor).title.toUpperCase()}`
+      ? `${getGauntletTower(gauntletRun.towerId).icon} LV.${gauntletRun.challengeLevel} • GAUNTLET FLOOR ${gauntletRun.floor}/${getGauntletTower(gauntletRun.towerId).floors.length} • ${getGauntletFloor(gauntletRun.floor, gauntletRun.towerId).title.toUpperCase()}`
       : playerNum === 1
       ? 'PLAYER 1 (BLUE)'
       : 'PLAYER 2 (RED)';
@@ -819,7 +981,7 @@ function selectDraftBall(ballId) {
   const is2v2 = sim.teamSize === 2;
 
   if (sim.mode === MODES.GAUNTLET) {
-    const f = getGauntletFloor(gauntletRun.floor);
+    const f = getGauntletFloor(gauntletRun.floor, gauntletRun.towerId);
     ui.draftTeams[2] = [...f.bossTeam];
     ui.draftPicks[2] = f.bossTeam[0];
     enterAimPhase(
@@ -1146,6 +1308,15 @@ function renderBannerRewards(summary) {
   if (summary.bossBallUnlock) {
     chips.push({ text: `🎁 BOSS DROP: Unlocked ${summary.bossBallUnlock.name}!`, cls: 'gold' });
   }
+  if (summary.firstClearBonus > 0) {
+    chips.push({ text: `🏆 1st-Clear Bonus +${summary.firstClearBonus} ✨`, cls: 'gold' });
+  }
+  if (summary.challengeUnlocked) {
+    chips.push({ text: `🔥 Unlocked Lv.${summary.challengeUnlocked.level} (${summary.challengeUnlocked.name})!`, cls: 'purple' });
+  }
+  if (summary.towerUnlocked) {
+    chips.push({ text: `🌑 UNLOCKED TOWER II: ${summary.towerUnlocked.name}!`, cls: 'gold' });
+  }
 
   if (chips.length === 0) {
     wrap.classList.add('hidden');
@@ -1184,10 +1355,12 @@ function showRoundOrMatchBanner() {
   let rewardSummary = null;
 
   if (sim.mode === MODES.GAUNTLET) {
-    const f = getGauntletFloor(gauntletRun.floor);
+    const tower = getGauntletTower(gauntletRun.towerId);
+    const ch = getChallengeDef(gauntletRun.challengeLevel);
+    const f = getGauntletFloor(gauntletRun.floor, tower.id);
     if (wonRound) {
       gauntletRun.floorWon = true;
-      const clearedAll = gauntletRun.floor >= GAUNTLET_FLOORS.length;
+      const clearedAll = gauntletRun.floor >= tower.floors.length;
       rewardSummary = recordCombatProgress(profile, {
         mode: MODES.GAUNTLET,
         teamSize: sim.teamSize,
@@ -1201,19 +1374,36 @@ function showRoundOrMatchBanner() {
         wallHits: sim.roundStats?.wallHits?.[1] || 0,
         gauntletFloor: gauntletRun.floor,
         gauntletCleared: clearedAll,
+        towerId: tower.id,
+        challengeLevel: ch.level,
         rewardMult: getRelicRewardMult(gauntletRun.relics),
       });
       if (clearedAll) {
-        kicker.textContent = 'GAUNTLET TOWER CONQUERED!';
-        title.textContent = 'ALL 10 FLOORS CLEARED!';
-        sub.textContent = rewardSummary.bossBallUnlock
-          ? `You defeated ${f.title} and unlocked ${rewardSummary.bossBallUnlock.name}!`
-          : `You defeated ${f.title} with ${gauntletRun.relics.length} Run Relics!`;
-        nextBtn.textContent = 'New Gauntlet Run';
+        gauntletRun.nextUnlockedTowerId = rewardSummary.towerUnlocked?.id || null;
+        gauntletRun.nextChallengeLevel = rewardSummary.challengeUnlocked?.level || null;
+        kicker.textContent = `${tower.icon} ${tower.name.toUpperCase()} • LV.${ch.level} (${ch.name.toUpperCase()}) CONQUERED!`;
+        title.textContent = `ALL ${tower.floors.length} FLOORS CLEARED!`;
+        const extraUnlock = rewardSummary.towerUnlocked
+          ? ` Unlocked Tower II: ${rewardSummary.towerUnlocked.name}!`
+          : rewardSummary.challengeUnlocked
+          ? ` Unlocked Challenge Lv.${rewardSummary.challengeUnlocked.level} (${rewardSummary.challengeUnlocked.name})!`
+          : '';
+        sub.textContent =
+          (rewardSummary.bossBallUnlock
+            ? `Defeated ${f.title} and unlocked ${rewardSummary.bossBallUnlock.name}!`
+            : `Defeated ${f.title} with ${gauntletRun.relics.length} Run Relics!`) + extraUnlock;
+
+        if (rewardSummary.towerUnlocked) {
+          nextBtn.textContent = `Try ${rewardSummary.towerUnlocked.name} →`;
+        } else if (rewardSummary.challengeUnlocked) {
+          nextBtn.textContent = `Next: Challenge Lv.${rewardSummary.challengeUnlocked.level} →`;
+        } else {
+          nextBtn.textContent = `Play Again (Lv.${ch.level})`;
+        }
         lobbyBtn.classList.remove('hidden');
         soundEngine.playLevelUp();
       } else {
-        kicker.textContent = `FLOOR ${f.floor} / ${GAUNTLET_FLOORS.length} CLEARED`;
+        kicker.textContent = `${tower.icon} LV.${ch.level} • FLOOR ${f.floor} / ${tower.floors.length} CLEARED`;
         title.textContent = `${name1} Defeated ${f.title}!`;
         sub.textContent = rewardSummary.bossBallUnlock
           ? `BOSS DROP! Unlocked ${rewardSummary.bossBallUnlock.name} — now pick a Run Relic for Floor ${f.floor + 1}!`
@@ -1225,7 +1415,7 @@ function showRoundOrMatchBanner() {
       }
     } else if (isDraw) {
       gauntletRun.floorWon = false;
-      kicker.textContent = `FLOOR ${f.floor} — DOUBLE KO`;
+      kicker.textContent = `${tower.icon} LV.${ch.level} • FLOOR ${f.floor} — DOUBLE KO`;
       title.textContent = 'DRAW — NO HEART LOST!';
       sub.textContent = 'Both sides fell together. Retry this floor!';
       nextBtn.textContent = 'Retry Floor';
@@ -1247,16 +1437,18 @@ function showRoundOrMatchBanner() {
         dmgDealt: sim.roundStats?.dmgDealt?.[1] || 0,
         wallHits: sim.roundStats?.wallHits?.[1] || 0,
         gauntletFloor: gauntletRun.floor,
+        towerId: tower.id,
+        challengeLevel: ch.level,
         rewardMult: getRelicRewardMult(gauntletRun.relics),
       });
       if (runOver) {
-        kicker.textContent = 'GAUNTLET RUN OVER';
-        title.textContent = `Defeated on Floor ${f.floor} / ${GAUNTLET_FLOORS.length}`;
+        kicker.textContent = `${tower.icon} LV.${ch.level} • GAUNTLET RUN OVER`;
+        title.textContent = `Defeated on Floor ${f.floor} / ${tower.floors.length}`;
         sub.textContent = `${f.title} shattered your final Heart. Keep your Sparks & Mastery XP!`;
         nextBtn.textContent = 'Try Again (Floor 1)';
         lobbyBtn.classList.remove('hidden');
       } else {
-        kicker.textContent = `FLOOR ${f.floor} FAILED`;
+        kicker.textContent = `${tower.icon} LV.${ch.level} • FLOOR ${f.floor} FAILED`;
         title.textContent = `${name2} Held Floor ${f.floor}!`;
         sub.textContent = `You lost 1 Run Heart (${gauntletRun.hearts} ♥ remaining). Draft again and retry!`;
         nextBtn.textContent = 'Retry Floor';
@@ -1342,14 +1534,23 @@ function handleBannerNext() {
 
   if (sim.mode === MODES.GAUNTLET) {
     $('arena-banner').classList.add('hidden');
+    const tower = getGauntletTower(gauntletRun.towerId);
     if (gauntletRun.floorWon) {
-      if (gauntletRun.floor >= GAUNTLET_FLOORS.length) {
-        startGauntletRun();
+      if (gauntletRun.floor >= tower.floors.length) {
+        if (gauntletRun.nextUnlockedTowerId) {
+          ui.selectedTowerId = gauntletRun.nextUnlockedTowerId;
+          ui.selectedChallengeLevel = 1;
+          openGauntletModal();
+        } else if (gauntletRun.nextChallengeLevel) {
+          startGauntletRun(gauntletRun.towerId, gauntletRun.nextChallengeLevel);
+        } else {
+          startGauntletRun(gauntletRun.towerId, gauntletRun.challengeLevel);
+        }
       } else {
         openRelicDraftModal();
       }
     } else if (gauntletRun.hearts <= 0) {
-      startGauntletRun();
+      startGauntletRun(gauntletRun.towerId, gauntletRun.challengeLevel);
     } else {
       startGauntletFloor(gauntletRun.floor);
     }
@@ -1768,7 +1969,7 @@ function updateHud() {
 
   $('hud-round').textContent =
     sim.mode === MODES.GAUNTLET
-      ? `FLOOR ${gauntletRun.floor} / ${GAUNTLET_FLOORS.length}`
+      ? `${getGauntletTower(gauntletRun.towerId).icon} LV.${gauntletRun.challengeLevel} • F${gauntletRun.floor}/${getGauntletTower(gauntletRun.towerId).floors.length}`
       : is2v2
       ? `2v2 • ROUND ${sim.roundNumber}`
       : `ROUND ${sim.roundNumber}`;
@@ -1978,7 +2179,18 @@ function refreshProfileChrome() {
   if ($('strip-xp-bar')) $('strip-xp-bar').style.width = `${Math.round(lvl.progress * 100)}%`;
   if ($('strip-sparks')) $('strip-sparks').textContent = `✨ ${profile.sparks}`;
   if ($('strip-unlocked')) $('strip-unlocked').textContent = `${unlockedCount} / ${BALL_DEFS.length}`;
-  if ($('strip-tower')) $('strip-tower').textContent = `Floor ${profile.bestGauntletFloor} / ${GAUNTLET_FLOORS.length}`;
+  if ($('strip-tower')) {
+    const t1 = getTowerProgress(profile, 'citadel');
+    const t2Unlocked = isTowerUnlocked(profile, 'spire');
+    const t2 = getTowerProgress(profile, 'spire');
+    const t1Label = t1.maxChallengeCleared > 0 ? `T1 Lv.${t1.maxChallengeCleared}/5` : `T1 ${t1.bestFloor}/10`;
+    const t2Label = !t2Unlocked
+      ? 'T2 🔒'
+      : t2.maxChallengeCleared > 0
+      ? `T2 Lv.${t2.maxChallengeCleared}/5`
+      : `T2 ${t2.bestFloor}/10`;
+    $('strip-tower').textContent = `${t1Label} • ${t2Label}`;
+  }
   if ($('strip-bounty-summary')) {
     $('strip-bounty-summary').textContent =
       readyBounties > 0 ? `${readyBounties} Ready to Claim!` : `0 / ${profile.bounties.length} Ready`;
@@ -2154,11 +2366,14 @@ function renderProfileModal() {
   if (ui.profileTab === 'overview') {
     const masteredCount = Object.keys(getBallMasteryLevelMap(profile)).length;
     const unlockedCount = getUnlockedBallIds(profile).length;
+    const t1 = getTowerProgress(profile, 'citadel');
+    const t2 = getTowerProgress(profile, 'spire');
+    const t2Txt = isTowerUnlocked(profile, 'spire') ? `T2 Lv.${t2.maxChallengeCleared}/5` : 'T2 🔒';
     $('profile-summary-grid').innerHTML = `
       <div class="pstat-card"><span>Rank Tier</span><strong>${rank.current.icon} ${rank.current.name} (${profile.trophies})</strong></div>
       <div class="pstat-card"><span>Player Level</span><strong>Lv. ${lvl.level} (${lvl.currentXp}/${lvl.nextXp})</strong></div>
       <div class="pstat-card"><span>Unlocked Balls</span><strong>${unlockedCount} / ${BALL_DEFS.length} (${masteredCount} Mastered)</strong></div>
-      <div class="pstat-card"><span>Tower &amp; Record</span><strong>Floor ${profile.bestGauntletFloor}/10 • ${profile.stats.wins}W-${profile.stats.losses}L</strong></div>
+      <div class="pstat-card"><span>Towers &amp; Record</span><strong>T1 Lv.${t1.maxChallengeCleared}/5 • ${t2Txt} • ${profile.stats.wins}W</strong></div>
     `;
 
     const bGrid = $('profile-bounties-grid');
@@ -2364,11 +2579,19 @@ function bindEvents() {
 
   $('btn-quick-gauntlet')?.addEventListener('click', () => {
     soundEngine.unlock();
-    startGauntletRun();
+    openGauntletModal();
   });
   $('btn-mode-gauntlet')?.addEventListener('click', () => {
     soundEngine.unlock();
-    startGauntletRun();
+    openGauntletModal();
+  });
+  $('btn-close-gauntlet')?.addEventListener('click', () => {
+    $('modal-gauntlet')?.classList.add('hidden');
+  });
+  $('btn-launch-gauntlet')?.addEventListener('click', () => {
+    soundEngine.unlock();
+    $('modal-gauntlet')?.classList.add('hidden');
+    startGauntletRun(ui.selectedTowerId, ui.selectedChallengeLevel);
   });
 
   $('btn-quick-bot').addEventListener('click', () => {
