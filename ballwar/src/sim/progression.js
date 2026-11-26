@@ -108,16 +108,43 @@ export const RELIC_UNLOCK_COSTS = Object.freeze({
   Mythic: 230,
 });
 
-export const RELIC_POD_DEF = Object.freeze({
-  id: 'relic_pod',
-  name: 'Relic Vault Pod',
-  cost: 90,
-  icon: '🔮',
-  accent: '#22d3ee',
-  desc: 'Guaranteed NEW Run Modifier for Gauntlet Towers (zero duplicates!).',
-  oddsLabel: '40% Rare • 34% Epic • 18% Legendary • 8% Mythic',
-  weights: { Rare: 40, Epic: 34, Legendary: 18, Mythic: 8 },
-});
+export const RELIC_CAPSULE_DEFS = Object.freeze([
+  {
+    id: 'standard',
+    name: 'Modifier Capsule',
+    cost: 75,
+    icon: '🔮',
+    accent: '#22d3ee',
+    desc: 'Guaranteed NEW Run Modifier from any locked rarity (zero duplicates!).',
+    oddsLabel: '44% Rare • 34% Epic • 16% Legendary • 6% Mythic',
+    weights: { Rare: 44, Epic: 34, Legendary: 16, Mythic: 6 },
+    preferredRarities: null,
+  },
+  {
+    id: 'tactical',
+    name: 'Tactical Capsule',
+    cost: 135,
+    icon: '🛡️',
+    accent: '#38bdf8',
+    desc: 'Guaranteed NEW Epic, Legendary, or Mythic Run Modifier!',
+    oddsLabel: '52% Epic • 34% Legendary • 14% Mythic',
+    weights: { Epic: 52, Legendary: 34, Mythic: 14 },
+    preferredRarities: ['Epic', 'Legendary', 'Mythic'],
+  },
+  {
+    id: 'omega',
+    name: 'Omega Modifier Vault',
+    cost: 200,
+    icon: '⚡',
+    accent: '#facc15',
+    desc: 'Guaranteed NEW Legendary or Mythic Run Modifier!',
+    oddsLabel: '68% Legendary • 32% Mythic',
+    weights: { Legendary: 68, Mythic: 32 },
+    preferredRarities: ['Legendary', 'Mythic'],
+  },
+]);
+
+export const RELIC_POD_DEF = RELIC_CAPSULE_DEFS[0];
 
 export const ARENA_THEMES = Object.freeze([
   {
@@ -826,25 +853,34 @@ export function unlockRelicDirect(profile, relicId) {
   return { ok: true, relic, cost };
 }
 
-export function openRelicPod(profile, rng = Math.random) {
+export function openRelicCapsule(profile, capsuleId = 'standard', rng = Math.random) {
+  const capsule = RELIC_CAPSULE_DEFS.find((c) => c.id === capsuleId) || RELIC_CAPSULE_DEFS[0];
   if (!Array.isArray(profile.unlockedRelics)) profile.unlockedRelics = [...STARTER_RELIC_IDS];
   const allLocked = getLockedRelicDefs(profile);
   if (allLocked.length === 0) {
-    return { ok: false, reason: `All ${GAUNTLET_RELICS.length} Run Relics are already unlocked!` };
+    return { ok: false, reason: `All ${GAUNTLET_RELICS.length} Run Modifiers are already unlocked!` };
   }
-  if (profile.sparks < RELIC_POD_DEF.cost) {
-    return { ok: false, reason: `Need ${RELIC_POD_DEF.cost} Sparks` };
+  if (profile.sparks < capsule.cost) {
+    return { ok: false, reason: `Need ${capsule.cost} Sparks` };
   }
-  const relic = pickWeightedLockedRelic(profile, RELIC_POD_DEF.weights, null, rng);
-  if (!relic) return { ok: false, reason: 'No locked relics left!' };
-  profile.sparks -= RELIC_POD_DEF.cost;
+  const relic = pickWeightedLockedRelic(profile, capsule.weights, capsule.preferredRarities, rng);
+  if (!relic) return { ok: false, reason: 'No locked modifiers left!' };
+  profile.sparks -= capsule.cost;
   profile.unlockedRelics.push(relic.id);
   return {
     ok: true,
     relic,
-    cost: RELIC_POD_DEF.cost,
+    capsule,
+    cost: capsule.cost,
     remainingLocked: Math.max(0, GAUNTLET_RELICS.length - profile.unlockedRelics.length),
   };
+}
+
+export function openRelicPod(profile, capsuleIdOrRng = 'standard', rng = Math.random) {
+  if (typeof capsuleIdOrRng === 'function') {
+    return openRelicCapsule(profile, 'standard', capsuleIdOrRng);
+  }
+  return openRelicCapsule(profile, capsuleIdOrRng, rng);
 }
 
 export function grantFreeRelicUnlock(profile, preferredRarities = null, rng = Math.random) {

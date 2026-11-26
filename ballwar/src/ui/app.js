@@ -41,8 +41,10 @@ import {
   isTowerUnlocked,
   loadProfile,
   openBallCapsule,
+  openRelicCapsule,
   openRelicPod,
   recordCombatProgress,
+  RELIC_CAPSULE_DEFS,
   RELIC_POD_DEF,
   saveProfile,
   unlockBallDirect,
@@ -2246,14 +2248,17 @@ function openProfileModal(tab = 'overview') {
   $('modal-profile').classList.remove('hidden');
 }
 
-function showRelicReveal(relic) {
+function showRelicReveal(relic, sourceLabel = 'Modifier Vault') {
   const box = $('relic-reveal-box');
   if (!box || !relic) return;
+  if ($('relic-reveal-kicker')) {
+    $('relic-reveal-kicker').textContent = `${sourceLabel.toUpperCase()} • NEW RUN MODIFIER UNLOCKED!`;
+  }
   $('relic-reveal-icon').textContent = relic.icon;
   $('relic-reveal-name').textContent = relic.name;
   const rar = $('relic-reveal-rarity');
   rar.className = `rarity-pill r-${relic.rarity}`;
-  rar.textContent = `${relic.rarity} Relic`;
+  rar.textContent = `${relic.rarity} Modifier`;
   $('relic-reveal-cat').textContent = `${relic.category || 'Utility'} • Gauntlet Pool`;
   $('relic-reveal-desc').textContent = relic.desc;
   box.classList.remove('hidden');
@@ -2277,11 +2282,70 @@ function renderRelicsTab() {
   const podBtn = $('btn-open-relic-pod');
   if (podBtn) {
     if (remainingLocked === 0) {
-      podBtn.textContent = 'All 24 Relics Unlocked ✓';
+      podBtn.textContent = 'All 24 Modifiers Unlocked ✓';
       podBtn.disabled = true;
     } else {
-      podBtn.textContent = `${RELIC_POD_DEF.icon} Crack Relic Pod (${RELIC_POD_DEF.cost} ✨)`;
+      podBtn.textContent = `${RELIC_POD_DEF.icon} Modifier Capsule (${RELIC_POD_DEF.cost} ✨)`;
       podBtn.disabled = profile.sparks < RELIC_POD_DEF.cost;
+    }
+  }
+
+  const rarOrder = ['Rare', 'Epic', 'Legendary', 'Mythic'];
+  const breakdown = $('relics-rarity-breakdown');
+  if (breakdown) {
+    breakdown.innerHTML = '';
+    for (const r of rarOrder) {
+      const inR = GAUNTLET_RELICS.filter((rel) => rel.rarity === r);
+      const ownedR = inR.filter((rel) => ownedSet.has(rel.id)).length;
+      const pill = document.createElement('span');
+      pill.className = 'rarity-count-pill';
+      pill.textContent = `${r}: ${ownedR}/${inR.length}`;
+      breakdown.appendChild(pill);
+    }
+  }
+
+  const capGrid = $('relics-capsules-grid');
+  if (capGrid) {
+    capGrid.innerHTML = '';
+    for (const cap of RELIC_CAPSULE_DEFS) {
+      const card = document.createElement('article');
+      card.className = 'capsule-card';
+      card.dataset.relicCapsuleId = cap.id;
+      card.style.borderColor = `${cap.accent}66`;
+
+      const canAfford = profile.sparks >= cap.cost && remainingLocked > 0;
+      card.innerHTML = `
+        <div class="capsule-icon">${cap.icon}</div>
+        <h4 style="color:${cap.accent}">${cap.name}</h4>
+        <p class="capsule-desc">${cap.desc}</p>
+        <div class="capsule-odds">${cap.oddsLabel}</div>
+      `;
+
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      if (remainingLocked === 0) {
+        btn.className = 'btn btn-primary btn-sm';
+        btn.textContent = 'Vault Complete ✓';
+        btn.disabled = true;
+      } else {
+        btn.className = canAfford ? 'btn btn-gold btn-sm' : 'btn btn-ghost btn-sm';
+        btn.textContent = `Open Capsule (✨ ${cap.cost})`;
+        btn.disabled = !canAfford;
+        btn.addEventListener('click', () => {
+          soundEngine.unlock();
+          const res = openRelicCapsule(profile, cap.id);
+          if (res.ok) {
+            saveProfile(profile);
+            soundEngine.playLevelUp();
+            refreshProfileChrome();
+            renderRelicsTab();
+            renderGauntletModal();
+            showRelicReveal(res.relic, cap.name);
+          }
+        });
+      }
+      card.appendChild(btn);
+      capGrid.appendChild(card);
     }
   }
 
@@ -2713,14 +2777,14 @@ function bindEvents() {
 
   $('btn-open-relic-pod')?.addEventListener('click', () => {
     soundEngine.unlock();
-    const res = openRelicPod(profile);
+    const res = openRelicCapsule(profile, 'standard');
     if (res.ok) {
       saveProfile(profile);
       soundEngine.playLevelUp();
       refreshProfileChrome();
       renderRelicsTab();
       renderGauntletModal();
-      showRelicReveal(res.relic);
+      showRelicReveal(res.relic, res.capsule?.name || 'Modifier Capsule');
     }
   });
 

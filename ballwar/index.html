@@ -10,27 +10,27 @@
   <script type="importmap">
     {
       "imports": {
-        "./src/sim/constants.js": "./src/sim/constants.js?v=20261126b",
-        "./src/sim/balls.js": "./src/sim/balls.js?v=20261126b",
-        "./src/sim/physics.js": "./src/sim/physics.js?v=20261126b",
-        "./src/sim/ai.js": "./src/sim/ai.js?v=20261126b",
-        "./src/sim/abilities.js": "./src/sim/abilities.js?v=20261126b",
-        "./src/sim/abilitiesExtra.js": "./src/sim/abilitiesExtra.js?v=20261126b",
-        "./src/sim/abilitiesMeme.js": "./src/sim/abilitiesMeme.js?v=20261126b",
-        "./src/sim/balanceTuning.js": "./src/sim/balanceTuning.js?v=20261126b",
-        "./src/sim/progression.js": "./src/sim/progression.js?v=20261126b",
-        "./src/sim/gauntlet.js": "./src/sim/gauntlet.js?v=20261126b",
-        "./src/net/p2p.js": "./src/net/p2p.js?v=20261126b",
-        "./src/net/protocol.js": "./src/net/protocol.js?v=20261126b",
-        "./src/audio/soundEngine.js": "./src/audio/soundEngine.js?v=20261126b",
-        "./src/render/ballArt.js": "./src/render/ballArt.js?v=20261126b",
-        "./src/render/ballArtExtra.js": "./src/render/ballArtExtra.js?v=20261126b",
-        "./src/render/ballArtMeme.js": "./src/render/ballArtMeme.js?v=20261126b",
-        "./src/render/arenaRenderer.js": "./src/render/arenaRenderer.js?v=20261126b"
+        "./src/sim/constants.js": "./src/sim/constants.js?v=20261126c",
+        "./src/sim/balls.js": "./src/sim/balls.js?v=20261126c",
+        "./src/sim/physics.js": "./src/sim/physics.js?v=20261126c",
+        "./src/sim/ai.js": "./src/sim/ai.js?v=20261126c",
+        "./src/sim/abilities.js": "./src/sim/abilities.js?v=20261126c",
+        "./src/sim/abilitiesExtra.js": "./src/sim/abilitiesExtra.js?v=20261126c",
+        "./src/sim/abilitiesMeme.js": "./src/sim/abilitiesMeme.js?v=20261126c",
+        "./src/sim/balanceTuning.js": "./src/sim/balanceTuning.js?v=20261126c",
+        "./src/sim/progression.js": "./src/sim/progression.js?v=20261126c",
+        "./src/sim/gauntlet.js": "./src/sim/gauntlet.js?v=20261126c",
+        "./src/net/p2p.js": "./src/net/p2p.js?v=20261126c",
+        "./src/net/protocol.js": "./src/net/protocol.js?v=20261126c",
+        "./src/audio/soundEngine.js": "./src/audio/soundEngine.js?v=20261126c",
+        "./src/render/ballArt.js": "./src/render/ballArt.js?v=20261126c",
+        "./src/render/ballArtExtra.js": "./src/render/ballArtExtra.js?v=20261126c",
+        "./src/render/ballArtMeme.js": "./src/render/ballArtMeme.js?v=20261126c",
+        "./src/render/arenaRenderer.js": "./src/render/arenaRenderer.js?v=20261126c"
       }
     }
   </script>
-  <link rel="stylesheet" href="./styles/main.css?v=20261126b" />
+  <link rel="stylesheet" href="./styles/main.css?v=20261126c" />
 </head>
 <body>
   <div class="app-shell">
@@ -627,17 +627,18 @@
           <div>
             <span>Your Balance: <strong id="relics-sparks">✨ 100</strong></span>
             <span class="pill-sep">•</span>
-            <span>Relic Vault: <strong id="relics-progress-label">8 / 24 Relics</strong></span>
+            <span>Modifiers: <strong id="relics-progress-label">8 / 24 Relics</strong></span>
           </div>
-          <button class="btn btn-gold btn-sm" id="btn-open-relic-pod" type="button">🔮 Crack Relic Pod (90 ✨)</button>
+          <button class="btn btn-gold btn-sm" id="btn-open-relic-pod" type="button">🔮 Modifier Capsule (75 ✨)</button>
         </div>
         <div class="xp-bar-track" style="height:10px;"><div class="xp-bar-fill" id="relics-progress-bar" style="width:33%"></div></div>
+        <div class="capsules-rarity-row" id="relics-rarity-breakdown" style="margin-top:8px;"></div>
 
         <div id="relic-reveal-box" class="capsule-reveal-box hidden" style="margin-top:10px;">
           <div id="relic-reveal-icon" style="font-size:2.4rem;line-height:1;width:64px;text-align:center;">🔮</div>
           <div class="capsule-reveal-info">
-            <span class="draft-kicker">NEW RUN RELIC UNLOCKED!</span>
-            <h3 id="relic-reveal-name">Cleanse Core</h3>
+            <span class="draft-kicker" id="relic-reveal-kicker">MODIFIER CAPSULE • NEW RUN MODIFIER UNLOCKED!</span>
+            <h3 id="relic-reveal-name">Purity Core</h3>
             <div class="capsule-reveal-pills">
               <span class="rarity-pill" id="relic-reveal-rarity">Epic</span>
               <span class="muted" id="relic-reveal-cat">Utility</span>
@@ -646,7 +647,10 @@
           </div>
         </div>
 
-        <div class="chip-row" id="relic-cat-chips" style="margin:10px 0 8px;">
+        <h3 class="section-subhead" style="margin-top:12px;">Guaranteed-New Modifier Capsules (Zero Duplicates!)</h3>
+        <div id="relics-capsules-grid" class="capsules-grid"></div>
+
+        <div class="chip-row" id="relic-cat-chips" style="margin:12px 0 8px;">
           <button class="chip is-active" data-rcat="All" type="button">All (24)</button>
           <button class="chip" data-rcat="Utility" type="button">Utility</button>
           <button class="chip" data-rcat="Skill" type="button">Skill</button>
@@ -655,7 +659,7 @@
         </div>
         <div id="relics-shop-grid" class="relic-shop-grid"></div>
         <p class="muted" style="margin:6px 0 0; font-size:0.8rem;">
-          Tip: Clearing <strong>Gauntlet Bosses (Floor 5 &amp; 10)</strong> or first-clearing a <strong>Challenge Level</strong> also drops a FREE Run Relic!
+          Tip: Clearing <strong>Gauntlet Bosses (Floor 5 &amp; 10)</strong> also drops a FREE Run Modifier, or unlock any specific modifier directly below!
         </p>
       </div>
 
@@ -682,6 +686,6 @@
   </div>
 
   <script src="./vendor/peerjs.min.js"></script>
-  <script type="module" src="./src/ui/app.js?v=20261126b"></script>
+  <script type="module" src="./src/ui/app.js?v=20261126c"></script>
 </body>
 </html>

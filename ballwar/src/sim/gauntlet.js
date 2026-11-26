@@ -361,7 +361,7 @@ export const GAUNTLET_RELICS = Object.freeze([
     icon: '⚡',
     rarity: 'Epic',
     category: 'Utility',
-    desc: '+22% faster ability trigger cadence & +5 Max HP.',
+    desc: '+25% faster ability trigger cadence.',
   },
   {
     id: 'glass_cannon',
@@ -377,7 +377,7 @@ export const GAUNTLET_RELICS = Object.freeze([
     icon: '🛡️',
     rarity: 'Rare',
     category: 'Defense',
-    desc: '+5 Max HP and +0.16x knockback mass.',
+    desc: '+10 Max HP and +0.18x knockback mass.',
   },
   {
     id: 'sonic_bounce',
@@ -417,7 +417,7 @@ export const GAUNTLET_RELICS = Object.freeze([
     icon: '🚀',
     rarity: 'Rare',
     category: 'Utility',
-    desc: '+16% movement speed, +90 max speed cap, & +4 Max HP.',
+    desc: '+18% movement speed & +100 max speed cap.',
   },
   {
     id: 'poison_trail',
@@ -441,7 +441,7 @@ export const GAUNTLET_RELICS = Object.freeze([
     icon: '🧲',
     rarity: 'Epic',
     category: 'Utility',
-    desc: '+40% bonus Sparks & Mastery XP this run, plus +9 Max HP.',
+    desc: '+45% bonus Sparks & Mastery XP this run, plus +10% ability cadence.',
   },
   // 12 Utility, Skill & Tactical Modifiers
   {
@@ -450,7 +450,7 @@ export const GAUNTLET_RELICS = Object.freeze([
     icon: '🧭',
     rarity: 'Rare',
     category: 'Utility',
-    desc: '+12% speed, +6% ability rate & +6 Max HP with smoother wall angles.',
+    desc: '+14% speed, +10% ability rate & self-stabilizing bounce angles.',
   },
   {
     id: 'kinetic_cushion',
@@ -458,7 +458,7 @@ export const GAUNTLET_RELICS = Object.freeze([
     icon: '🧽',
     rarity: 'Rare',
     category: 'Defense',
-    desc: 'Reduce Wall Slam, Sudden Death & floor hazard damage by 30% (+5 Max HP).',
+    desc: 'Reduce Wall Slam, Sudden Death & hazard damage by 35% and absorb -1 DMG on heavy hits.',
   },
   {
     id: 'tempo_shift',
@@ -474,7 +474,7 @@ export const GAUNTLET_RELICS = Object.freeze([
     icon: '💠',
     rarity: 'Epic',
     category: 'Utility',
-    desc: 'Purges Poison & Chill every 3.2s, heals +2 HP & grants +4 Max HP.',
+    desc: 'Purges Poison & Chill every 2.8s and heals +2 HP.',
   },
   {
     id: 'bumper_shield',
@@ -498,7 +498,7 @@ export const GAUNTLET_RELICS = Object.freeze([
     icon: '🪶',
     rarity: 'Epic',
     category: 'Utility',
-    desc: '-14% hitbox radius (dodge projectiles!) +12% speed & +4 Max HP.',
+    desc: '-15% hitbox radius (dodge projectiles!) & +15% movement speed.',
   },
   {
     id: 'magnetic_core',
@@ -506,7 +506,7 @@ export const GAUNTLET_RELICS = Object.freeze([
     icon: '🌀',
     rarity: 'Epic',
     category: 'Utility',
-    desc: 'Every 3.6s chill & slow enemies briefly while stabilizing +6 Max HP.',
+    desc: 'Every 3.2s chill & slow nearby enemies with disruptive pulses.',
   },
   {
     id: 'twin_spark',
@@ -514,7 +514,7 @@ export const GAUNTLET_RELICS = Object.freeze([
     icon: '🪙',
     rarity: 'Rare',
     category: 'Utility',
-    desc: '+30% run Sparks, +1 free Draft Reroll next floor, & +8 Max HP.',
+    desc: '+30% run Sparks, +1 free Draft Reroll next floor, & +10% ability cadence.',
   },
   {
     id: 'parry_plating',
@@ -530,7 +530,7 @@ export const GAUNTLET_RELICS = Object.freeze([
     icon: '⏳',
     rarity: 'Legendary',
     category: 'Utility',
-    desc: 'Slow enemy projectiles by 24% & reduce enemy ability rate by 10%.',
+    desc: 'Slow enemy projectiles by 26% & reduce enemy ability rate by 14%.',
   },
   {
     id: 'stasis_failsafe',
@@ -585,7 +585,7 @@ function countRelic(relicIds, id) {
 }
 
 export function getRelicRewardMult(relicIds = []) {
-  return 1 + countRelic(relicIds, 'golden_magnet') * 0.4 + countRelic(relicIds, 'twin_spark') * 0.3;
+  return 1 + countRelic(relicIds, 'golden_magnet') * 0.45 + countRelic(relicIds, 'twin_spark') * 0.3;
 }
 
 export function getRelicExtraRerolls(relicIds = []) {
@@ -598,12 +598,12 @@ export function getRelicDmgMult(relicIds = []) {
 
 export function getRelicRadiusMult(relicIds = []) {
   const f = countRelic(relicIds, 'featherweight_dash');
-  return f > 0 ? Math.max(0.7, Math.pow(0.86, f)) : 1;
+  return f > 0 ? Math.max(0.68, Math.pow(0.85, f)) : 1;
 }
 
 export function getRelicEnemyProjSpeedMult(relicIds = []) {
   const c = countRelic(relicIds, 'chrono_dampener');
-  return c > 0 ? Math.max(0.55, Math.pow(0.76, c)) : 1;
+  return c > 0 ? Math.max(0.55, Math.pow(0.74, c)) : 1;
 }
 
 export function applyRelicsOnInit(sim, ball, relicIds = []) {
@@ -616,8 +616,8 @@ export function applyRelicsOnInit(sim, ball, relicIds = []) {
     tempoWallCount: 0,
     tempoTimer: 0,
     poisonCd: 1.8,
-    cleanseCd: 3.2,
-    magnetCd: 3.6,
+    cleanseCd: 2.8,
+    magnetCd: 3.2,
     parryCd: 0,
     wardHp: bumperCount * 4,
     wardMax: bumperCount * 4,
@@ -627,43 +627,39 @@ export function applyRelicsOnInit(sim, ball, relicIds = []) {
     stasisLeft: countRelic(relicIds, 'stasis_failsafe'),
   };
 
-  const hpBonus =
-    countRelic(relicIds, 'titan_plating') * 5 +
-    countRelic(relicIds, 'golden_magnet') * 9 +
-    countRelic(relicIds, 'overclocked') * 5 +
-    countRelic(relicIds, 'turbo_boost') * 4 +
-    countRelic(relicIds, 'gyro_stabilizer') * 6 +
-    countRelic(relicIds, 'kinetic_cushion') * 5 +
-    countRelic(relicIds, 'cleanse_orb') * 4 +
-    countRelic(relicIds, 'featherweight_dash') * 4 +
-    countRelic(relicIds, 'magnetic_core') * 6 +
-    countRelic(relicIds, 'twin_spark') * 8 +
-    countRelic(relicIds, 'chrono_dampener') * 4 -
-    countRelic(relicIds, 'glass_cannon') * 12;
+  // Only Titan Plating (armor) and Glass Cannon (fragility trade-off) alter Max HP
+  const hpBonus = countRelic(relicIds, 'titan_plating') * 10 - countRelic(relicIds, 'glass_cannon') * 12;
   if (hpBonus !== 0) {
     ball.maxHp = Math.max(25, ball.maxHp + hpBonus);
     ball.hp = Math.max(25, Math.min(ball.maxHp, ball.hp + hpBonus));
   }
 
-  const massBonus = countRelic(relicIds, 'titan_plating') * 0.16;
+  const massBonus = countRelic(relicIds, 'titan_plating') * 0.18;
   if (massBonus > 0) ball.mass = (ball.mass || 1) + massBonus;
 
   const overclock = countRelic(relicIds, 'overclocked');
   const gyro = countRelic(relicIds, 'gyro_stabilizer');
-  if (overclock > 0 || gyro > 0) {
-    ball.rateMult = (ball.rateMult || 1) * Math.pow(1.22, overclock) * Math.pow(1.06, gyro);
+  const goldMagnet = countRelic(relicIds, 'golden_magnet');
+  const twinSpark = countRelic(relicIds, 'twin_spark');
+  if (overclock > 0 || gyro > 0 || goldMagnet > 0 || twinSpark > 0) {
+    ball.rateMult =
+      (ball.rateMult || 1) *
+      Math.pow(1.25, overclock) *
+      Math.pow(1.1, gyro) *
+      Math.pow(1.1, goldMagnet) *
+      Math.pow(1.1, twinSpark);
   }
 
   const turbo = countRelic(relicIds, 'turbo_boost');
   const feather = countRelic(relicIds, 'featherweight_dash');
   const siphon = countRelic(relicIds, 'siphon_surge');
   const speedMult =
-    Math.pow(1.16, turbo) *
-    Math.pow(1.12, gyro) *
-    Math.pow(1.12, feather) *
+    Math.pow(1.18, turbo) *
+    Math.pow(1.14, gyro) *
+    Math.pow(1.15, feather) *
     Math.pow(1.06, siphon);
   if (speedMult > 1.001) {
-    ball.customSpeedCap = Math.max(ball.customSpeedCap || 720, 720 + turbo * 90 + feather * 45 + gyro * 30);
+    ball.customSpeedCap = Math.max(ball.customSpeedCap || 720, 720 + turbo * 100 + feather * 55 + gyro * 35);
     sim.scaleBallSpeed(ball, speedMult);
   }
 }
@@ -699,7 +695,7 @@ export function applyRelicsOnUpdate(sim, ball, dt, relicIds = []) {
   if (cleanseCount > 0) {
     rs.cleanseCd -= dt;
     if (rs.cleanseCd <= 0) {
-      rs.cleanseCd = Math.max(2.0, 3.2 - (cleanseCount - 1) * 0.5);
+      rs.cleanseCd = Math.max(1.8, 2.8 - (cleanseCount - 1) * 0.4);
       const hadDebuff = ball.poisonTimer > 0 || ball.chillStacks > 0 || ball.slowTimer > 0;
       ball.poisonTimer = 0;
       ball.poisonDmg = 0;
@@ -717,10 +713,10 @@ export function applyRelicsOnUpdate(sim, ball, dt, relicIds = []) {
   if (magnetCount > 0) {
     rs.magnetCd -= dt;
     if (rs.magnetCd <= 0) {
-      rs.magnetCd = 3.6;
+      rs.magnetCd = 3.2;
       for (const enemy of sim.getEnemyBalls(ball.owner)) {
         sim.applyChill(enemy, 1 * magnetCount, ball.owner, ball.ballId);
-        enemy.slowTimer = Math.max(enemy.slowTimer, 0.9);
+        enemy.slowTimer = Math.max(enemy.slowTimer, 1.0);
       }
       sim.addParticleBurst(ball.x, ball.y, '#818cf8', 6);
     }
@@ -731,7 +727,7 @@ export function applyRelicsOnUpdate(sim, ball, dt, relicIds = []) {
   if (chronoCount > 0 && !ball._chronoApplied) {
     ball._chronoApplied = true;
     for (const enemy of sim.getEnemyBalls(ball.owner)) {
-      enemy.rateMult = Math.max(0.6, (enemy.rateMult || 1) * Math.pow(0.86, chronoCount));
+      enemy.rateMult = Math.max(0.58, (enemy.rateMult || 1) * Math.pow(0.86, chronoCount));
     }
   }
 
@@ -847,13 +843,14 @@ export function applyRelicsOnDamagePrevent(sim, ball, amount, relicIds = [], rea
   if (!ball._relicState || ball.owner !== 1) return amount;
   let rem = amount;
 
-  // Kinetic Cushion trims Wall Slam, Sudden Death & floor hazard damage
+  // Kinetic Cushion trims Wall Slam, Sudden Death & hazard damage by 35% and absorbs -1 DMG on heavy hits
   const cushionCount = countRelic(relicIds, 'kinetic_cushion');
-  if (
-    cushionCount > 0 &&
-    (reason === 'wallslam' || reason === 'suddendeath' || reason === 'zone' || reason === 'acid' || reason === 'poison' || reason === 'drop')
-  ) {
-    rem = Math.max(1, rem * Math.max(0.45, Math.pow(0.7, cushionCount)));
+  if (cushionCount > 0) {
+    if (reason === 'wallslam' || reason === 'suddendeath' || reason === 'zone' || reason === 'acid' || reason === 'poison' || reason === 'drop') {
+      rem = Math.max(1, rem * Math.max(0.4, Math.pow(0.65, cushionCount)));
+    } else if (rem >= 4) {
+      rem = Math.max(1, rem - cushionCount);
+    }
   }
 
   if (ball._relicState.aegisLeft > 0 && rem >= 1) {

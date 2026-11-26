@@ -19,6 +19,7 @@ import {
   ARENA_THEMES,
   BALL_TRAILS,
   CAPSULE_DEFS,
+  RELIC_CAPSULE_DEFS,
   RELIC_POD_DEF,
   STARTER_BALL_IDS,
   STARTER_RELIC_IDS,
@@ -39,6 +40,7 @@ import {
   isTowerUnlocked,
   loadProfile,
   openBallCapsule,
+  openRelicCapsule,
   openRelicPod,
   recordCombatProgress,
   saveProfile,
@@ -602,7 +604,7 @@ test('Gauntlet Tower 10 floors & Run Relics trigger in GAUNTLET mode and stay in
   const picks = drawRelicChoices(['vampiric_walls'], 3, createSeededRng(99));
   assert(picks.length === 3 && picks.every((r) => r.id !== 'vampiric_walls'), 'Relic draft should prefer unowned relics');
 
-  // Test Aegis Start (blocks 1 hit), Titan Plating (+5 HP), and Second Wind (revive at 10 HP) in GAUNTLET mode
+  // Test Aegis Start (blocks 1 hit <=10 DMG), Titan Plating (+10 HP), and Second Wind (revive at 10 HP) in GAUNTLET mode
   const sim = new ArenaSimulation({
     mode: MODES.GAUNTLET,
     hearts: 1,
@@ -621,12 +623,12 @@ test('Gauntlet Tower 10 floors & Run Relics trigger in GAUNTLET mode and stay in
   sim.launchRound(0, Math.PI);
   const p1 = sim.balls.find((b) => b.owner === 1);
   const boss = sim.balls.find((b) => b.owner === 2);
-  assert(p1.maxHp === 105 && p1.hp === 105, `Titan Plating should give +5 HP (got ${p1.maxHp})`);
+  assert(p1.maxHp === 110 && p1.hp === 110, `Titan Plating should give +10 HP (got ${p1.maxHp})`);
   assert(boss.maxHp === 120, `Boss HP scale 1.2x should give 120 HP (got ${boss.maxHp})`);
 
   // First hit (up to 10 DMG) blocked by Aegis Start
   assert(sim.dealDamage(p1, 9, 2, 'test') === 0, 'Aegis hit 1 (<=10 DMG) should be blocked completely');
-  assert(p1.hp === 105, 'HP should remain full after Aegis block');
+  assert(p1.hp === 110, 'HP should remain full after Aegis block');
 
   // Lethal hit should trigger Second Wind revive at 10 HP
   sim.dealDamage(p1, 999, 2, 'lethal_test');
@@ -841,11 +843,18 @@ test('24 Run Relics, Relic unlocking (Starter 8 -> Pods / Direct / Boss Drops), 
     assert(picks.length === 3 && picks.every((r) => starterSet.has(r.id)), 'Filtered relic draft must only offer unlocked starter relics');
   }
 
-  // Pull a Relic Vault Pod (costs RELIC_POD_DEF.cost, zero duplicates)
-  prof.sparks = 500;
+  // Pull Modifier Capsules across all 3 tiers (zero duplicates + tier guarantees)
+  assert(RELIC_CAPSULE_DEFS.length === 3, `Expected 3 RELIC_CAPSULE_DEFS tiers (got ${RELIC_CAPSULE_DEFS.length})`);
+  prof.sparks = 600;
   const pod = openRelicPod(prof, rng);
-  assert(pod.ok && pod.relic && !starterSet.has(pod.relic.id), 'Relic Pod must unlock a non-starter locked relic');
-  assert(prof.sparks === 500 - RELIC_POD_DEF.cost && getUnlockedRelicIds(prof).length === 9, 'Relic Pod must deduct cost and increment unlockedRelics');
+  assert(pod.ok && pod.relic && !starterSet.has(pod.relic.id), 'Standard Modifier Capsule must unlock a non-starter locked relic');
+  assert(prof.sparks === 600 - RELIC_POD_DEF.cost && getUnlockedRelicIds(prof).length === 9, 'Standard Modifier Capsule must deduct cost and increment unlockedRelics');
+
+  const omegaCap = openRelicCapsule(prof, 'omega', rng);
+  assert(
+    omegaCap.ok && omegaCap.relic && (omegaCap.relic.rarity === 'Legendary' || omegaCap.relic.rarity === 'Mythic'),
+    `Omega Modifier Vault must drop Legendary or Mythic (got ${omegaCap.relic?.rarity})`
+  );
 
   // Direct unlock a specific locked relic (Twin Spark -> adds +1 draft reroll in Gauntlet)
   const targetId = isRelicUnlocked(prof, 'twin_spark') ? 'cleanse_orb' : 'twin_spark';
@@ -870,30 +879,36 @@ test('24 Run Relics, Relic unlocking (Starter 8 -> Pods / Direct / Boss Drops), 
     'Gauntlet Floor 5 clear must drop a FREE Run Relic'
   );
 
-  // Physics checks for new Utility/Skill relics (Featherweight radius + Gyro rateMult + Chrono proj slow) strictly in GAUNTLET
+  // Physics checks: Utility/Skill modifiers leave Max HP at 100 while scaling hitbox/speed/rate cleanly in GAUNTLET only
+  const nonHpRelics = [
+    'overclocked', 'turbo_boost', 'golden_magnet', 'gyro_stabilizer',
+    'kinetic_cushion', 'cleanse_orb', 'featherweight_dash', 'magnetic_core',
+    'twin_spark', 'chrono_dampener',
+  ];
   const gSim = new ArenaSimulation({
     mode: MODES.GAUNTLET,
     hearts: 1,
     seed: 901,
-    runRelics: ['gyro_stabilizer', 'featherweight_dash', 'chrono_dampener', 'twin_spark'],
+    runRelics: nonHpRelics,
   });
   gSim.startMatch({
     mode: MODES.GAUNTLET,
     hearts: 1,
-    runRelics: ['gyro_stabilizer', 'featherweight_dash', 'chrono_dampener', 'twin_spark'],
+    runRelics: nonHpRelics,
     skipDraft: true,
   });
   gSim.setupAimPhase('verity', 'bow');
   gSim.launchRound(0, Math.PI);
   const gP1 = gSim.balls.find((b) => b.owner === 1);
-  const gBase = new ArenaSimulation({ mode: MODES.ONLINE, hearts: 1, seed: 901, runRelics: ['gyro_stabilizer', 'featherweight_dash'] });
-  gBase.startMatch({ mode: MODES.ONLINE, hearts: 1, runRelics: ['gyro_stabilizer', 'featherweight_dash'], skipDraft: true });
+  const gBase = new ArenaSimulation({ mode: MODES.ONLINE, hearts: 1, seed: 901, runRelics: nonHpRelics });
+  gBase.startMatch({ mode: MODES.ONLINE, hearts: 1, runRelics: nonHpRelics, skipDraft: true });
   gBase.setupAimPhase('verity', 'bow');
   gBase.launchRound(0, Math.PI);
   const oP1 = gBase.balls.find((b) => b.owner === 1);
+  assert(gP1.maxHp === 100, `Utility/Speed/Cleanse modifiers must never inflate Max HP (got ${gP1.maxHp})`);
   assert(
     gP1.radius < oP1.radius && gP1.rateMult > oP1.rateMult,
-    `Featherweight should shrink hitbox (${gP1.radius} < ${oP1.radius}) and Gyro should boost rateMult (${gP1.rateMult} > ${oP1.rateMult}) in GAUNTLET only`
+    `Featherweight should shrink hitbox (${gP1.radius} < ${oP1.radius}) and Utility relics should boost rateMult (${gP1.rateMult} > ${oP1.rateMult}) in GAUNTLET only`
   );
 
   // Save code roundtrip preserves unlockedRelics
