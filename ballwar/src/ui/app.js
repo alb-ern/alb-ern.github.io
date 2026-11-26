@@ -517,7 +517,7 @@ function renderSandboxRelicToggles() {
       btn.dataset.relicId = r.id;
       btn.dataset.owner = String(owner);
       btn.title = `${r.name} (${r.category || 'Utility'}): ${r.desc}`;
-      btn.innerHTML = `<span>${r.icon}</span><span>${r.name}</span>`;
+      btn.innerHTML = `${active ? '<span>✓</span>' : ''}<span>${r.icon}</span><span>${r.name}</span>`;
       btn.addEventListener('click', () => {
         soundEngine.unlock();
         const list = ui.sandboxRelics[owner] || [];
