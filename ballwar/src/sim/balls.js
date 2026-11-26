@@ -512,8 +512,8 @@ export const BALL_DEFS = [
     primaryColor: '#0f172a',
     secondaryColor: '#94a3b8',
     accentColor: '#f97316',
-    quote: 'Hooks an enemy and spins them out of control.',
-    details: 'Fires a heavy chain hook every 1.55s that latches onto the opponent for 10 DMG and whips them spinning into walls/hazards.',
+    quote: 'Spins a heavy grapple hook — lower HP means a longer ride into the wall!',
+    details: 'Spins an Axe-style grapple hook around itself. Enemies touched stick to the hook and get carried into arena walls for heavy slam damage; carry duration increases as Hook Ball HP drops.',
     aimHint: 'direct',
   },
   {

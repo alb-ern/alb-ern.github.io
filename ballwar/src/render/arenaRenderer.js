@@ -628,16 +628,63 @@ function drawHelper(ctx, h, sim) {
     ctx.stroke();
   } else if (h.kind === 'blade') {
     const r = h.hitRadius || 18;
+    const parent = sim && sim.balls.find((b) => b.id === h.parentId);
+    if (h.longBlade && parent) {
+      const startDist = Math.max(20, parent.radius * 0.72);
+      const bx = parent.x + Math.cos(h.orbitAngle) * startDist;
+      const by = parent.y + Math.sin(h.orbitAngle) * startDist;
+      const tipX = h.x + Math.cos(h.orbitAngle) * (r * 0.9);
+      const tipY = h.y + Math.sin(h.orbitAngle) * (r * 0.9);
+      const nx = -Math.sin(h.orbitAngle) * (r * 0.48);
+      const ny = Math.cos(h.orbitAngle) * (r * 0.48);
+      const mx = parent.x + Math.cos(h.orbitAngle) * (h.orbitRadius * 0.78);
+      const my = parent.y + Math.sin(h.orbitAngle) * (h.orbitRadius * 0.78);
+      ctx.fillStyle = '#f1f5f9';
+      ctx.strokeStyle = '#a855f7';
+      ctx.lineWidth = 2.6;
+      ctx.beginPath();
+      ctx.moveTo(bx, by);
+      ctx.lineTo(mx + nx, my + ny);
+      ctx.lineTo(tipX, tipY);
+      ctx.lineTo(mx - nx, my - ny);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+    } else {
+      ctx.translate(h.x, h.y);
+      ctx.rotate(h.orbitAngle * 2.5);
+      ctx.fillStyle = '#e2e8f0';
+      ctx.strokeStyle = '#a855f7';
+      ctx.lineWidth = 2.4;
+      ctx.beginPath();
+      ctx.moveTo(0, -r * 1.15);
+      ctx.lineTo(r * 0.85, 0);
+      ctx.lineTo(0, r * 1.15);
+      ctx.lineTo(-r * 0.85, 0);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+    }
+  } else if (h.kind === 'hook_claw') {
+    const parent = sim && sim.balls.find((b) => b.id === h.parentId);
+    if (parent) {
+      ctx.strokeStyle = '#475569';
+      ctx.lineWidth = 7;
+      ctx.setLineDash([8, 5]);
+      ctx.beginPath();
+      ctx.moveTo(parent.x, parent.y);
+      ctx.lineTo(h.x, h.y);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
     ctx.translate(h.x, h.y);
-    ctx.rotate(h.orbitAngle * 2.5);
-    ctx.fillStyle = '#e2e8f0';
-    ctx.strokeStyle = '#a855f7';
-    ctx.lineWidth = 2.4;
+    ctx.rotate(h.orbitAngle);
+    ctx.fillStyle = h.hookedId ? '#fb923c' : '#cbd5e1';
+    ctx.strokeStyle = '#f97316';
+    ctx.lineWidth = 3;
     ctx.beginPath();
-    ctx.moveTo(0, -r * 1.15);
-    ctx.lineTo(r * 0.85, 0);
-    ctx.lineTo(0, r * 1.15);
-    ctx.lineTo(-r * 0.85, 0);
+    ctx.arc(0, 0, h.hitRadius * 0.78, -1.65, 1.65);
+    ctx.lineTo(h.hitRadius * 0.9, 0);
     ctx.closePath();
     ctx.fill();
     ctx.stroke();

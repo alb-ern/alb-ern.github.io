@@ -1014,6 +1014,52 @@ test('Every ball runs a short fight under rebalanced tuning with and without mod
   });
 });
 
+test('Hook Ball spins grapple claw, carries into wall slam, scales duration with missing HP; Blade Ball uses longBlade', () => {
+  const s = new ArenaSimulation({ mode: MODES.SANDBOX, hearts: 1, seed: 404 });
+  s.startMatch({ mode: MODES.SANDBOX, hearts: 1, skipDraft: true });
+  s.setupAimPhase('hook', 'verity');
+  s.launchRound(0, Math.PI);
+
+  const claw = s.helpers.find((h) => h.kind === 'hook_claw');
+  assert(claw && claw.orbitRadius === 136, `Hook Ball must spawn hook_claw helper (got ${claw?.orbitRadius})`);
+
+  // Place enemy directly on the claw to test latch at full HP
+  s.step(FIXED_DT);
+  const hookBall = s.balls.find((b) => b.owner === 1);
+  const foe = s.balls.find((b) => b.owner === 2);
+  foe.x = claw.x;
+  foe.y = claw.y;
+  s.step(FIXED_DT);
+  assert(claw.hookedId === foe.id, 'Enemy touching hook_claw must stick to the hook');
+  const fullHpDur = claw.hookTimer;
+
+  // Low-HP Hook Ball must carry longer than full-HP Hook Ball
+  const sLow = new ArenaSimulation({ mode: MODES.SANDBOX, hearts: 1, seed: 405 });
+  sLow.startMatch({ mode: MODES.SANDBOX, hearts: 1, skipDraft: true });
+  sLow.setupAimPhase('hook', 'verity');
+  sLow.launchRound(0, Math.PI);
+  sLow.step(FIXED_DT);
+  const lowHook = sLow.balls.find((b) => b.owner === 1);
+  const lowFoe = sLow.balls.find((b) => b.owner === 2);
+  lowHook.hp = 20;
+  const lowClaw = sLow.helpers.find((h) => h.kind === 'hook_claw');
+  lowFoe.x = lowClaw.x;
+  lowFoe.y = lowClaw.y;
+  sLow.step(FIXED_DT);
+  assert(
+    lowClaw.hookTimer > fullHpDur + 0.8,
+    `Lower HP Hook Ball must carry longer (${lowClaw.hookTimer.toFixed(2)}s vs ${fullHpDur.toFixed(2)}s)`
+  );
+
+  // Blade Ball longBlade reach check
+  const sBlade = new ArenaSimulation({ mode: MODES.SANDBOX, hearts: 1, seed: 406 });
+  sBlade.startMatch({ mode: MODES.SANDBOX, hearts: 1, skipDraft: true });
+  sBlade.setupAimPhase('blade', 'verity');
+  sBlade.launchRound(0, Math.PI);
+  const blades = sBlade.helpers.filter((h) => h.kind === 'blade');
+  assert(blades.length === 2 && blades.every((b) => b.longBlade && b.orbitRadius === 118), 'Blade Ball must spawn 118px longBlades');
+});
+
 let spiderWins = 0;
 let verityWins = 0;
 let draws = 0;

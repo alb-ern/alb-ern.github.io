@@ -1108,6 +1108,95 @@ export class ArenaSimulation {
               });
             }
           }
+        } else if (h.kind === 'hook_claw') {
+          h.orbitAngle += h.angularSpeed * dt;
+          h.x = parent.x + Math.cos(h.orbitAngle) * h.orbitRadius;
+          h.y = parent.y + Math.sin(h.orbitAngle) * h.orbitRadius;
+          if (h.hookCooldown > 0) h.hookCooldown -= dt;
+          if (h.wallHitCd > 0) h.wallHitCd -= dt;
+
+          if (h.hookedId) {
+            const target = this.balls.find((ball) => ball.id === h.hookedId && ball.hp > 0);
+            if (!target || h.hookTimer <= 0) {
+              if (target) {
+                const tangent = h.orbitAngle + Math.PI / 2;
+                const fling = 620;
+                target.vx = parent.vx * 0.4 + Math.cos(tangent) * fling;
+                target.vy = parent.vy * 0.4 + Math.sin(tangent) * fling;
+                target.wallSlamBonusTimer = 1.0;
+                target.wallSlamOwner = h.owner;
+                target.wallSlamBallId = parent.ballId || 'hook';
+                this.emitText(target.x, target.y - target.radius - 8, 'FLUNG!', '#f97316');
+              }
+              h.hookedId = null;
+              h.hookTimer = 0;
+              h.hookCooldown = 0.75;
+            } else {
+              h.hookTimer -= dt;
+              const b = this.bounds;
+              // Drag parent subtly toward nearest wall while carrying so victim hits walls
+              const dL = parent.x - b.left;
+              const dR = b.right - parent.x;
+              const dT = parent.y - b.top;
+              const dB = b.bottom - parent.y;
+              const minD = Math.min(dL, dR, dT, dB);
+              const pull = 190 * dt;
+              if (minD === dL) parent.vx -= pull;
+              else if (minD === dR) parent.vx += pull;
+              else if (minD === dT) parent.vy -= pull;
+              else parent.vy += pull;
+
+              const rawX = h.x + Math.cos(h.orbitAngle) * (target.radius * 0.55);
+              const rawY = h.y + Math.sin(h.orbitAngle) * (target.radius * 0.55);
+              const minX = b.left + target.radius;
+              const maxX = b.right - target.radius;
+              const minY = b.top + target.radius;
+              const maxY = b.bottom - target.radius;
+              const clampedX = Math.max(minX, Math.min(maxX, rawX));
+              const clampedY = Math.max(minY, Math.min(maxY, rawY));
+              const hitWall =
+                rawX <= minX + 1 || rawX >= maxX - 1 || rawY <= minY + 1 || rawY >= maxY - 1;
+
+              target.x = clampedX;
+              target.y = clampedY;
+              const tangent = h.orbitAngle + Math.PI / 2;
+              const spinSp = h.angularSpeed * h.orbitRadius * 0.65;
+              target.vx = parent.vx * 0.4 + Math.cos(tangent) * spinSp;
+              target.vy = parent.vy * 0.4 + Math.sin(tangent) * spinSp;
+
+              if (hitWall && (h.wallHitCd || 0) <= 0) {
+                h.wallHitCd = 0.24;
+                this.dealDamage(target, 11, h.owner, 'hook_wall');
+                this.addParticleBurst(clampedX, clampedY, '#f97316', 10);
+                this.emitText(clampedX, clampedY - target.radius - 10, 'WALL SLAM!', '#f97316');
+                this.emitEvent('wall', { owner: target.owner });
+              }
+            }
+          } else if ((h.hookCooldown || 0) <= 0) {
+            const sx = parent.x + Math.cos(h.orbitAngle) * (h.orbitRadius * 0.68);
+            const sy = parent.y + Math.sin(h.orbitAngle) * (h.orbitRadius * 0.68);
+            for (const enemy of this.getEnemyBalls(h.owner)) {
+              if (enemy.phaseTimer > 0) continue;
+              const hitTip = Math.hypot(enemy.x - h.x, enemy.y - h.y) <= enemy.radius + h.hitRadius;
+              const hitShaft = Math.hypot(enemy.x - sx, enemy.y - sy) <= enemy.radius + h.hitRadius * 0.65;
+              if (hitTip || hitShaft) {
+                const missingFrac = Math.max(0, Math.min(1, 1 - parent.hp / Math.max(1, parent.maxHp)));
+                h.hookedId = enemy.id;
+                h.hookTimer = 1.0 + missingFrac * 1.7;
+                h.wallHitCd = 0.04;
+                this.dealDamage(enemy, 4, h.owner, 'hook_latch');
+                this.addParticleBurst(enemy.x, enemy.y, '#f97316', 8);
+                this.emitText(
+                  enemy.x,
+                  enemy.y - enemy.radius - 10,
+                  `HOOKED! ${h.hookTimer.toFixed(1)}s`,
+                  '#f97316'
+                );
+                this.emitEvent('ability', { kind: 'harpoon', owner: h.owner });
+                break;
+              }
+            }
+          }
         } else {
           // Orbiting or velocity-aligned weapon helper (orbital, blade, axe, spear, hammer, chainsaw, drill, lance)
           if (h.alignVelocity && parent) {
@@ -1121,6 +1210,7 @@ export class ArenaSimulation {
           h.y = parent.y + Math.sin(h.orbitAngle) * h.orbitRadius;
 
           const hasShaft =
+            h.longBlade ||
             h.kind === 'axe' ||
             h.kind === 'spear' ||
             h.kind === 'hammer' ||

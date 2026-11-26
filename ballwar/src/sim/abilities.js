@@ -692,9 +692,10 @@ export const ABILITY_HANDLERS = {
         addOrbitHelper(sim, ball, {
           kind: 'blade',
           orbitAngle: i * Math.PI,
-          orbitRadius: 78,
+          orbitRadius: 118,
           angularSpeed: 4.5,
-          hitRadius: 18,
+          hitRadius: 20,
+          longBlade: true,
           dmg: 4,
           knockback: 140,
         });
@@ -709,9 +710,10 @@ export const ABILITY_HANDLERS = {
         addOrbitHelper(sim, ball, {
           kind: 'blade',
           orbitAngle: 0,
-          orbitRadius: 78,
+          orbitRadius: 118,
           angularSpeed: 4.5,
-          hitRadius: 18,
+          hitRadius: 20,
+          longBlade: true,
           dmg: 4,
           knockback: 140,
         });
@@ -1150,29 +1152,28 @@ export const ABILITY_HANDLERS = {
 
   hook: {
     onInit(sim, ball) {
-      ball.state = { timer: 0.7 };
+      ball.state = {};
+      addOrbitHelper(sim, ball, {
+        kind: 'hook_claw',
+        orbitAngle: 0,
+        orbitRadius: 136,
+        angularSpeed: 4.5,
+        hitRadius: 24,
+        dmg: 0,
+        knockback: 0,
+        hookedId: null,
+        hookTimer: 0,
+        hookCooldown: 0,
+        wallHitCd: 0,
+      });
     },
     onUpdate(sim, ball, dt) {
-      ball.state.timer -= dt;
-      if (ball.state.timer <= 0) {
-        ball.state.timer = 1.55;
-        const a = aimAngleToEnemy(sim, ball, 0.05);
-        sim.addProjectile({
-          kind: 'hook',
-          owner: ball.owner,
-          parentId: ball.id,
-          x: ball.x + Math.cos(a) * (ball.radius + 8),
-          y: ball.y + Math.sin(a) * (ball.radius + 8),
-          vx: Math.cos(a) * 720,
-          vy: Math.sin(a) * 720,
-          radius: 21,
-          dmg: 10,
-          bouncesLeft: 1,
-          spinDuration: 0.95,
-          ttl: 2.0,
-          color: '#94a3b8',
-        });
-        sim.emitEvent('ability', { kind: 'harpoon', owner: ball.owner });
+      // Spin speed subtly intensifies as Hook Ball gets low HP
+      const missingFrac = Math.max(0, Math.min(1, 1 - ball.hp / Math.max(1, ball.maxHp)));
+      for (const h of sim.helpers) {
+        if (h.parentId === ball.id && h.kind === 'hook_claw') {
+          h.angularSpeed = 4.4 + missingFrac * 1.4;
+        }
       }
     },
   },
