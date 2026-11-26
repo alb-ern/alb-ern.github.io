@@ -6,7 +6,14 @@
 
 import { BALL_DEFS, getBallDef } from './balls.js';
 import { MODES } from './constants.js';
-import { CHALLENGE_LEVELS, GAUNTLET_TOWERS, getChallengeDef, getGauntletTower } from './gauntlet.js';
+import {
+  CHALLENGE_LEVELS,
+  GAUNTLET_RELICS,
+  GAUNTLET_TOWERS,
+  getChallengeDef,
+  getGauntletTower,
+  getRelicDef,
+} from './gauntlet.js';
 
 export const PROFILE_STORAGE_KEY = 'ballwar_profile_v1';
 
@@ -82,6 +89,35 @@ export const CAPSULE_DEFS = Object.freeze([
     preferredRarities: ['Mythic', 'Exclusive'],
   },
 ]);
+
+export const STARTER_RELIC_IDS = Object.freeze([
+  'vampiric_walls',
+  'overclocked',
+  'titan_plating',
+  'sonic_bounce',
+  'frost_touch',
+  'turbo_boost',
+  'gyro_stabilizer',
+  'kinetic_cushion',
+]);
+
+export const RELIC_UNLOCK_COSTS = Object.freeze({
+  Rare: 70,
+  Epic: 110,
+  Legendary: 165,
+  Mythic: 230,
+});
+
+export const RELIC_POD_DEF = Object.freeze({
+  id: 'relic_pod',
+  name: 'Relic Vault Pod',
+  cost: 90,
+  icon: '🔮',
+  accent: '#22d3ee',
+  desc: 'Guaranteed NEW Run Modifier for Gauntlet Towers (zero duplicates!).',
+  oddsLabel: '40% Rare • 34% Epic • 18% Legendary • 8% Mythic',
+  weights: { Rare: 40, Epic: 34, Legendary: 18, Mythic: 8 },
+});
 
 export const ARENA_THEMES = Object.freeze([
   {
@@ -304,6 +340,7 @@ export function rollBounties(existingIds = [], count = 3, rng = Math.random) {
 }
 
 const VALID_BALL_ID_SET = new Set(BALL_DEFS.map((b) => b.id));
+const VALID_RELIC_ID_SET = new Set(GAUNTLET_RELICS.map((r) => r.id));
 
 export function createDefaultProfile(rng = Math.random) {
   return {
@@ -318,6 +355,7 @@ export function createDefaultProfile(rng = Math.random) {
     unlockedThemes: ['classic'],
     unlockedTrails: ['default'],
     unlockedBalls: [...STARTER_BALL_IDS],
+    unlockedRelics: [...STARTER_RELIC_IDS],
     towerProgress: createDefaultTowerProgress(),
     ballMastery: {},
     bounties: rollBounties([], 3, rng),
@@ -354,6 +392,9 @@ export function sanitizeProfile(raw) {
     unlockedBalls: Array.from(
       new Set([...STARTER_BALL_IDS, ...(Array.isArray(raw.unlockedBalls) ? raw.unlockedBalls : [])])
     ).filter((id) => VALID_BALL_ID_SET.has(id)),
+    unlockedRelics: Array.from(
+      new Set([...STARTER_RELIC_IDS, ...(Array.isArray(raw.unlockedRelics) ? raw.unlockedRelics : [])])
+    ).filter((id) => VALID_RELIC_ID_SET.has(id)),
     ballMastery: {},
     bounties: [],
     stats: {
@@ -718,6 +759,105 @@ export function grantFreeBallUnlock(profile, preferredRarities = null, rng = Mat
   return { ball, bonusSparks: 0 };
 }
 
+export function getRelicUnlockCost(relicIdOrDef) {
+  const def = typeof relicIdOrDef === 'string' ? getRelicDef(relicIdOrDef) : relicIdOrDef;
+  return RELIC_UNLOCK_COSTS[def?.rarity] ?? 95;
+}
+
+export function getUnlockedRelicIds(profile) {
+  if (!Array.isArray(profile?.unlockedRelics) || profile.unlockedRelics.length === 0) {
+    return [...STARTER_RELIC_IDS];
+  }
+  return profile.unlockedRelics;
+}
+
+export function isRelicUnlocked(profile, relicId) {
+  return getUnlockedRelicIds(profile).includes(relicId);
+}
+
+export function getLockedRelicDefs(profile, allowedRarities = null) {
+  const owned = new Set(getUnlockedRelicIds(profile));
+  const allowedSet = Array.isArray(allowedRarities) && allowedRarities.length > 0 ? new Set(allowedRarities) : null;
+  return GAUNTLET_RELICS.filter((r) => !owned.has(r.id) && (!allowedSet || allowedSet.has(r.rarity)));
+}
+
+function pickWeightedLockedRelic(profile, weights = null, preferredRarities = null, rng = Math.random) {
+  let candidates = preferredRarities ? getLockedRelicDefs(profile, preferredRarities) : getLockedRelicDefs(profile);
+  if (candidates.length === 0) {
+    candidates = getLockedRelicDefs(profile);
+  }
+  if (candidates.length === 0) return null;
+
+  if (weights && typeof weights === 'object') {
+    const byRarity = {};
+    for (const r of candidates) {
+      if (!byRarity[r.rarity]) byRarity[r.rarity] = [];
+      byRarity[r.rarity].push(r);
+    }
+    const availableRarities = Object.keys(byRarity);
+    const totalWeight = availableRarities.reduce((acc, rar) => acc + (weights[rar] || 10), 0);
+    let roll = rng() * totalWeight;
+    let chosenRarity = availableRarities[0];
+    for (const rar of availableRarities) {
+      roll -= weights[rar] || 10;
+      if (roll <= 0) {
+        chosenRarity = rar;
+        break;
+      }
+    }
+    const bucket = byRarity[chosenRarity];
+    return bucket[Math.floor(rng() * bucket.length)];
+  }
+
+  return candidates[Math.floor(rng() * candidates.length)];
+}
+
+export function unlockRelicDirect(profile, relicId) {
+  if (!VALID_RELIC_ID_SET.has(relicId)) return { ok: false, reason: 'Invalid relic' };
+  if (!Array.isArray(profile.unlockedRelics)) profile.unlockedRelics = [...STARTER_RELIC_IDS];
+  if (profile.unlockedRelics.includes(relicId)) {
+    return { ok: true, alreadyUnlocked: true, relic: getRelicDef(relicId), cost: 0 };
+  }
+  const relic = getRelicDef(relicId);
+  const cost = getRelicUnlockCost(relic);
+  if (profile.sparks < cost) return { ok: false, reason: `Need ${cost} Sparks` };
+  profile.sparks -= cost;
+  profile.unlockedRelics.push(relicId);
+  return { ok: true, relic, cost };
+}
+
+export function openRelicPod(profile, rng = Math.random) {
+  if (!Array.isArray(profile.unlockedRelics)) profile.unlockedRelics = [...STARTER_RELIC_IDS];
+  const allLocked = getLockedRelicDefs(profile);
+  if (allLocked.length === 0) {
+    return { ok: false, reason: `All ${GAUNTLET_RELICS.length} Run Relics are already unlocked!` };
+  }
+  if (profile.sparks < RELIC_POD_DEF.cost) {
+    return { ok: false, reason: `Need ${RELIC_POD_DEF.cost} Sparks` };
+  }
+  const relic = pickWeightedLockedRelic(profile, RELIC_POD_DEF.weights, null, rng);
+  if (!relic) return { ok: false, reason: 'No locked relics left!' };
+  profile.sparks -= RELIC_POD_DEF.cost;
+  profile.unlockedRelics.push(relic.id);
+  return {
+    ok: true,
+    relic,
+    cost: RELIC_POD_DEF.cost,
+    remainingLocked: Math.max(0, GAUNTLET_RELICS.length - profile.unlockedRelics.length),
+  };
+}
+
+export function grantFreeRelicUnlock(profile, preferredRarities = null, rng = Math.random) {
+  if (!Array.isArray(profile.unlockedRelics)) profile.unlockedRelics = [...STARTER_RELIC_IDS];
+  const relic = pickWeightedLockedRelic(profile, null, preferredRarities, rng);
+  if (!relic) {
+    profile.sparks += 75;
+    return { relic: null, bonusSparks: 75 };
+  }
+  profile.unlockedRelics.push(relic.id);
+  return { relic, bonusSparks: 0 };
+}
+
 /**
  * Records a completed round (and optional match end / gauntlet floor clear) into the player profile.
  * Returns a structured reward summary for the Arena Banner UI.
@@ -758,6 +898,7 @@ export function recordCombatProgress(profile, opts = {}) {
   let trophiesDelta = 0;
   const masteryUps = [];
   let bossBallUnlock = null;
+  let bossRelicUnlock = null;
   let challengeCleared = null;
   let challengeUnlocked = null;
   let towerUnlocked = null;
@@ -862,6 +1003,18 @@ export function recordCombatProgress(profile, opts = {}) {
     }
   }
 
+  // Gauntlet Bosses (F5, F10) or first Challenge clear also drop a FREE Run Relic!
+  if (isGauntlet && wonRound && (gauntletFloor === 5 || gauntletFloor === 10 || challengeCleared)) {
+    const preferredRelics =
+      gauntletFloor === 10 ? ['Mythic', 'Legendary', 'Epic'] : ['Rare', 'Epic', 'Legendary'];
+    const rDrop = grantFreeRelicUnlock(profile, preferredRelics, rng);
+    if (rDrop.relic) {
+      bossRelicUnlock = rDrop.relic;
+    } else if (rDrop.bonusSparks > 0) {
+      sparksEarned += rDrop.bonusSparks;
+    }
+  }
+
   // Per-ball Mastery XP
   const uniqueBalls = Array.from(new Set(usedBalls.filter(Boolean)));
   const ballXpGain = Math.round((isSandbox ? 5 : wonRound ? 28 : 14) * rewardMult);
@@ -909,6 +1062,7 @@ export function recordCombatProgress(profile, opts = {}) {
     completedBounties,
     milestoneUnlocks,
     bossBallUnlock,
+    bossRelicUnlock,
     challengeCleared,
     challengeUnlocked,
     towerUnlocked,

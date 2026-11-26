@@ -1839,6 +1839,17 @@ h1, h2, h3, .brand-title, .round-pill, .btn, .rarity-pill {
   filter: grayscale(0.65) brightness(0.72);
 }
 
+.mini-ball-btn.is-readonly {
+  cursor: default;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+.mini-ball-btn.is-readonly:hover {
+  border-color: rgba(148, 163, 184, 0.25);
+  background: rgba(15, 23, 42, 0.65);
+}
+
 .mini-lock-tag {
   font-size: 0.65rem;
   font-weight: 800;
@@ -1974,8 +1985,8 @@ h1, h2, h3, .brand-title, .round-pill, .btn, .rarity-pill {
 .tower-card {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 16px;
+  gap: 6px;
+  padding: 12px 14px;
   border-radius: 16px;
   background: linear-gradient(155deg, rgba(15, 23, 42, 0.95), rgba(30, 27, 75, 0.72));
   border: 2px solid rgba(148, 163, 184, 0.25);
@@ -2067,14 +2078,14 @@ h1, h2, h3, .brand-title, .round-pill, .btn, .rarity-pill {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
   gap: 10px;
-  margin-bottom: 16px;
+  margin-bottom: 10px;
 }
 
 .challenge-card {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding: 12px 10px;
+  gap: 5px;
+  padding: 10px;
   border-radius: 14px;
   background: rgba(15, 23, 42, 0.9);
   border: 2px solid rgba(148, 163, 184, 0.24);
@@ -2145,14 +2156,22 @@ h1, h2, h3, .brand-title, .round-pill, .btn, .rarity-pill {
   align-items: center;
   justify-content: space-between;
   gap: 14px;
-  padding-top: 12px;
+  padding-top: 10px;
   border-top: 1px solid rgba(148, 163, 184, 0.2);
 }
 
+.gauntlet-footer-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
 .gauntlet-select-summary {
-  font-size: 0.86rem;
+  font-size: 0.84rem;
   font-weight: 800;
   color: #e2e8f0;
+  min-width: 0;
 }
 
 @media (max-width: 880px) {
@@ -2166,4 +2185,63 @@ h1, h2, h3, .brand-title, .round-pill, .btn, .rarity-pill {
     flex-direction: column;
     text-align: center;
   }
+  .gauntlet-footer-actions {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+}
+
+.relic-shop-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 10px;
+  max-height: 290px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.relic-shop-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px;
+  border-radius: 14px;
+  background: rgba(15, 23, 42, 0.8);
+  border: 1px solid rgba(148, 163, 184, 0.24);
+}
+
+.relic-shop-card.is-locked {
+  border-style: dashed;
+  background: rgba(15, 23, 42, 0.52);
+}
+
+.relic-shop-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.relic-shop-head .relic-icon {
+  font-size: 1.55rem;
+  line-height: 1;
+}
+
+.relic-shop-head h4 {
+  margin: 0;
+  font-size: 0.92rem;
+}
+
+.relic-shop-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.relic-shop-card p {
+  margin: 0;
+  font-size: 0.78rem;
+  color: #cbd5e1;
+  line-height: 1.35;
+  flex: 1;
 }

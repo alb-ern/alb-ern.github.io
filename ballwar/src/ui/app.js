@@ -31,27 +31,35 @@ import {
   getMaxUnlockedChallenge,
   getPlayerLevelInfo,
   getRankInfo,
+  getRelicUnlockCost,
   getTowerProgress,
   getUnlockedBallIds,
+  getUnlockedRelicIds,
   importProfileCode,
   isBallUnlocked,
+  isRelicUnlocked,
   isTowerUnlocked,
   loadProfile,
   openBallCapsule,
+  openRelicPod,
   recordCombatProgress,
+  RELIC_POD_DEF,
   saveProfile,
   unlockBallDirect,
   unlockCosmetic,
+  unlockRelicDirect,
 } from '../sim/progression.js';
 import {
   CHALLENGE_LEVELS,
   drawRelicChoices,
   GAUNTLET_FLOORS,
+  GAUNTLET_RELICS,
   GAUNTLET_TOWERS,
   getChallengeDef,
   getGauntletFloor,
   getGauntletTower,
   getRelicDef,
+  getRelicExtraRerolls,
   getRelicRewardMult,
 } from '../sim/gauntlet.js';
 
@@ -128,6 +136,7 @@ const ui = {
   dexLock: 'ALL',
   dexQuery: '',
   profileTab: 'overview',
+  relicCatFilter: 'All',
   selectedTowerId: 'citadel',
   selectedChallengeLevel: 1,
   lastCapsuleBallId: null,
@@ -333,6 +342,7 @@ function usesUnlockedPool() {
 function renderMiniBallGrid(container, selectedId, onPick, opts = {}) {
   container.innerHTML = '';
   const lockedSet = opts.lockedSet || null;
+  const readOnly = Boolean(opts.readOnly);
   const list = lockedSet
     ? [...BALL_DEFS].sort((a, b) => Number(lockedSet.has(a.id)) - Number(lockedSet.has(b.id)))
     : BALL_DEFS;
@@ -341,7 +351,7 @@ function renderMiniBallGrid(container, selectedId, onPick, opts = {}) {
     const locked = Boolean(lockedSet && lockedSet.has(def.id));
     const btn = document.createElement('button');
     btn.type = 'button';
-    btn.className = `mini-ball-btn${def.id === selectedId ? ' is-selected' : ''}${locked ? ' is-locked' : ''}`;
+    btn.className = `mini-ball-btn${def.id === selectedId ? ' is-selected' : ''}${locked ? ' is-locked' : ''}${readOnly ? ' is-readonly' : ''}`;
     btn.dataset.ballId = def.id;
     btn.dataset.search = `${def.id} ${def.name} ${def.rarity} ${def.archetype} ${def.quote}`.toLowerCase();
 
@@ -361,6 +371,9 @@ function renderMiniBallGrid(container, selectedId, onPick, opts = {}) {
       btn.appendChild(lockTag);
       btn.disabled = true;
       btn.title = `Locked — Unlock ${def.name} via Ball Capsules, Ball Dex (✨${getBallUnlockCost(def)}), or Gauntlet Boss Drops`;
+    } else if (readOnly) {
+      btn.disabled = true;
+      btn.title = `${def.name} (Owned) — View-only Roster; use Draft Cards or Reroll to pick`;
     } else {
       btn.addEventListener('click', () => {
         soundEngine.unlock();
@@ -689,6 +702,9 @@ function renderGauntletModal() {
   if ($('btn-launch-gauntlet')) {
     $('btn-launch-gauntlet').textContent = `Enter ${activeTower.name} (Lv.${selCh.level})`;
   }
+  if ($('gauntlet-relics-owned')) {
+    $('gauntlet-relics-owned').textContent = `Relics: ${getUnlockedRelicIds(profile).length} / ${GAUNTLET_RELICS.length}`;
+  }
 }
 
 function updateGauntletHud() {
@@ -764,8 +780,8 @@ function startGauntletFloor(floorNum) {
     suddenDeathStart: ch.suddenDeathSec,
     runRelics: [...gauntletRun.relics],
     bossHpScale: f.bossHpScale * ch.enemyHpMult,
-    bossDmgScale: ch.enemyDmgMult,
-    bossRateScale: ch.enemyRateMult,
+    bossDmgScale: (f.bossDmgScale ?? 1) * ch.enemyDmgMult,
+    bossRateScale: (f.bossRateScale ?? 1) * ch.enemyRateMult,
   });
   sim.hearts = { 1: gauntletRun.hearts, 2: 1 };
   sim.heartsToWin = ch.hearts;
@@ -783,7 +799,12 @@ function openRelicDraftModal() {
   const ch = getChallengeDef(gauntletRun.challengeLevel);
   const f = getGauntletFloor(gauntletRun.floor, tower.id);
   const nextFloor = getGauntletFloor(gauntletRun.floor + 1, tower.id);
-  gauntletRun.pendingRelicChoices = drawRelicChoices(gauntletRun.relics, 3);
+  gauntletRun.pendingRelicChoices = drawRelicChoices(
+    gauntletRun.relics,
+    3,
+    Math.random,
+    getUnlockedRelicIds(profile)
+  );
   $('relic-kicker').textContent = `${tower.icon} LV.${ch.level} • FLOOR ${f.floor} CLEARED → FLOOR ${nextFloor.floor} (${nextFloor.title.toUpperCase()})`;
   $('relic-title').textContent = 'Choose 1 Stacking Run Relic';
   $('relic-sub').textContent = nextFloor.isBoss
@@ -847,9 +868,13 @@ function beginRoundDraft() {
 function openDraftForPlayer(playerNum, slotIdx = 0) {
   ui.draftPlayer = playerNum;
   ui.draftSlot = slotIdx;
-  ui.draftRerollsLeft = FREE_REROLLS_PER_ROUND;
+  const extraRerolls = sim.mode === MODES.GAUNTLET ? getRelicExtraRerolls(gauntletRun.relics) : 0;
+  ui.draftRerollsLeft = FREE_REROLLS_PER_ROUND + extraRerolls;
   const allowedIds = usesUnlockedPool() ? getUnlockedBallIds(profile) : null;
   ui.draftChoices = drawRandomBallChoices(3, Math.random, [], allowedIds);
+  if ($('btn-all-balls')) {
+    $('btn-all-balls').textContent = usesUnlockedPool() ? 'Owned Roster' : 'All Balls';
+  }
   $('draft-all-panel').classList.add('hidden');
   $('draft-cards').classList.remove('hidden');
 
@@ -1307,6 +1332,12 @@ function renderBannerRewards(summary) {
   }
   if (summary.bossBallUnlock) {
     chips.push({ text: `🎁 BOSS DROP: Unlocked ${summary.bossBallUnlock.name}!`, cls: 'gold' });
+  }
+  if (summary.bossRelicUnlock) {
+    chips.push({
+      text: `${summary.bossRelicUnlock.icon} RELIC DROP: Unlocked ${summary.bossRelicUnlock.name}!`,
+      cls: 'purple',
+    });
   }
   if (summary.firstClearBonus > 0) {
     chips.push({ text: `🏆 1st-Clear Bonus +${summary.firstClearBonus} ✨`, cls: 'gold' });
@@ -2204,6 +2235,7 @@ function setProfileTab(tab) {
   });
   $('ptab-overview')?.classList.toggle('hidden', tab !== 'overview');
   $('ptab-capsules')?.classList.toggle('hidden', tab !== 'capsules');
+  $('ptab-relics')?.classList.toggle('hidden', tab !== 'relics');
   $('ptab-armory')?.classList.toggle('hidden', tab !== 'armory');
   $('ptab-mastery')?.classList.toggle('hidden', tab !== 'mastery');
   renderProfileModal();
@@ -2212,6 +2244,104 @@ function setProfileTab(tab) {
 function openProfileModal(tab = 'overview') {
   setProfileTab(tab);
   $('modal-profile').classList.remove('hidden');
+}
+
+function showRelicReveal(relic) {
+  const box = $('relic-reveal-box');
+  if (!box || !relic) return;
+  $('relic-reveal-icon').textContent = relic.icon;
+  $('relic-reveal-name').textContent = relic.name;
+  const rar = $('relic-reveal-rarity');
+  rar.className = `rarity-pill r-${relic.rarity}`;
+  rar.textContent = `${relic.rarity} Relic`;
+  $('relic-reveal-cat').textContent = `${relic.category || 'Utility'} • Gauntlet Pool`;
+  $('relic-reveal-desc').textContent = relic.desc;
+  box.classList.remove('hidden');
+  box.style.animation = 'none';
+  void box.offsetWidth;
+  box.style.animation = '';
+}
+
+function renderRelicsTab() {
+  const ownedIds = getUnlockedRelicIds(profile);
+  const ownedSet = new Set(ownedIds);
+  const ownedCount = ownedSet.size;
+  const totalCount = GAUNTLET_RELICS.length;
+  const remainingLocked = Math.max(0, totalCount - ownedCount);
+
+  if ($('relics-sparks')) $('relics-sparks').textContent = `✨ ${profile.sparks}`;
+  if ($('relics-progress-label')) $('relics-progress-label').textContent = `${ownedCount} / ${totalCount} Relics`;
+  if ($('relics-progress-bar')) {
+    $('relics-progress-bar').style.width = `${Math.round((ownedCount / totalCount) * 100)}%`;
+  }
+  const podBtn = $('btn-open-relic-pod');
+  if (podBtn) {
+    if (remainingLocked === 0) {
+      podBtn.textContent = 'All 24 Relics Unlocked ✓';
+      podBtn.disabled = true;
+    } else {
+      podBtn.textContent = `${RELIC_POD_DEF.icon} Crack Relic Pod (${RELIC_POD_DEF.cost} ✨)`;
+      podBtn.disabled = profile.sparks < RELIC_POD_DEF.cost;
+    }
+  }
+
+  document.querySelectorAll('#relic-cat-chips .chip').forEach((chip) => {
+    chip.classList.toggle('is-active', chip.dataset.rcat === ui.relicCatFilter);
+  });
+
+  const grid = $('relics-shop-grid');
+  if (!grid) return;
+  grid.innerHTML = '';
+
+  const cat = ui.relicCatFilter || 'All';
+  const filtered = GAUNTLET_RELICS.filter((r) => cat === 'All' || r.category === cat).sort(
+    (a, b) => Number(ownedSet.has(a.id)) - Number(ownedSet.has(b.id))
+  );
+
+  for (const r of filtered) {
+    const owned = isRelicUnlocked(profile, r.id);
+    const cost = getRelicUnlockCost(r);
+    const canAfford = profile.sparks >= cost;
+    const card = document.createElement('article');
+    card.className = `relic-shop-card${owned ? ' is-unlocked' : ' is-locked'} border-${r.rarity}`;
+    card.dataset.relicId = r.id;
+    card.innerHTML = `
+      <div class="relic-shop-head">
+        <span class="relic-icon">${r.icon}</span>
+        <h4>${r.name}</h4>
+      </div>
+      <div class="relic-shop-meta">
+        <span class="rarity-pill r-${r.rarity}">${r.rarity}</span>
+        <span class="muted" style="font-size:0.74rem;font-weight:700;">${r.category || 'Utility'}</span>
+      </div>
+      <p>${r.desc}</p>
+    `;
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    if (owned) {
+      btn.className = 'btn btn-primary btn-sm';
+      btn.textContent = 'Unlocked ✓';
+      btn.disabled = true;
+    } else {
+      btn.className = canAfford ? 'btn btn-gold btn-sm' : 'btn btn-ghost btn-sm';
+      btn.textContent = `Unlock (✨ ${cost})`;
+      btn.disabled = !canAfford;
+      btn.addEventListener('click', () => {
+        soundEngine.unlock();
+        const res = unlockRelicDirect(profile, r.id);
+        if (res.ok) {
+          saveProfile(profile);
+          soundEngine.playLevelUp();
+          refreshProfileChrome();
+          renderRelicsTab();
+          renderGauntletModal();
+          showRelicReveal(res.relic);
+        }
+      });
+    }
+    card.appendChild(btn);
+    grid.appendChild(card);
+  }
 }
 
 function showCapsuleReveal(ball, capsuleName) {
@@ -2418,6 +2548,11 @@ function renderProfileModal() {
     renderCapsulesTab();
   }
 
+  // Tab 3: Run Relics
+  if (ui.profileTab === 'relics') {
+    renderRelicsTab();
+  }
+
   // Tab 3: Armory
   if (ui.profileTab === 'armory') {
     $('armory-sparks').textContent = `✨ ${profile.sparks}`;
@@ -2568,6 +2703,32 @@ function bindEvents() {
     soundEngine.unlock();
     soundEngine.playReward();
     chooseGauntletRelic(null);
+  });
+
+  $('btn-gauntlet-open-relics')?.addEventListener('click', () => {
+    soundEngine.unlock();
+    $('modal-gauntlet')?.classList.add('hidden');
+    openProfileModal('relics');
+  });
+
+  $('btn-open-relic-pod')?.addEventListener('click', () => {
+    soundEngine.unlock();
+    const res = openRelicPod(profile);
+    if (res.ok) {
+      saveProfile(profile);
+      soundEngine.playLevelUp();
+      refreshProfileChrome();
+      renderRelicsTab();
+      renderGauntletModal();
+      showRelicReveal(res.relic);
+    }
+  });
+
+  document.querySelectorAll('#relic-cat-chips .chip').forEach((chip) => {
+    chip.addEventListener('click', () => {
+      ui.relicCatFilter = chip.dataset.rcat || 'All';
+      renderRelicsTab();
+    });
   });
 
   document.querySelectorAll('[data-format-toggle] .fmt-btn').forEach((btn) => {
@@ -2789,9 +2950,12 @@ function bindEvents() {
       const owned = new Set(getUnlockedBallIds(profile));
       const lockedSet = new Set(BALL_DEFS.filter((b) => !owned.has(b.id)).map((b) => b.id));
       if ($('draft-all-title')) {
-        $('draft-all-title').textContent = `Your Unlocked Balls (${owned.size} / ${BALL_DEFS.length}) — Unlock more via Capsules or Dex`;
+        $('draft-all-title').textContent = `Owned Roster (${owned.size} / ${BALL_DEFS.length}) — Read-Only View (Use Draft or Reroll to pick)`;
       }
-      renderMiniBallGrid($('draft-all-grid'), null, (id) => selectDraftBall(id), { lockedSet });
+      renderMiniBallGrid($('draft-all-grid'), null, (id) => selectDraftBall(id), {
+        lockedSet,
+        readOnly: true,
+      });
     } else {
       if ($('draft-all-title')) {
         $('draft-all-title').textContent = `All ${BALL_DEFS.length} Balls — Fair PvP Pool`;

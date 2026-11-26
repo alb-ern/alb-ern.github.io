@@ -10,27 +10,27 @@
   <script type="importmap">
     {
       "imports": {
-        "./src/sim/constants.js": "./src/sim/constants.js?v=20261126a",
-        "./src/sim/balls.js": "./src/sim/balls.js?v=20261126a",
-        "./src/sim/physics.js": "./src/sim/physics.js?v=20261126a",
-        "./src/sim/ai.js": "./src/sim/ai.js?v=20261126a",
-        "./src/sim/abilities.js": "./src/sim/abilities.js?v=20261126a",
-        "./src/sim/abilitiesExtra.js": "./src/sim/abilitiesExtra.js?v=20261126a",
-        "./src/sim/abilitiesMeme.js": "./src/sim/abilitiesMeme.js?v=20261126a",
-        "./src/sim/balanceTuning.js": "./src/sim/balanceTuning.js?v=20261126a",
-        "./src/sim/progression.js": "./src/sim/progression.js?v=20261126a",
-        "./src/sim/gauntlet.js": "./src/sim/gauntlet.js?v=20261126a",
-        "./src/net/p2p.js": "./src/net/p2p.js?v=20261126a",
-        "./src/net/protocol.js": "./src/net/protocol.js?v=20261126a",
-        "./src/audio/soundEngine.js": "./src/audio/soundEngine.js?v=20261126a",
-        "./src/render/ballArt.js": "./src/render/ballArt.js?v=20261126a",
-        "./src/render/ballArtExtra.js": "./src/render/ballArtExtra.js?v=20261126a",
-        "./src/render/ballArtMeme.js": "./src/render/ballArtMeme.js?v=20261126a",
-        "./src/render/arenaRenderer.js": "./src/render/arenaRenderer.js?v=20261126a"
+        "./src/sim/constants.js": "./src/sim/constants.js?v=20261126b",
+        "./src/sim/balls.js": "./src/sim/balls.js?v=20261126b",
+        "./src/sim/physics.js": "./src/sim/physics.js?v=20261126b",
+        "./src/sim/ai.js": "./src/sim/ai.js?v=20261126b",
+        "./src/sim/abilities.js": "./src/sim/abilities.js?v=20261126b",
+        "./src/sim/abilitiesExtra.js": "./src/sim/abilitiesExtra.js?v=20261126b",
+        "./src/sim/abilitiesMeme.js": "./src/sim/abilitiesMeme.js?v=20261126b",
+        "./src/sim/balanceTuning.js": "./src/sim/balanceTuning.js?v=20261126b",
+        "./src/sim/progression.js": "./src/sim/progression.js?v=20261126b",
+        "./src/sim/gauntlet.js": "./src/sim/gauntlet.js?v=20261126b",
+        "./src/net/p2p.js": "./src/net/p2p.js?v=20261126b",
+        "./src/net/protocol.js": "./src/net/protocol.js?v=20261126b",
+        "./src/audio/soundEngine.js": "./src/audio/soundEngine.js?v=20261126b",
+        "./src/render/ballArt.js": "./src/render/ballArt.js?v=20261126b",
+        "./src/render/ballArtExtra.js": "./src/render/ballArtExtra.js?v=20261126b",
+        "./src/render/ballArtMeme.js": "./src/render/ballArtMeme.js?v=20261126b",
+        "./src/render/arenaRenderer.js": "./src/render/arenaRenderer.js?v=20261126b"
       }
     }
   </script>
-  <link rel="stylesheet" href="./styles/main.css?v=20261126a" />
+  <link rel="stylesheet" href="./styles/main.css?v=20261126b" />
 </head>
 <body>
   <div class="app-shell">
@@ -509,7 +509,7 @@
         <div>
           <p class="draft-kicker">ROGUELIKE PVE • 10 FLOORS PER TOWER</p>
           <h2 id="gauntlet-select-title">Select Gauntlet Tower &amp; Challenge Level</h2>
-          <p class="muted">Clear any run to unlock the next Challenge Level (1–5) with higher Boss stats &amp; up to 3.2× Sparks/XP!</p>
+          <p class="muted">Clear any run to unlock the next Challenge Level (1–5) with higher Boss stats &amp; up to 3.1× Sparks/XP!</p>
         </div>
         <button class="btn btn-ghost" id="btn-close-gauntlet" type="button">Close</button>
       </div>
@@ -524,7 +524,11 @@
         <div class="gauntlet-select-summary" id="gauntlet-select-summary">
           Tower I: Meme Apex Citadel • Challenge Lv. 1 (Standard)
         </div>
-        <button class="btn btn-purple btn-lg" id="btn-launch-gauntlet" type="button">Begin Climb (Floor 1/10)</button>
+        <div class="gauntlet-footer-actions">
+          <span class="muted" id="gauntlet-relics-owned" style="font-size:0.84rem;font-weight:700;white-space:nowrap;">Relics: 8 / 24</span>
+          <button class="btn btn-gold btn-sm" id="btn-gauntlet-open-relics" type="button" style="white-space:nowrap;">🔮 Unlock Relics</button>
+          <button class="btn btn-purple btn-lg" id="btn-launch-gauntlet" type="button" style="white-space:nowrap;">Begin Climb (Floor 1/10)</button>
+        </div>
       </div>
     </div>
   </div>
@@ -552,7 +556,7 @@
       <div class="modal-head">
         <div>
           <h2 id="profile-modal-title">Arena Profile, Capsules &amp; Armory</h2>
-          <p class="muted" id="profile-modal-sub">Unlock balls for VS Bot &amp; Gauntlet Tower; Online PvP &amp; Sandbox keep all 120 free &amp; fair.</p>
+          <p class="muted" id="profile-modal-sub">Unlock balls &amp; Run Relics for VS Bot &amp; Gauntlet Tower; Online PvP &amp; Sandbox keep all 120 free &amp; fair.</p>
         </div>
         <button class="btn btn-ghost" id="btn-close-profile" type="button">Close</button>
       </div>
@@ -560,6 +564,7 @@
       <div class="chip-row profile-tabs" id="profile-tab-row">
         <button class="chip is-active" data-ptab="overview" type="button">Overview &amp; Bounties</button>
         <button class="chip" data-ptab="capsules" type="button">🎁 Ball Capsules</button>
+        <button class="chip" data-ptab="relics" type="button">🔮 Run Relics</button>
         <button class="chip" data-ptab="armory" type="button">Armory (Themes &amp; Trails)</button>
         <button class="chip" data-ptab="mastery" type="button">Ball Mastery</button>
       </div>
@@ -616,7 +621,45 @@
         </p>
       </div>
 
-      <!-- TAB 3: ARMORY (ARENA THEMES & BALL TRAILS) -->
+      <!-- TAB 3: RUN RELICS (GAUNTLET MODIFIERS) -->
+      <div id="ptab-relics" class="ptab-pane hidden">
+        <div class="armory-balance-bar">
+          <div>
+            <span>Your Balance: <strong id="relics-sparks">✨ 100</strong></span>
+            <span class="pill-sep">•</span>
+            <span>Relic Vault: <strong id="relics-progress-label">8 / 24 Relics</strong></span>
+          </div>
+          <button class="btn btn-gold btn-sm" id="btn-open-relic-pod" type="button">🔮 Crack Relic Pod (90 ✨)</button>
+        </div>
+        <div class="xp-bar-track" style="height:10px;"><div class="xp-bar-fill" id="relics-progress-bar" style="width:33%"></div></div>
+
+        <div id="relic-reveal-box" class="capsule-reveal-box hidden" style="margin-top:10px;">
+          <div id="relic-reveal-icon" style="font-size:2.4rem;line-height:1;width:64px;text-align:center;">🔮</div>
+          <div class="capsule-reveal-info">
+            <span class="draft-kicker">NEW RUN RELIC UNLOCKED!</span>
+            <h3 id="relic-reveal-name">Cleanse Core</h3>
+            <div class="capsule-reveal-pills">
+              <span class="rarity-pill" id="relic-reveal-rarity">Epic</span>
+              <span class="muted" id="relic-reveal-cat">Utility</span>
+            </div>
+            <p id="relic-reveal-desc"></p>
+          </div>
+        </div>
+
+        <div class="chip-row" id="relic-cat-chips" style="margin:10px 0 8px;">
+          <button class="chip is-active" data-rcat="All" type="button">All (24)</button>
+          <button class="chip" data-rcat="Utility" type="button">Utility</button>
+          <button class="chip" data-rcat="Skill" type="button">Skill</button>
+          <button class="chip" data-rcat="Defense" type="button">Defense</button>
+          <button class="chip" data-rcat="Offense" type="button">Offense</button>
+        </div>
+        <div id="relics-shop-grid" class="relic-shop-grid"></div>
+        <p class="muted" style="margin:6px 0 0; font-size:0.8rem;">
+          Tip: Clearing <strong>Gauntlet Bosses (Floor 5 &amp; 10)</strong> or first-clearing a <strong>Challenge Level</strong> also drops a FREE Run Relic!
+        </p>
+      </div>
+
+      <!-- TAB 4: ARMORY (ARENA THEMES & BALL TRAILS) -->
       <div id="ptab-armory" class="ptab-pane hidden">
         <div class="armory-balance-bar">
           <span>Your Balance: <strong id="armory-sparks">✨ 100</strong></span>
@@ -628,7 +671,7 @@
         <div id="armory-trails-grid" class="armory-grid"></div>
       </div>
 
-      <!-- TAB 4: BALL MASTERY -->
+      <!-- TAB 5: BALL MASTERY -->
       <div id="ptab-mastery" class="ptab-pane hidden">
         <p class="muted" style="margin:0 0 10px;">
           Play &amp; win rounds with any ball to level it from <strong>Lv 1 Bronze</strong> → <strong>Lv 3 Gold Crown</strong> → <strong>Lv 5 Cosmic Ω</strong>!
@@ -639,6 +682,6 @@
   </div>
 
   <script src="./vendor/peerjs.min.js"></script>
-  <script type="module" src="./src/ui/app.js?v=20261126a"></script>
+  <script type="module" src="./src/ui/app.js?v=20261126b"></script>
 </body>
 </html>

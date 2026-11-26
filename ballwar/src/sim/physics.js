@@ -27,6 +27,8 @@ import {
   applyRelicsOnUpdate,
   applyRelicsOnWallHit,
   getRelicDmgMult,
+  getRelicEnemyProjSpeedMult,
+  getRelicRadiusMult,
 } from './gauntlet.js';
 
 export function createSeededRng(seed = Date.now()) {
@@ -190,6 +192,11 @@ export class ArenaSimulation {
       this.mode === MODES.GAUNTLET && owner === 2 && !isSplitChild && this.bossHpScale !== 1
         ? Math.max(15, Math.round(baseHp * this.bossHpScale))
         : baseHp;
+    const radiusScale =
+      this.mode === MODES.GAUNTLET && owner === 1 && !radiusOverride && this.runRelics.length > 0
+        ? getRelicRadiusMult(this.runRelics)
+        : 1;
+    const radius = radiusOverride ?? Math.max(12, Math.round(def.radius * radiusScale));
     return {
       id: this.nextEntityId++,
       owner,
@@ -204,7 +211,7 @@ export class ArenaSimulation {
       vy,
       lastDirX: owner === 1 ? 1 : -1,
       lastDirY: 0,
-      radius: radiusOverride ?? def.radius,
+      radius,
       mass: def.mass ?? 1,
       hp,
       maxHp: hp,
@@ -393,6 +400,14 @@ export class ArenaSimulation {
   addProjectile(proj) {
     if (!proj.sourceBallId && this._actingBallId) proj.sourceBallId = this._actingBallId;
     if (!proj.sourceEntityId && this._actingEntityId) proj.sourceEntityId = this._actingEntityId;
+    if (this.mode === MODES.GAUNTLET && proj.owner === 2 && this.runRelics.length > 0) {
+      const pMult = getRelicEnemyProjSpeedMult(this.runRelics);
+      if (pMult !== 1) {
+        if (proj.vx != null) proj.vx *= pMult;
+        if (proj.vy != null) proj.vy *= pMult;
+        if (proj.speed != null) proj.speed *= pMult;
+      }
+    }
     proj.id = this.nextEntityId++;
     this.projectiles.push(proj);
   }
@@ -470,7 +485,7 @@ export class ArenaSimulation {
       if (!(amount > 0)) return 0;
     }
     if (this.mode === MODES.GAUNTLET && target.owner === 1 && this.runRelics.length > 0) {
-      amount = applyRelicsOnDamagePrevent(this, target, amount);
+      amount = applyRelicsOnDamagePrevent(this, target, amount, this.runRelics, reason);
       if (!(amount > 0)) return 0;
     }
 

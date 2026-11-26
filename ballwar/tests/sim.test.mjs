@@ -19,7 +19,9 @@ import {
   ARENA_THEMES,
   BALL_TRAILS,
   CAPSULE_DEFS,
+  RELIC_POD_DEF,
   STARTER_BALL_IDS,
+  STARTER_RELIC_IDS,
   claimBounty,
   createDefaultProfile,
   equipCosmetic,
@@ -27,17 +29,22 @@ import {
   getBallMasteryInfo,
   getMaxUnlockedChallenge,
   getRankInfo,
+  getRelicUnlockCost,
   getTowerProgress,
   getUnlockedBallIds,
+  getUnlockedRelicIds,
   importProfileCode,
   isBallUnlocked,
+  isRelicUnlocked,
   isTowerUnlocked,
   loadProfile,
   openBallCapsule,
+  openRelicPod,
   recordCombatProgress,
   saveProfile,
   unlockBallDirect,
   unlockCosmetic,
+  unlockRelicDirect,
 } from '../src/sim/progression.js';
 import {
   CHALLENGE_LEVELS,
@@ -49,6 +56,7 @@ import {
   getChallengeDef,
   getGauntletFloor,
   getGauntletTower,
+  getRelicExtraRerolls,
 } from '../src/sim/gauntlet.js';
 
 function assert(cond, msg) {
@@ -588,13 +596,13 @@ test('Progression awards Sparks, Mastery Lv 1-5, Bounties, Armory unlocks, miles
 });
 
 test('Gauntlet Tower 10 floors & Run Relics trigger in GAUNTLET mode and stay inactive in BOT/ONLINE modes', () => {
-  assert(GAUNTLET_FLOORS.length === 10 && GAUNTLET_RELICS.length === 12, 'Expected 10 floors & 12 relics');
+  assert(GAUNTLET_FLOORS.length === 10 && GAUNTLET_RELICS.length === 24, 'Expected 10 floors & 24 relics');
   const f10 = getGauntletFloor(10);
   assert(f10.teamSize === 2 && f10.bossTeam.length === 2, 'Floor 10 must be a 2v2 Final Boss arena');
   const picks = drawRelicChoices(['vampiric_walls'], 3, createSeededRng(99));
   assert(picks.length === 3 && picks.every((r) => r.id !== 'vampiric_walls'), 'Relic draft should prefer unowned relics');
 
-  // Test Aegis Start (blocks 2 hits), Titan Plating (+25 HP), and Second Wind (revive at 25 HP) in GAUNTLET mode
+  // Test Aegis Start (blocks 1 hit), Titan Plating (+5 HP), and Second Wind (revive at 10 HP) in GAUNTLET mode
   const sim = new ArenaSimulation({
     mode: MODES.GAUNTLET,
     hearts: 1,
@@ -613,17 +621,16 @@ test('Gauntlet Tower 10 floors & Run Relics trigger in GAUNTLET mode and stay in
   sim.launchRound(0, Math.PI);
   const p1 = sim.balls.find((b) => b.owner === 1);
   const boss = sim.balls.find((b) => b.owner === 2);
-  assert(p1.maxHp === 125 && p1.hp === 125, `Titan Plating should give +25 HP (got ${p1.maxHp})`);
+  assert(p1.maxHp === 105 && p1.hp === 105, `Titan Plating should give +5 HP (got ${p1.maxHp})`);
   assert(boss.maxHp === 120, `Boss HP scale 1.2x should give 120 HP (got ${boss.maxHp})`);
 
-  // First 2 hits blocked by Aegis Start
-  assert(sim.dealDamage(p1, 20, 2, 'test') === 0, 'Aegis hit 1 should be blocked');
-  assert(sim.dealDamage(p1, 20, 2, 'test') === 0, 'Aegis hit 2 should be blocked');
-  assert(p1.hp === 125, 'HP should remain full after 2 Aegis blocks');
+  // First hit (up to 10 DMG) blocked by Aegis Start
+  assert(sim.dealDamage(p1, 9, 2, 'test') === 0, 'Aegis hit 1 (<=10 DMG) should be blocked completely');
+  assert(p1.hp === 105, 'HP should remain full after Aegis block');
 
-  // Lethal hit should trigger Second Wind revive at 25 HP
+  // Lethal hit should trigger Second Wind revive at 10 HP
   sim.dealDamage(p1, 999, 2, 'lethal_test');
-  assert(p1.hp === 25 && p1.phaseTimer > 0, `Second Wind must revive player at 25 HP with phase shield (hp=${p1.hp})`);
+  assert(p1.hp === 10 && p1.phaseTimer > 0, `Second Wind must revive player at 10 HP with phase shield (hp=${p1.hp})`);
 
   // Verify PvP / BOT mode ignores runRelics completely
   const pvp = new ArenaSimulation({ mode: MODES.ONLINE, hearts: 1, seed: 9002 });
@@ -778,10 +785,10 @@ test('Gauntlet Towers (Citadel & Abyssal Void Spire) and 5 escalating Challenge 
   gSim.launchRound(0, Math.PI);
   const gP1 = gSim.balls.find((b) => b.owner === 1);
   const gBoss = gSim.balls.find((b) => b.owner === 2);
-  assert(gBoss.maxHp === 170, `Challenge Lv 5 boss should have 170 HP (got ${gBoss.maxHp})`);
+  assert(gBoss.maxHp === 130, `Challenge Lv 5 boss should have 130 HP (got ${gBoss.maxHp})`);
   assert(Math.abs(gBoss.rateMult - ch5.enemyRateMult) < 1e-6, 'Challenge Lv 5 boss should scale rateMult');
   const dmgTaken = gSim.dealDamage(gP1, 10, 2, 'boss_test');
-  assert(dmgTaken === 11, `Challenge Lv 5 boss (10 * 0.701 * 1.58) should deal 11 dmg (got ${dmgTaken})`);
+  assert(dmgTaken === 9, `Challenge Lv 5 boss (10 * 0.701 * 1.22) should deal 9 dmg (got ${dmgTaken})`);
 
   const oSim = new ArenaSimulation({
     mode: MODES.ONLINE,
@@ -811,6 +818,89 @@ test('Gauntlet Towers (Citadel & Abyssal Void Spire) and 5 escalating Challenge 
   assert(
     imported && getTowerProgress(imported, 'spire').maxChallengeCleared === 5 && getTowerProgress(imported, 'citadel').maxChallengeCleared === 1,
     'Save code roundtrip must preserve towerProgress across both towers'
+  );
+});
+
+test('24 Run Relics, Relic unlocking (Starter 8 -> Pods / Direct / Boss Drops), filtered draft & Floor 1 easing', () => {
+  assert(GAUNTLET_RELICS.length === 24, `Expected 24 GAUNTLET_RELICS (got ${GAUNTLET_RELICS.length})`);
+  assert(STARTER_RELIC_IDS.length === 8, `Expected 8 STARTER_RELIC_IDS (got ${STARTER_RELIC_IDS.length})`);
+
+  // Floor 1 of both towers is softened for 0-relic opener
+  const cF1 = getGauntletFloor(1, 'citadel');
+  const sF1 = getGauntletFloor(1, 'spire');
+  assert(cF1.bossHpScale < 0.9 && cF1.bossDmgScale < 1, 'Citadel Floor 1 should have softened HP and damage scales');
+  assert(sF1.bossHpScale < 0.85 && sF1.bossDmgScale < 1, 'Spire Floor 1 should have softened HP and damage scales');
+
+  // Fresh profile starts with 8 Starter Relics & draws only from owned pool
+  const rng = createSeededRng(777);
+  const prof = createDefaultProfile(rng);
+  assert(getUnlockedRelicIds(prof).length === 8, 'Default profile must start with 8 starter relics');
+  const starterSet = new Set(STARTER_RELIC_IDS);
+  for (let i = 0; i < 6; i++) {
+    const picks = drawRelicChoices([], 3, rng, getUnlockedRelicIds(prof));
+    assert(picks.length === 3 && picks.every((r) => starterSet.has(r.id)), 'Filtered relic draft must only offer unlocked starter relics');
+  }
+
+  // Pull a Relic Vault Pod (costs RELIC_POD_DEF.cost, zero duplicates)
+  prof.sparks = 500;
+  const pod = openRelicPod(prof, rng);
+  assert(pod.ok && pod.relic && !starterSet.has(pod.relic.id), 'Relic Pod must unlock a non-starter locked relic');
+  assert(prof.sparks === 500 - RELIC_POD_DEF.cost && getUnlockedRelicIds(prof).length === 9, 'Relic Pod must deduct cost and increment unlockedRelics');
+
+  // Direct unlock a specific locked relic (Twin Spark -> adds +1 draft reroll in Gauntlet)
+  const targetId = isRelicUnlocked(prof, 'twin_spark') ? 'cleanse_orb' : 'twin_spark';
+  const expectedCost = getRelicUnlockCost(targetId);
+  const beforeSparks = prof.sparks;
+  const dir = unlockRelicDirect(prof, targetId);
+  assert(dir.ok && prof.sparks === beforeSparks - expectedCost && isRelicUnlocked(prof, targetId), 'Direct Relic unlock must deduct Sparks and unlock target relic');
+  assert(getRelicExtraRerolls(['twin_spark']) === 1, 'Twin Spark relic must grant +1 reroll');
+
+  // Gauntlet Boss Floor 5 grants a free Relic drop (until all 24 owned)
+  const beforeBossRelicCount = getUnlockedRelicIds(prof).length;
+  const f5Res = recordCombatProgress(prof, {
+    mode: MODES.GAUNTLET,
+    teamSize: 2,
+    usedBalls: ['verity', 'spider'],
+    wonRound: true,
+    gauntletFloor: 5,
+    rng,
+  });
+  assert(
+    f5Res.bossRelicUnlock && getUnlockedRelicIds(prof).length === beforeBossRelicCount + 1,
+    'Gauntlet Floor 5 clear must drop a FREE Run Relic'
+  );
+
+  // Physics checks for new Utility/Skill relics (Featherweight radius + Gyro rateMult + Chrono proj slow) strictly in GAUNTLET
+  const gSim = new ArenaSimulation({
+    mode: MODES.GAUNTLET,
+    hearts: 1,
+    seed: 901,
+    runRelics: ['gyro_stabilizer', 'featherweight_dash', 'chrono_dampener', 'twin_spark'],
+  });
+  gSim.startMatch({
+    mode: MODES.GAUNTLET,
+    hearts: 1,
+    runRelics: ['gyro_stabilizer', 'featherweight_dash', 'chrono_dampener', 'twin_spark'],
+    skipDraft: true,
+  });
+  gSim.setupAimPhase('verity', 'bow');
+  gSim.launchRound(0, Math.PI);
+  const gP1 = gSim.balls.find((b) => b.owner === 1);
+  const gBase = new ArenaSimulation({ mode: MODES.ONLINE, hearts: 1, seed: 901, runRelics: ['gyro_stabilizer', 'featherweight_dash'] });
+  gBase.startMatch({ mode: MODES.ONLINE, hearts: 1, runRelics: ['gyro_stabilizer', 'featherweight_dash'], skipDraft: true });
+  gBase.setupAimPhase('verity', 'bow');
+  gBase.launchRound(0, Math.PI);
+  const oP1 = gBase.balls.find((b) => b.owner === 1);
+  assert(
+    gP1.radius < oP1.radius && gP1.rateMult > oP1.rateMult,
+    `Featherweight should shrink hitbox (${gP1.radius} < ${oP1.radius}) and Gyro should boost rateMult (${gP1.rateMult} > ${oP1.rateMult}) in GAUNTLET only`
+  );
+
+  // Save code roundtrip preserves unlockedRelics
+  const roundtrip = importProfileCode(exportProfileCode(prof));
+  assert(
+    roundtrip && roundtrip.unlockedRelics.length === prof.unlockedRelics.length && isRelicUnlocked(roundtrip, targetId),
+    'Save code roundtrip must preserve unlockedRelics'
   );
 });
 
