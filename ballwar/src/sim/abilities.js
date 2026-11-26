@@ -18,8 +18,12 @@ function addOrbitHelper(sim, ball, opts) {
     orbitRadius: opts.orbitRadius || 80,
     angularSpeed: opts.angularSpeed || 3.4,
     hitRadius: opts.hitRadius || 18,
-    dmg: opts.dmg || 4,
-    knockback: opts.knockback || 140,
+    dmg: opts.dmg ?? 4,
+    knockback: opts.knockback ?? 140,
+    longBlade: Boolean(opts.longBlade),
+    ...(opts.kind === 'hook_claw'
+      ? { hookedId: null, hookTimer: 0, hookCooldown: 0, wallHitCd: 0 }
+      : {}),
     x: ball.x,
     y: ball.y,
     hitCooldowns: {},
